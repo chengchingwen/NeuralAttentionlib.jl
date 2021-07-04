@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 struct Attention{Q, K, V}
   D_Q::Q
   D_K::K
@@ -26,63 +28,142 @@ function flux_attention_forward(F::Attention, Q, K, V)
   return Y
 end
 
-attentionFW(Q, K, V, W_Q, W_K, W_V, b_Q, b_K, b_V) = attentionAD(Q, K, V, W_Q, W_K, W_V, b_Q, b_K, b_V, Val(false))
-function attentionAD(Q, K, V, W_Q, W_K, W_V, b_Q, b_K, b_V, ::Val{BW} = Val(true)) where BW
+function attentionAD_navie(Q, K, V, W_Q, W_K, W_V, b_Q, b_K, b_V)
   HQ = W_Q * Q .+ b_Q
   HK = W_K * K .+ b_K
   HV = W_V * V .+ b_V
+  
   A = HK' * HQ
+  d_k = size(HK, 1)
+  s = convert(eltype(A), √d_k)
+  C, C_idx = findmax(A, dims=1)
+  E = Broadcast.instantiate(@~ exp.((A .- C) ./ s))
+  Es = sum(E, dims=1)
+  S = E ./ Es
+  Broadcast.instantiate(S)
+  Y = HV * S
+  return Y, function (dY)
+    dS = HV' * dY
+    dHV = dY * S'
+    _Es = Broadcast.instantiate(@~(dS .* E ./ (.- Es .^ 2)))
+    dEs = sum(_Es, dims=1)
+    dE = Broadcast.instantiate(@~ dEs .+ (dS ./ Es))
+    dT = Broadcast.instantiate(@~ dE .* E)
+    dC = sum(dT, dims=1)
+    dAs1 = setindex!(zero(A), dC, C_idx)
+    dA = (dAs1 .+ (dE .* E)) ./ s
+    dHQ = HK * dA
+    dHK = HQ * dA'
+    dV = W_V' * dHV
+    dW_V = dHV * V'
+    db_V = sum(dHV, dims=ndims(dHV))
+    dK = W_K' * dHK
+    dW_K = dHK * K'
+    db_K = sum(dHK, dims=ndims(dHK))
+    dQ = W_Q' * dHQ
+    dW_Q = dHQ * Q'
+    db_Q = sum(dHQ, dims=ndims(dHQ))
+    return (dQ, dK, dV, dW_Q, dW_K, dW_V, db_Q, db_K, db_V)
+  end
+end
+
+attentionAD(arg...) = attentionAD_prealloc(arg...)
+function attentionAD_prealloc(Q, K, V, W_Q, W_K, W_V, b_Q, b_K, b_V, ::Val{Back} = Val(true)) where Back
+  HQ = similar(W_Q, size(W_Q, 1), size(Q, 2)) # @b
+  HK = similar(W_K, size(W_K, 1), size(K, 2)) # @b
+  HV = similar(W_V, size(W_V, 1), size(V, 2)) # @b
+  A = similar(HK, size(HK, 2), size(HQ, 2))
+  C = similar(A, 1, size(A, 2))
+  C_idx = similar(C, CartesianIndex{2}) # @b
+  if Back
+    S = similar(A)
+  else
+    S = A
+  end
+  Y = similar(HV, size(HV, 1), size(A, 2))
+  return attentionAD_kernel((HQ, HK, HV, A, C, C_idx, S, Y), Q, K, V, W_Q, W_K, W_V, b_Q, b_K, b_V)
+end
+
+function attentionAD_kernel((HQ, HK, HV, A, C, C_idx, S, Y), Q, K, V, W_Q, W_K, W_V, b_Q, b_K, b_V)
+  #HQ = W_Q * Q .+ b_Q
+  #HQ = similar(size(W_Q, 1), size(Q, 2))
+  HQ .= b_Q
+  mul!(HQ, W_Q, Q, true, true)
+  #HK = W_K * K .+ b_K
+  #HK = similar(size(W_K, 1), size(K, 2))
+  HK .= b_K
+  mul!(HK, W_K, K, true, true)
+  #HV = W_V * V .+ b_V
+  #HV = similar(size(W_V, 1), size(V, 2))
+  HV .= b_V
+  mul!(HV, W_V, V, true, true)
+
+  # A = HK' * HQ
+  mul!(A, HK', HQ)
+  
   #As = A ./ √d_k
   #C, C_idx = findmax(As, dims=1) #maximum(As, dims=1)
   #T = As .- C  
   #E = exp.(As .- C)
+
   d_k = size(HK, 1)
   s = convert(eltype(A), √d_k)
-  if BW
-    C, C_idx = findmax(A, dims=1)
-    E = Broadcast.instantiate(@~ exp.((A .- C) ./ s))
-    Es = sum(E, dims=1)
-    S = E ./ Es
-    Broadcast.instantiate(S)
-  else
-    #C = maximum(A, dims=1)
-    S = softmax(A ./ s)
-  end
-  Y = HV * S
-  if !BW
-    return Y
-  else
-    return Y, function (dY)
-      dS = HV' * dY
-      dHV = dY * S'
-      _Es = Broadcast.instantiate(@~(dS .* E ./ (.- Es .^ 2)))
-      dEs = sum(_Es, dims=1)
-      #dE2 = dS ./ Es
-      #dE1 = repeat(dEs, size(E, 1))
-      #dE = dEs .+ dE2
-      dE = Broadcast.instantiate(@~ dEs .+ (dS ./ Es))
-      dT = Broadcast.instantiate(@~ dE .* E)
-      dC = sum(dT, dims=1)
-      #dAs2 = dT
-      #dAs1 = setindex!(zero(As), dC, C_idx) # zero(As)[C_idx] = dC
-      #dAs = dAs1 + dAs2
-      #dAs = dAs1 .+ (dE .* E)
-      #dA = dAs ./ √d_k
-      dAs1 = setindex!(zero(A), dC, C_idx)
-      dA = (dAs1 .+ (dE .* E)) ./ s
-      dHQ = HK * dA
-      dHK = HQ * dA'
-      dV = W_V' * dHV
-      dW_V = dHV * V'
-      db_V = sum(dHV, dims=ndims(dHV))
-      dK = W_K' * dHK
-      dW_K = dHK * K'
-      db_K = sum(dHK, dims=ndims(dHK))
-      dQ = W_Q' * dHQ
-      dW_Q = dHQ * Q'
-      db_Q = sum(dHQ, dims=ndims(dHQ))
-      return (dQ, dK, dV, dW_Q, dW_K, dW_V, db_Q, db_K, db_V)
-    end
+  #mul!(A, HK', HQ, inv(s), false)
+  
+  #C, C_idx = findmax(A, dims=1)
+  findmax!(C, C_idx, A)
+  
+  #E = Broadcast.instantiate(@~ exp.((A .- C) ./ s))
+  E = A#similar(A)
+  Broadcast.materialize!(E, @~ exp.((A .- C) ./ s))
+  
+  #Es = sum(E, dims=1)
+  Es = C
+  sum!(Es, E)
+  
+  #S = Broadcast.instantiate(E ./ Es)
+  Broadcast.materialize!(S, @~ E ./ Es)
+
+  #Y = HV * S
+  mul!(Y, HV, S)
+  return Y, function (dY)
+    # forward buffers: HV, S, E, Es, C_idx, HK, HQ, #Q, K, V
+    #dS = HV' * dY
+    dS = similar(dY, size(HV, 2), size(dY, 2))
+    mul!(dS, HV', dY)
+
+    #dHV = dY * S' # @S
+    dHV = similar(dY, size(dY, 1), size(S, 1))
+    mul!(dHV, dY, S')
+    
+    _Es = @~(dS .* E ./ (.- Es .^ 2))
+    dEs = sum(_Es, dims=1)
+    
+    #dE2 = dS ./ Es
+    #dE1 = repeat(dEs, size(E, 1))
+    #dE = dEs .+ dE2
+    dE = Broadcast.instantiate(@~ dEs .+ (dS ./ Es)) # @Es
+    dT = Broadcast.instantiate(@~ dE .* E)
+    dC = sum(dT, dims=1)
+    #dAs2 = dT
+    #dAs1 = setindex!(zero(As), dC, C_idx) # zero(As)[C_idx] = dC
+    #dAs = dAs1 + dAs2
+    #dAs = dAs1 .+ (dE .* E)
+    #dA = dAs ./ √d_k
+    dAs1 = setindex!(zero(A), dC, C_idx) # @C_idx
+    dA = (dAs1 .+ (dE .* E)) ./ s # @E
+    dHQ = HK * dA
+    dHK = HQ * dA'
+    dV = W_V' * dHV
+    dW_V = dHV * V'
+    db_V = sum(dHV, dims=ndims(dHV))
+    dK = W_K' * dHK
+    dW_K = dHK * K'
+    db_K = sum(dHK, dims=ndims(dHK))
+    dQ = W_Q' * dHQ
+    dW_Q = dHQ * Q'
+    db_Q = sum(dHQ, dims=ndims(dHQ))
+    return (dQ, dK, dV, dW_Q, dW_K, dW_V, db_Q, db_K, db_V)
   end
 end
 
