@@ -35,8 +35,18 @@ Base.LinearIndices(bc::Base.AbstractBroadcasted) = LinearIndices(map(Base.OneTo,
 
 
 
-# include("./utils.jl")
-include("./attention.jl")
-include("./simple_attention.jl")
+# include("./mapreduce_utils.jl")
+# include("./attention.jl")
+# include("./simple_attention.jl")
+include("./utils.jl")
+include("./mask.jl")
+
+include("./functional/utils.jl")
+include("./functional/score.jl")
+include("./functional/weightedsum.jl")
+include("./functional/attention.jl")
+
+include("./types.jl")
+
 
 end # module
