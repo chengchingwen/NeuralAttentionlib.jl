@@ -12,7 +12,7 @@ import LinearAlgebra.BLAS
         return ntuple(i->size(x, i+offseti), xj-xi)
     elseif n == 3
         offsetj = xj-1
-        return ntuple(i->size(x, i+offsetj), ndims(x)-xj+1)
+        return ntuple(i->size(x, i+offsetj), max(ndims(x)-xj, 0)+1)
     else
         return (1,)
     end    
@@ -22,7 +22,8 @@ function collapsed_size(x, xi, xj, n)
     if n > 3
         return 1
     else
-        return stable_tuple_prod(noncollapsed_size(x, xi, xj, n))
+        ncs = noncollapsed_size(x, xi, xj, n)
+        return stable_tuple_prod(ncs)
     end    
 end
 
@@ -128,9 +129,9 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             strideC = stride(C, 3)
             batchCount = size(C, 3)
 
-            ptrA = Base.unsafe_convert(Ptr{$elty}, A)
-            ptrB = Base.unsafe_convert(Ptr{$elty}, B)
-            ptrC = Base.unsafe_convert(Ptr{$elty}, C)
+            ptrA = pointer(A)
+            ptrB = pointer(B)
+            ptrC = pointer(C)
 
             GC.@preserve A B C begin
                 unsafe_gemm_strided_batched!(
@@ -159,10 +160,10 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
 
         function gemm_strided_batched!(
             transA::Char, transB::Char,
-            alpha::($elty), A::AbstractArray{$elty, 3},
-            B::AbstractArray{$elty, N1}, beta::($elty),
-            C::AbstractArray{$elty, N2},
-            Ai, Aj, Bi, Bj, Ci, Cj) where {N1, N2}
+            alpha::($elty), A::AbstractArray{$elty, N1},
+            B::AbstractArray{$elty, N2}, beta::($elty),
+            C::AbstractArray{$elty, N3},
+            Ai, Aj, Bi, Bj, Ci, Cj) where {N1, N2, N3}
 
             # (A1, A2, ..., Ai-1, Ai, Ai+1, ..., Aj-1, Aj, ..., An)
             #  |______lda______|  |_______K/M_______|  |__batch__|
@@ -198,9 +199,9 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             strideC = stride(C, Cj)
             batchCount = sc3
             
-            ptrA = Base.unsafe_convert(Ptr{$elty}, A)
-            ptrB = Base.unsafe_convert(Ptr{$elty}, B)
-            ptrC = Base.unsafe_convert(Ptr{$elty}, C)
+            ptrA = pointer(A)
+            ptrB = pointer(B)
+            ptrC = pointer(C)
 
             GC.@preserve A B C begin
                 unsafe_gemm_strided_batched!(

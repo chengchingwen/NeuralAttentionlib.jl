@@ -17,6 +17,7 @@ apply_mask(_, ::Nothing, s) = s
 apply_mask(::Nothing, m, s) = apply_mask(m, s)
 apply_mask(m, s) = apply_mask(MaskOp(m), m, s)
 MaskOp(m) = NaiveAttenMaskOp()
+MaskOp(::Nothing) = nothing
 
 struct NaiveAttenMaskOp <: AbstractAttenMaskOp end
 
