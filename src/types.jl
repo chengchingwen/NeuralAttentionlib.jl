@@ -24,8 +24,8 @@ MaskedScoreOp(score) = MaskedScoreOp(nothing, score)
 struct DotProductWeightedSum <: AbstractWeightedSumOp end
 (op::DotProductWeightedSum)(args...) = dot_product_weighted_sum(args...)
 
-struct NavieQKVAttenOp <: AbstractAttenOp end
-(::NavieQKVAttenOp)(args...) = navie_qkv_attention(args...)
+struct NaiveQKVAttenOp <: AbstractAttenOp end
+(::NaiveQKVAttenOp)(args...) = naive_qkv_attention(args...)
 
 struct MultiheadQKVAttenOp <: AbstractAttenOp
     head::Int
