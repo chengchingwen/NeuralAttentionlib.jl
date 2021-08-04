@@ -18,6 +18,7 @@ Base.size(ca::CollapsedDimArray) = ca.dims
 
 Base.strides(ca::CollapsedDimArray) = strides(Base.ReshapedArray(ca.parent, ca.dims, ()))
 
+CollapsedDimArray(ca::CollapsedDimArray) = ca
 CollapsedDimArray(parent) = CollapsedDimArray(parent, static(2), static(3))
 function CollapsedDimArray(parent, si, sj)
     s1 = Bool(is_static(si)) ? si : static(si)
@@ -31,64 +32,147 @@ function Base.getindex(ca::CollapsedDimArray, i...)
 end
 
 const CollapsedAdjOrTrans{T} = NNlib.BatchedAdjOrTrans{T, <:CollapsedDimArray{T}}
-const Collapsed{T} = Union{CollapsedAdjOrTrans{T}, CollapsedDimArray{T}}
+const Collapsed{T} = Union{CollapsedAdjOrTrans{T}, <:CollapsedDimArray{T}}
 
+collapseddim(x::AbstractArray{T, 3}) where T = x
 collapseddim(ca::CollapsedDimArray) = reshape(ca.parent, ca.dims)
-collapseddim(ca::CollapsedAdjOrTrans) = ca isa BatchedTranspose ? batched_transpose(collapseddim(ca.parent)) :
+collapseddim(ca::CollapsedAdjOrTrans) = ca isa NNlib.BatchedTranspose ? batched_transpose(collapseddim(ca.parent)) :
     batched_adjoint(collapseddim(ca.parent))
 
 unwrap_collapse(x) = x
 unwrap_collapse(ca::CollapsedDimArray) = parent(ca)
 
+trans(b::NNlib.BatchedAdjOrTrans) = (b isa NNlib.BatchedTranspose ? 'T' : 'C'), parent(b)
+trans(x) = 'N', x
+trans(c, x) = c == 'T' ? batched_transpose(x) :
+    c == 'C' ? batched_adjoint(x) : x
+
+matmul(a, b) = matmul(a, b, true)
 matmul(a::AbstractVecOrMat, b::AbstractVecOrMat, s::Number) = (a * b) .* s
-
-matmul(a::AbstractArray{TA, 3}, b::AbstractArray{TB, 3}, s::Number) where {TA, TB} = batched_mul(a, b) .* s
-
-matmul(a::AbstractArray, b::Collapsed, s::Number) = matmul(a, collapseddim(b), s)
-matmul(a::Collapsed, b::AbstractArray, s::Number) = matmul(collapseddim(a), b, s)
-
-matmul(a, b) = matmul(a, b, one(promote_type(eltype(a), eltype(b))))
-function matmul(a::CollapsedDimArray{T}, b::CollapsedDimArray{T}, s::Number) where {T <: BLAS.BlasFloat}
-    return gemm_strided_batched_wrapper(a, b, static(false), static(false), convert(T, s), a.parent, b.parent, a.si, a.sj, b.si, b.sj)
+function matmul(a::AbstractArray, b::AbstractArray, s::Number)
+    transA, pA = trans(a)
+    transB, pB = trans(b)
+    A = CollapsedDimArray(pA)
+    B = CollapsedDimArray(pB)
+    return matmul_wrapper(transA, transB, s, A, B)
 end
 
-function matmul(a::CollapsedAdjOrTrans{T}, b::CollapsedDimArray{T}, s::Number) where {T <: BLAS.BlasFloat}
-    transA = static(true)#a isa NNlib.BatchedTranspose ? 'T' : 'C'
-    a = a.parent
-    return gemm_strided_batched_wrapper(a, b, transA, static(false), convert(T, s), a.parent, b.parent, a.si, a.sj, b.si, b.sj)
-end
+gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::StridedArray, B::StridedArray) =
+    gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimArray(A), CollapsedDimArray(B))
 
-function matmul(a::CollapsedDimArray{T}, b::CollapsedAdjOrTrans{T}, s::Number) where {T <: BLAS.BlasFloat}
-    transB = static(true)#b isa NNlib.BatchedTranspose ? 'T' : 'C'
-    b = b.parent
-    return gemm_strided_batched_wrapper(a, b, static(false), transB, convert(T, s), a.parent, b.parent, a.si, a.sj, b.si, b.sj)
-end
+gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::StridedArray, B::CollapsedDimArray) =
+    gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimArray(A), B)
 
-function matmul(a::CollapsedAdjOrTrans{T}, b::CollapsedAdjOrTrans{T}, s::Number) where {T <: BLAS.BlasFloat}
-    transA = static(true)#a isa NNlib.BatchedTranspose ? 'T' : 'C'
-    transB = static(true)#b isa NNlib.BatchedTranspose ? 'T' : 'C'
-    a = a.parent
-    b = b.parent
-    return gemm_strided_batched_wrapper(a, b, transA, transB, convert(T, s), a.parent, b.parent, a.si, a.sj, b.si, b.sj)
-end
+gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::CollapsedDimArray, B::StridedArray) =
+    gemm_strided_batched_wrapper(transA, transB, alpha, A, CollapsedDimArray(B))
 
-@inline function gemm_strided_batched_wrapper(a::CollapsedDimArray, b::CollapsedDimArray, transA, transB, alpha, A, B, Ai, Aj, Bi, Bj)
+function gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::CollapsedDimArray, B::CollapsedDimArray)
+    m = noncollapsed_size(A.parent, A.si, A.sj, transA == 'N' ? static(1) : static(2))
+    n = noncollapsed_size(B.parent, B.si, B.sj, transB == 'N' ? static(2) : static(1))
+    sc3 = size(A, 3) > size(B, 3) ?
+        noncollapsed_size(A.parent, A.si, A.sj, static(3)) :
+        noncollapsed_size(B.parent, B.si, B.sj, static(3))
 
-    m = noncollapsed_size(A, Ai, Aj, !as_bool(transA) ? static(1) : static(2))
-    n = noncollapsed_size(B, Bi, Bj, !as_bool(transB) ? static(2) : static(1))
-    sc3 = @inbounds(a.dims[3] > b.dims[3]) ?
-        noncollapsed_size(A, Ai, Aj, static(3)) :
-        noncollapsed_size(B, Bi, Bj, static(3))
+    T = promote_type(eltype(A), eltype(B))
+    if eltype(A) == T
+        pA = parent(A)
+    else
+        pA = convert(AbstractArray{T}, parent(A))
+    end
+    if eltype(B) == T
+        pB = parent(B)
+    else
+        pB = convert(AbstractArray{T}, parent(B))
+    end
 
-    transA = as_bool(transA) ? (alpha isa Complex ? 'C' : 'T') : 'N'
-    transB = as_bool(transB) ? (alpha isa Complex ? 'C' : 'T') : 'N'
-    
     Ci = static(length(m) + 1)
     Cj = static(Ci + length(n))
-    C = similar(B, (m..., n..., sc3...))
-    gemm_strided_batched!(transA, transB, alpha, A, B, zero(alpha), C, Ai, Aj, Bi, Bj, Ci, Cj)
+    C = similar(pB, T, (m..., n..., sc3...))
+    if ndims(pA) == ndims(pB) == ndims(C) == 3
+        gemm_strided_batched!(transA, transB, convert(T, alpha), pA, pB, zero(T), C)
+    else
+        gemm_strided_batched!(transA, transB, convert(T, alpha), pA, pB, zero(T), C, A.si, A.sj, B.si, B.sj, Ci, Cj)
+    end
 
     return CollapsedDimArray(C, Ci, Cj)
 end
 
-NNlib.softmax(ca::CollapsedDimArray, args...; kwargs...) = CollapsedDimArray(softmax(parent(ca)), ca.dims, ca.si, ca.sj)
+function generic_matmul(transA::Char, transB::Char, alpha::Number, A, B)
+    T = promote_type(eltype(A), eltype(B))
+    scale = convert(T, alpha)
+    if A isa CollapsedDimArray
+        m = noncollapsed_size(A.parent, A.si, A.sj, transA == 'N' ? static(1) : static(2))
+        pA = collapseddim(A)
+        sa3 = noncollapsed_size(A.parent, A.si, A.sj, static(3))
+    else
+        m = size(A, transA == 'N' ? static(1) : static(2))
+        pA = A
+        sa3 = size(A, 3)
+    end
+
+    if B isa CollapsedDimArray
+        n = noncollapsed_size(B.parent, B.si, B.sj, transB == 'N' ? static(2) : static(1))
+        pB = collapseddim(B)
+        sb3 = noncollapsed_size(B.parent, B.si, B.sj, static(3))
+    else
+        n = size(B, transB == 'N' ? static(2) : static(1))
+        pB = B
+        sb3 = size(B, 3)
+    end
+    sc3 = size(A, 3) > size(B, 3) ? sa3 : sb3
+    Ci = static(length(m) + 1)
+    Cj = static(Ci + length(n))
+    outsize = (m..., n..., sc3...)
+    y = scale .* batched_mul(trans(transA, pA), trans(transB, pB))
+    return CollapsedDimArray(reshape(y, outsize), Ci, Cj)
+end
+
+NNlib.is_strided(ca::CollapsedDimArray) = NNlib.is_strided(parent(ca))
+
+function matmul_wrapper(transA::Char, transB::Char, alpha::Number, A::AbstractArray{TA, 3}, B::AbstractArray{TB, 3}) where {TA, TB}
+    mA = size(A, transA == 'N' ? 1 : 2)
+    kA = size(A, transA == 'N' ? 2 : 1)
+    bA = size(A, 3)
+    kB = size(B, transB == 'N' ? 1 : 2)
+    nB = size(B, transB == 'N' ? 1 : 2)
+    bB = size(B, 3)
+
+    if kA != kB || bA != bB
+        throw(DimensionMismatch("A has dimensions ($mA,$kA,$bA) but B has dimensions ($kB,$nB,$bB)"))
+    end
+
+    if TA <: BLAS.BlasFloat && TB <: BLAS.BlasFloat && NNlib.is_strided(A) && NNlib.is_strided(B)
+        return gemm_strided_batched_wrapper(transA, transB, alpha, A, B)
+    else
+        return generic_matmul(transA, transB, alpha, A, B)
+    end
+end
+
+function NNlib.softmax(ca::CollapsedDimArray, args...; kwargs...)
+    real_size = size(parent(ca))
+    y = softmax(collapseddim(ca), args...; kwargs...)
+    return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj)
+end
+
+using ChainRulesCore
+using ChainRulesCore: NoTangent
+function ChainRulesCore.rrule(::typeof(matmul), A, B, s)
+    Y = matmul(A, B, s)
+    function matmul_pullback(Ȳ)
+        Ȳ = Ȳ isa ChainRulesCore.Tangent ? Ȳ[:parent] : Ȳ
+        Athunk = ChainRulesCore.@thunk matmul(Ȳ, batched_adjoint(B), s)
+        Bthunk = ChainRulesCore.@thunk matmul(batched_adjoint(A), Ȳ, s)
+        sthunk = ChainRulesCore.@thunk sum(Ȳ .* Y) * inv(s)
+        return (NoTangent(), Athunk, Bthunk, sthunk)
+    end
+    return Y, matmul_pullback
+end
+
+function ChainRulesCore.rrule(::Type{<:CollapsedDimArray}, x, dims, si, sj)
+    s = size(x)
+    function CollapsedDimArray_pullback(Ȳ)
+        dx = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
+        return (NoTangent(), dx, NoTangent(), NoTangent(), NoTangent())
+    end
+    return CollapsedDimArray(x, dims, si, sj), CollapsedDimArray_pullback
+end
