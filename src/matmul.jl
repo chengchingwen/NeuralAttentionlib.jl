@@ -159,10 +159,9 @@ using ChainRulesCore: NoTangent
 function ChainRulesCore.rrule(::typeof(matmul), A, B, s)
     Y = matmul(A, B, s)
     function matmul_pullback(Ȳ)
-        Ȳ = Ȳ isa ChainRulesCore.Tangent ? Ȳ[:parent] : Ȳ
         Athunk = ChainRulesCore.@thunk matmul(Ȳ, batched_adjoint(B), s)
         Bthunk = ChainRulesCore.@thunk matmul(batched_adjoint(A), Ȳ, s)
-        sthunk = ChainRulesCore.@thunk sum(Ȳ .* Y) * inv(s)
+        sthunk = ChainRulesCore.@thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
     return Y, matmul_pullback
@@ -171,8 +170,17 @@ end
 function ChainRulesCore.rrule(::Type{<:CollapsedDimArray}, x, dims, si, sj)
     s = size(x)
     function CollapsedDimArray_pullback(Ȳ)
-        dx = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
-        return (NoTangent(), dx, NoTangent(), NoTangent(), NoTangent())
+        ∂x = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
+        return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
     end
     return CollapsedDimArray(x, dims, si, sj), CollapsedDimArray_pullback
+end
+
+function ChainRulesCore.rrule(::typeof(unwrap_collapse), x)
+    s = size(x)
+    function unwrap_collapse_pullback(Ȳ)
+        ∂x = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
+        return (NoTangent(), ∂x)
+    end
+    return unwrap_collapse(x), unwrap_collapse_pullback
 end
