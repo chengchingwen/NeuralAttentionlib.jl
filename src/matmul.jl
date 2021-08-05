@@ -57,13 +57,13 @@ function matmul(a::AbstractArray, b::AbstractArray, s::Number)
     return matmul_wrapper(transA, transB, s, A, B)
 end
 
-gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::StridedArray, B::StridedArray) =
+gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::AbstractArray, B::AbstractArray) =
     gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimArray(A), CollapsedDimArray(B))
 
-gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::StridedArray, B::CollapsedDimArray) =
+gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::AbstractArray, B::CollapsedDimArray) =
     gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimArray(A), B)
 
-gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::CollapsedDimArray, B::StridedArray) =
+gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::CollapsedDimArray, B::AbstractArray) =
     gemm_strided_batched_wrapper(transA, transB, alpha, A, CollapsedDimArray(B))
 
 function gemm_strided_batched_wrapper(transA::Char, transB::Char, alpha::Number, A::CollapsedDimArray, B::CollapsedDimArray)
