@@ -3,16 +3,19 @@ using NeuralAttentionlib
 
 using Random
 using Flux
+using NNlib
 
 const tests = [
-    "mta",
+    "collapseddim",
+    "matmul",
+    "mha",
 ]
 
 Random.seed!(0)
 
 include("old_impl/old_impl.jl")
 
-@testset "Transformers" begin
+@testset "NeuralAttentionlib" begin
     for t in tests
         fp = joinpath(dirname(@__FILE__), "$t.jl")
         @info "Test $(uppercase(t))"

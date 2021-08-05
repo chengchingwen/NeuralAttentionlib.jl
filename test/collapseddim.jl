@@ -1,0 +1,26 @@
+@testset "CollapsedDim" begin
+    using NeuralAttentionlib: collapsed_size, noncollapsed_size
+    x = randn(7,6,5,4,3,2)
+
+    @test collapsed_size(x, 3, 5) == (42, 20, 6)
+    @test collapsed_size(x, 2, 3) == (7, 6, 120)
+    @test collapsed_size(x, 4, 8) == (210, 24, 1)
+    @test noncollapsed_size(x, 3, 5, 1) == (7, 6)
+    @test noncollapsed_size(x, 3, 5, 2) == (5, 4)
+    @test noncollapsed_size(x, 3, 5, 3) == (3, 2)
+    @test noncollapsed_size(x, 2, 3, 1) == (7,)
+    @test noncollapsed_size(x, 2, 3, 2) == (6,)
+    @test noncollapsed_size(x, 2, 3, 3) == (5, 4, 3, 2)
+    @test noncollapsed_size(x, 4, 8, 1) == (7, 6, 5)
+    @test noncollapsed_size(x, 4, 8, 2) == (4, 3, 2, 1)
+    @test noncollapsed_size(x, 4, 8, 3) == (1,)
+
+    @test reshape(x, (42, 20, 6)) == collapseddim(x, 3, 5)
+    @test reshape(x, (7, 6, 120)) == collapseddim(x, 2, 3)
+    @test reshape(x, (210, 24, 1)) == collapseddim(x, 4, 8)
+
+    @test reshape(x, (42, 20, 6)) == CollapsedDimArray(x, 3, 5)
+    @test reshape(x, (7, 6, 120)) == CollapsedDimArray(x, 2, 3)
+    @test reshape(x, (210, 24, 1)) == CollapsedDimArray(x, 4, 8)
+    
+end
