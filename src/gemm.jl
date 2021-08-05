@@ -108,6 +108,7 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             C::AbstractArray{$elty, 3})
 
             Base.require_one_based_indexing(A, B, C)
+            BLAS.chkstride1(A, B, C)
             @assert size(A, 3) == size(C, 3) || size(A, 3) == 1 "batch size mismatch: A != C"
             @assert size(B, 3) == size(C, 3) || size(B, 3) == 1 "batch size mismatch: B != C"
 
@@ -173,6 +174,7 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             #  |______ldc______|  |_______K/N_______|  |__batch__|
 
             Base.require_one_based_indexing(A, B, C)
+            BLAS.chkstride1(A, B, C)
 
             sa1, sa2, sa3 = collapsed_size(A, Ai, Aj)
             sb1, sb2, sb3 = collapsed_size(B, Bi, Bj)
