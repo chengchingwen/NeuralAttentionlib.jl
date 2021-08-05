@@ -45,7 +45,7 @@ include("./mask.jl")
 
 include("./functional/utils.jl")
 include("./functional/score.jl")
-include("./functional/weightedsum.jl")
+include("./functional/mixing.jl")
 include("./functional/attention.jl")
 
 include("./types.jl")

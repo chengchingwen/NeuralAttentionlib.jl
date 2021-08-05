@@ -1,9 +1,9 @@
-function attention(weighted_sum, attention_score, )
-    attention_score(mask, )
-    return weighted_sum()
-end
+# function attention(mixingf, score, )
+#     attention_score(mask, )
+#     return weighted_sum()
+# end
 
-@inline naive_qkv_attention(q, k, v, mask=nothing) = dot_product_weighted_sum(
+@inline naive_qkv_attention(q, k, v, mask=nothing) = weighted_sum_mixing(
     normalized_score(NNlib.softmax, masked_score, scaled_dot_product_score, mask, q, k),
     v)
 

@@ -1,10 +1,10 @@
-@inline dot_product_score(q, k) = scaled_dot_product_score(q, k, one(eltype(q)))
+@inline dot_product_score(q, k) = scaled_dot_product_score(q, k, true)
 
 @inline function scaled_dot_product_score(q, k, s = sqrt(inv(size(k, 1))))
     return matmul(batched_transpose(k), q, s)
 end
 
-attention_score(f, args...) = f(args...)
+@inline attention_score(f, args...) = f(args...)
 
 masked_score(score) = Base.Fix1(masked_score, score)
 @inline masked_score(score, mask, args...) = masked_score(score, MaskOp(mask), mask, args...)
