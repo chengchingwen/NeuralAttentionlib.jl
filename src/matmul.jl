@@ -13,10 +13,10 @@ Base.unsafe_convert(::Type{Ptr{T}}, ca::CollapsedDimArray{T}) where {T} = Base.u
 Base.parent(ca::CollapsedDimArray) = ca.parent
 Base.similar(ca::CollapsedDimArray, eltype::Type, dims::Dims) = similar(parent(ca), eltype, dims)
 Base.eltype(::CollapsedDimArray{T}) where T = T
-Base.length(ca::CollapsedDimArray) = length(ca.parent)
+Base.length(ca::CollapsedDimArray) = length(parent(ca))
 Base.size(ca::CollapsedDimArray) = ca.dims
 
-Base.strides(ca::CollapsedDimArray) = strides(Base.ReshapedArray(ca.parent, ca.dims, ()))
+Base.strides(ca::CollapsedDimArray) = strides(Base.ReshapedArray(parent(ca), ca.dims, ()))
 
 CollapsedDimArray(ca::CollapsedDimArray) = ca
 CollapsedDimArray(parent) = CollapsedDimArray(parent, static(2), static(3))
@@ -28,16 +28,16 @@ function CollapsedDimArray(parent, si, sj)
 end
 
 function Base.getindex(ca::CollapsedDimArray, i...)
-    return Base.getindex(Base.ReshapedArray(ca.parent, ca.dims, ()), i...)
+    return Base.getindex(Base.ReshapedArray(parent(ca), ca.dims, ()), i...)
 end
 
 const CollapsedAdjOrTrans{T} = NNlib.BatchedAdjOrTrans{T, <:CollapsedDimArray{T}}
 const Collapsed{T} = Union{CollapsedAdjOrTrans{T}, <:CollapsedDimArray{T}}
 
 collapseddim(x::AbstractArray{T, 3}) where T = x
-collapseddim(ca::CollapsedDimArray) = reshape(ca.parent, ca.dims)
-collapseddim(ca::CollapsedAdjOrTrans) = ca isa NNlib.BatchedTranspose ? batched_transpose(collapseddim(ca.parent)) :
-    batched_adjoint(collapseddim(ca.parent))
+collapseddim(ca::CollapsedDimArray) = reshape(parent(ca), ca.dims)
+collapseddim(ca::CollapsedAdjOrTrans) = ca isa NNlib.BatchedTranspose ? batched_transpose(collapseddim(parent(ca))) :
+    batched_adjoint(collapseddim(parent(ca)))
 
 unwrap_collapse(x) = x
 unwrap_collapse(ca::CollapsedDimArray) = parent(ca)
@@ -134,10 +134,10 @@ function matmul_wrapper(transA::Char, transB::Char, alpha::Number, A::AbstractAr
     kA = size(A, transA == 'N' ? 2 : 1)
     bA = size(A, 3)
     kB = size(B, transB == 'N' ? 1 : 2)
-    nB = size(B, transB == 'N' ? 1 : 2)
+    nB = size(B, transB == 'N' ? 2 : 1)
     bB = size(B, 3)
 
-    if kA != kB || bA != bB
+    if kA != kB || (bA != bB && bA != 1 && bB != 1)
         throw(DimensionMismatch("A has dimensions ($mA,$kA,$bA) but B has dimensions ($kB,$nB,$bB)"))
     end
 
@@ -154,33 +154,89 @@ function NNlib.softmax(ca::CollapsedDimArray, args...; kwargs...)
     return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj)
 end
 
-using ChainRulesCore
-using ChainRulesCore: NoTangent
-function ChainRulesCore.rrule(::typeof(matmul), A, B, s)
-    Y = matmul(A, B, s)
-    function matmul_pullback(Ȳ)
-        Athunk = ChainRulesCore.@thunk matmul(Ȳ, batched_adjoint(B), s)
-        Bthunk = ChainRulesCore.@thunk matmul(batched_adjoint(A), Ȳ, s)
-        sthunk = ChainRulesCore.@thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
-        return (NoTangent(), Athunk, Bthunk, sthunk)
-    end
-    return Y, matmul_pullback
+@inline function _sumbatch(ca::CollapsedDimArray)
+     return CollapsedDimArray(sum(parent(ca), dims=ntuple(i->i-1+ca.sj, ndims(parent(ca))+1-ca.sj)), ca.si, ca.sj)
 end
 
-function ChainRulesCore.rrule(::Type{<:CollapsedDimArray}, x, dims, si, sj)
+using ChainRulesCore
+using ChainRulesCore: NoTangent
+# function ChainRulesCore.rrule(::typeof(matmul_wrapper), transA, transB, s, A, B)
+#     Y = matmul_wrapper(transA, transB, s, A, B)
+#     function matmul_wrapper_pullback(Ȳ)
+#         Athunk = ChainRulesCore.@thunk begin
+#             tmp = matmul(Ȳ, batched_adjoint(trans(transB, B)), s)
+#             size(A, 3) == 1 ? _sumbatch(tmp) : tmp
+#         end
+#         Bthunk = ChainRulesCore.@thunk begin
+#             tmp = matmul(batched_adjoint(trans(transA,A)), Ȳ, s)
+#             size(B, 3) == 1 ? _sumbatch(tmp) : tmp
+#         end
+#         sthunk = ChainRulesCore.@thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
+#         return (NoTangent(), NoTangent(), NoTangent(),
+#                 sthunk, Athunk, Bthunk)
+#     end
+#     return Y, matmul_wrapper_pullback
+# end
+
+function ChainRulesCore.rrule(::Type{CollapsedDimArray}, x, dims, si, sj)
     s = size(x)
     function CollapsedDimArray_pullback(Ȳ)
+        Ȳ = unwrap_collapse(Ȳ)
         ∂x = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
         return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
     end
     return CollapsedDimArray(x, dims, si, sj), CollapsedDimArray_pullback
 end
 
-function ChainRulesCore.rrule(::typeof(unwrap_collapse), x)
+function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimArray)
     s = size(x)
-    function unwrap_collapse_pullback(Ȳ)
+    si = x.si
+    sj = x.sj
+    function collapsed_parent_pullback(Ȳ)
         ∂x = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
-        return (NoTangent(), ∂x)
+        return (NoTangent(), CollapsedDimArray(∂x, si, sj))
     end
-    return unwrap_collapse(x), unwrap_collapse_pullback
+    return parent(x), collapsed_parent_pullback
+end
+
+# function ChainRulesCore.rrule(::typeof(trans), x)
+#     t, Y = trans(x)
+#     function trans_pullback(Ȳ)
+#         ∂x = Ȳ[2]
+#         return (NoTangent(), ∂x)
+#     end
+#     return (t, Y), trans_pullback
+# end
+
+function ChainRulesCore.rrule(::typeof(matmul), A::AbstractVecOrMat, B::AbstractVecOrMat, s)
+    Y = matmul(A, B, s)
+    function matmul_pullback(Ȳ)
+        Athunk = ChainRulesCore.@thunk matmul(Ȳ, B', s)
+        Bthunk = ChainRulesCore.@thunk matmul(A', Ȳ, s)
+        sthunk = ChainRulesCore.@thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
+        return (NoTangent(), Athunk, Bthunk, sthunk)
+    end
+    return Y, matmul_pullback
+end
+
+function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArray, s)
+    Y = matmul(A, B, s)
+    function matmul_pullback(Ȳ)
+        ta, pa = trans(A)
+        Â = trans(ta, CollapsedDimArray(pa))
+        tb, pb = trans(B)
+        B̂ = trans(tb, CollapsedDimArray(pb))
+
+        Athunk = ChainRulesCore.@thunk begin
+            tmp = matmul(Ȳ, batched_adjoint(B̂), s)
+            size(Â, 3) == 1 ? _sumbatch(tmp) : tmp
+        end
+        Bthunk = ChainRulesCore.@thunk begin
+            tmp = matmul(batched_adjoint(A), Ȳ, s)
+            size(B̂, 3) == 1 ? _sumbatch(tmp) : tmp
+        end
+        sthunk = ChainRulesCore.@thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
+        return (NoTangent(), Athunk, Bthunk, sthunk)
+    end
+    return Y, matmul_pullback
 end
