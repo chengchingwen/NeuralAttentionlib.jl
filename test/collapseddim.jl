@@ -22,5 +22,16 @@
     @test reshape(x, (42, 20, 6)) == CollapsedDimArray(x, 3, 5)
     @test reshape(x, (7, 6, 120)) == CollapsedDimArray(x, 2, 3)
     @test reshape(x, (210, 24, 1)) == CollapsedDimArray(x, 4, 8)
-    
+
+    y = rand(5, 4)
+
+    @test collapsed_size(y, 2, 3) == (5, 4, 1)
+    @test collapsed_size(y, 3, 5) == (20, 1, 1)
+    @test noncollapsed_size(y, 2, 3, 1) == (5,)
+    @test noncollapsed_size(y, 3, 5, 1) == (5, 4)
+    @test noncollapsed_size(y, 2, 3, 2) == (4,)
+    @test noncollapsed_size(y, 3, 5, 2) == (1, 1)
+    @test noncollapsed_size(y, 2, 3, 3) == (1,)
+    @test noncollapsed_size(y, 3, 5, 3) == (1,)
+
 end
