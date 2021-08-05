@@ -4,6 +4,7 @@ using Flux
 using Zygote
 using Functors
 using LazyArrays
+using PartialFunctions
 using CUDA
 
 import Base

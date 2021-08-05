@@ -14,6 +14,7 @@ LazyArrays = "5078a376-72f3-5289-bfd5-ec5146d43c02"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
+PartialFunctions = "570af359-4316-4cb7-8c74-252c00c2016b"
 ProfileVega = "4391764f-db79-4bd7-a4c6-f9062de4300e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatProfilerHTML = "a8a75453-ed82-57c9-9e16-4cd1196ecbf5"
@@ -22,9 +23,9 @@ Transformers = "21ca0261-441d-5938-ace7-c90938fde4d4"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 ZygoteRules = "700de1a5-db45-46bc-99cf-38207098b444"
 
 [targets]

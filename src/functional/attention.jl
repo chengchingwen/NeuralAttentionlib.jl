@@ -1,24 +1,26 @@
-# function attention(mixingf, score, )
-#     attention_score(mask, )
-#     return weighted_sum()
-# end
+@inline function generic_qkv_attention(mixingf, scoref, q, k, v, args...)
+    return unwrap_collapse(mixing(mixingf, v, scoref, q, k, args...))
+end
 
-@inline naive_qkv_attention(q, k, v, mask=nothing) = weighted_sum_mixing(
-    normalized_score(NNlib.softmax, masked_score, scaled_dot_product_score, mask, q, k),
-    v)
+@inline function generic_multihead_qkv_attention(mixingf, scoref, head, q, k, v)
+    hq = CollapsedDimArray((move_head_dim_out ∘ split_head)(head, q), static(2), static(ndims(q)))
+    hk = CollapsedDimArray((move_head_dim_out ∘ split_head)(head, k), static(2), static(ndims(k)))
+    hv = CollapsedDimArray((move_head_dim_out ∘ split_head)(head, v), static(2), static(ndims(v)))
+    a = generic_qkv_attention(mixingf, scoref, hq, hk, hv)
+    return (merge_head ∘ move_head_dim_in)(a)
+end
 
+"""
+equivalent to `generic_qkv_attention(weighted_sum_mixing, normalized_score(NNlib.softmax) $ masked_score(mask) $ scaled_dot_product_score, q, k, v)`
+"""
+@inline naive_qkv_attention(q, k, v, mask=nothing) = unwrap_collapse(weighted_sum_mixing(
+    normalized_score(NNlib.softmax, masked_score, mask, scaled_dot_product_score, q, k),
+    v))
 
 @inline function multihead_qkv_attention(head, q, k, v, mask=nothing)
     hq = CollapsedDimArray((move_head_dim_out ∘ split_head)(head, q), static(2), static(ndims(q)))
     hk = CollapsedDimArray((move_head_dim_out ∘ split_head)(head, k), static(2), static(ndims(k)))
     hv = CollapsedDimArray((move_head_dim_out ∘ split_head)(head, v), static(2), static(ndims(v)))
-    a = unwrap_collapse(naive_qkv_attention(hq, hk, hv, mask))
+    a = naive_qkv_attention(hq, hk, hv, mask)
     return (merge_head ∘ move_head_dim_in)(a)
 end
-
-# function attention(q, k, v, mask)
-#     s = score(q, k)
-#     s = normalize(s)
-#     s = apply_mask(s, mask)
-#     return weightsum(s, v)
-# end

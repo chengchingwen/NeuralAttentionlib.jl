@@ -4,16 +4,17 @@
     return matmul(batched_transpose(k), q, s)
 end
 
-@inline attention_score(f, args...) = f(args...)
-
-masked_score(score) = Base.Fix1(masked_score, score)
-@inline masked_score(score, mask, args...) = masked_score(score, MaskOp(mask), mask, args...)
-@inline masked_score(score, ::Nothing, args...) = score(args...)
-@inline function masked_score(score, maskop::AbstractAttenMaskOp, mask, args...)
+masked_score(mask::Union{AbstractAttenMaskOp, AbstractAttenMask, Nothing}) = masked_score $ mask
+@inline masked_score(::Nothing, score, args...) = score(args...)
+@inline masked_score(maskop::AbstractAttenMaskOp, score, args...) = apply_mask(maskop, score(args...))
+@inline masked_score(mask::AbstractAttenMask, score, args...) = masked_score(MaskOp(mask), mask, score, args...)
+@inline function masked_score(maskop::AbstractAttenMaskOp, mask::AbstractAttenMask, score, args...)
     return apply_mask(maskop, mask, score(args...))
 end
 
-normalized_score(norm) = Base.Fix1(normalized_score, norm)
+normalized_score(norm) = normalized_score $ norm
 @inline function normalized_score(norm, score, args...)
     return norm(score(args...))
 end
+
+@inline attention_score(f, args...) = f(args...)
