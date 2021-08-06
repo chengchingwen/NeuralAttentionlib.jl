@@ -5,35 +5,36 @@ function FiniteDifferences.to_vec(X::CollapsedDimArray)
     s = size(parent(X))
     si = X.si
     sj = X.sj
+    ob = X.onebatch
     function CollapsedDimArray_from_vec(x_vec)
-        return CollapsedDimArray(reshape(back(x_vec), s), si, sj)
+        return CollapsedDimArray(reshape(back(x_vec), s), si, sj, ob)
     end
     return x_vec, CollapsedDimArray_from_vec
 end
 
 @inline function _sumbatch(ca::CollapsedDimArray)
-     return CollapsedDimArray(sum(parent(ca), dims=ntuple(i->i-1+ca.sj, ndims(parent(ca))+1-ca.sj)), ca.si, ca.sj)
+     return CollapsedDimArray(sum(parent(ca), dims=ntuple(i->i-1+ca.sj, ndims(parent(ca))+1-ca.sj)), ca.si, ca.sj, static(true))
 end
 
 using ChainRulesCore
 using ChainRulesCore: NoTangent, @thunk
 import ChainRulesCore: ProjectTo
-function ChainRulesCore.rrule(::Type{CollapsedDimArray}, x, dims, si, sj)
+function ChainRulesCore.rrule(::Type{CollapsedDimArray}, x, dims, si, sj, onebatch)
     s = size(x)
     function CollapsedDimArray_pullback(Ȳ)
         ∂x = @thunk begin
             tmp = unwrap_collapse(unthunk(Ȳ))
             size(tmp) == s ? tmp : reshape(tmp, s)
         end
-        return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
+        return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent(), NoTangent())
     end
-    return CollapsedDimArray(x, dims, si, sj), CollapsedDimArray_pullback
+    return CollapsedDimArray(x, dims, si, sj, onebatch), CollapsedDimArray_pullback
 end
 
 function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimArray)
-    si, sj = x.si, x.sj
+    si, sj, ob = x.si, x.sj, x.onebatch
     function collapsed_parent_pullback(Ȳ)
-        ∂x = @thunk CollapsedDimArray(unthunk(Ȳ), si, sj)
+        ∂x = @thunk CollapsedDimArray(unthunk(Ȳ), si, sj, ob)
         return (NoTangent(), ∂x)
     end
     return parent(x), collapsed_parent_pullback
@@ -53,12 +54,12 @@ end
 
 function ProjectTo(ca::CollapsedDimArray)
     dims = size(parent(ca))
-    return ProjectTo{CollapsedDimArray}(; dims=dims, si = ca.si, sj = ca.sj)
+    return ProjectTo{CollapsedDimArray}(; dims=dims, si = ca.si, sj = ca.sj, onebatch = ca.onebatch)
 end
 
 function (project::ProjectTo{CollapsedDimArray})(dx::AbstractArray)
     dx = unwrap_collapse(dx)
-    return CollapsedDimArray(reshape(dx, project.dims), project.si, project.sj)
+    return CollapsedDimArray(reshape(dx, project.dims), project.si, project.sj, project.onebatch)
 end
 
 function (project::ProjectTo{AbstractArray})(dx::CollapsedDimArray)

@@ -42,10 +42,14 @@
         test_rrule(parent, CollapsedDimArray(x, 2, 3))
         test_rrule(parent, CollapsedDimArray(x, 4, 8))
 
-        test_rrule(CollapsedDimArray, randn(6), (6, 1, 1), 2, 3)
-        test_rrule(CollapsedDimArray, x, (42, 20, 6), 3, 5)
-        test_rrule(CollapsedDimArray, x, (7, 6, 120), 2, 3)
-        test_rrule(CollapsedDimArray, x, (210, 24, 1), 4, 8)
+        test_rrule(CollapsedDimArray, randn(6), (6, 1, 1),
+                   static(2), static(3), static(true))
+        test_rrule(CollapsedDimArray, x, (42, 20, 6),
+                   static(3), static(5), static(false))
+        test_rrule(CollapsedDimArray, x, (7, 6, 120),
+                   static(2), static(3), static(false))
+        test_rrule(CollapsedDimArray, x, (210, 24, 1),
+                   static(4), static(8), static(true))
 
     end
 

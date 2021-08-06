@@ -49,11 +49,12 @@ function collapsed_size(x, xi, xj)
     return (m,n,b)
 end
 
-struct CollapsedDimArray{T, A<:AbstractArray{T}, S1, S2} <: AbstractArray{T, 3}
+struct CollapsedDimArray{T, A<:AbstractArray{T}, S1<:StaticInt, S2<:StaticInt, S3<:StaticBool} <: AbstractArray{T, 3}
     parent::A
-    dims::NTuple{3, Int}
+    dims::Dims{3}
     si::S1
     sj::S2
+    onebatch::S3
 end
 
 Base.unsafe_convert(::Type{Ptr{T}}, ca::CollapsedDimArray{T}) where {T} = Base.unsafe_convert(Ptr{T}, parent(ca))
@@ -67,11 +68,17 @@ Base.strides(ca::CollapsedDimArray) = strides(Base.ReshapedArray(parent(ca), ca.
 
 CollapsedDimArray(ca::CollapsedDimArray) = ca
 CollapsedDimArray(parent) = CollapsedDimArray(parent, static(2), static(3))
-function CollapsedDimArray(parent, si, sj)
+function CollapsedDimArray(p, si, sj)
     s1 = static(si)
     s2 = static(sj)
-    dims = collapsed_size(parent, s1, s2)
-    return CollapsedDimArray(parent, dims, s1, s2)
+    dims = collapsed_size(p, s1, s2)
+    onebatch = static(isone(dims[3]))
+    return CollapsedDimArray(p, dims, s1, s2, onebatch)
+end
+
+function CollapsedDimArray(p::AbstractArray, si::StaticInt, sj::StaticInt, onebatch::StaticBool)
+    dims = collapsed_size(p, si, sj)
+    return CollapsedDimArray(p, dims, si, sj, onebatch)
 end
 
 Broadcast.broadcastable(ca::CollapsedDimArray) = collapseddim(ca)
@@ -98,3 +105,6 @@ collapseddim(ca::CollapsedAdjOrTrans) = ca isa NNlib.BatchedTranspose ? batched_
 
 unwrap_collapse(x) = x
 unwrap_collapse(ca::CollapsedDimArray) = parent(ca)
+
+@inline isonebatch(x::AbstractArray{T, 3}) where T = isone(size(x, 3))
+@inline isonebatch(ca::CollapsedDimArray) = as_bool(ca.onebatch)

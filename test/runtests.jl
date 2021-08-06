@@ -4,6 +4,7 @@ using NeuralAttentionlib
 using Random
 using Flux
 using NNlib
+using Static
 using ChainRulesTestUtils
 
 const tests = [
