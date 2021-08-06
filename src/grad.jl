@@ -21,7 +21,10 @@ import ChainRulesCore: ProjectTo
 function ChainRulesCore.rrule(::Type{CollapsedDimArray}, x, dims, si, sj)
     s = size(x)
     function CollapsedDimArray_pullback(Ȳ)
-        ∂x = @thunk unwrap_collapse(unthunk(Ȳ))
+        ∂x = @thunk begin
+            tmp = unwrap_collapse(unthunk(Ȳ))
+            size(tmp) == s ? tmp : reshape(tmp, s)
+        end
         return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
     end
     return CollapsedDimArray(x, dims, si, sj), CollapsedDimArray_pullback
