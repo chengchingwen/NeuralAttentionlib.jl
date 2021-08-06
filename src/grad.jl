@@ -16,26 +16,22 @@ end
 end
 
 using ChainRulesCore
-using ChainRulesCore: NoTangent
+using ChainRulesCore: NoTangent, @thunk
 import ChainRulesCore: ProjectTo
 function ChainRulesCore.rrule(::Type{CollapsedDimArray}, x, dims, si, sj)
     s = size(x)
     function CollapsedDimArray_pullback(Ȳ)
-        Ȳ = unwrap_collapse(unthunk(Ȳ))
-        ∂x = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
+        ∂x = @thunk unwrap_collapse(unthunk(Ȳ))
         return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
     end
     return CollapsedDimArray(x, dims, si, sj), CollapsedDimArray_pullback
 end
 
 function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimArray)
-    s = size(x)
-    si = x.si
-    sj = x.sj
+    si, sj = x.si, x.sj
     function collapsed_parent_pullback(Ȳ)
-        Ȳ = unthunk(Ȳ)
-        ∂x = size(Ȳ) == s ? Ȳ : reshape(Ȳ, s)
-        return (NoTangent(), CollapsedDimArray(∂x, si, sj))
+        ∂x = @thunk CollapsedDimArray(unthunk(Ȳ), si, sj)
+        return (NoTangent(), ∂x)
     end
     return parent(x), collapsed_parent_pullback
 end
@@ -44,9 +40,9 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractVecOrMat, B::Abstract
     Y = matmul(A, B, s)
     function matmul_pullback(Ȳ)
         Ȳ = unthunk(Ȳ)
-        Athunk = ChainRulesCore.@thunk matmul(Ȳ, B', s)
-        Bthunk = ChainRulesCore.@thunk matmul(A', Ȳ, s)
-        sthunk = ChainRulesCore.@thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
+        Athunk = @thunk matmul(Ȳ, B', s)
+        Bthunk = @thunk matmul(A', Ȳ, s)
+        sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
     return Y, matmul_pullback
@@ -70,23 +66,27 @@ end
 function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArray, s)
     ProjA = ProjectTo(A)
     ProjB = ProjectTo(B)
-    Y = matmul(A, B, s)
+
+    transA, pA = trans(A)
+    transB, pB = trans(B)
+    a = CollapsedDimArray(pA)
+    b = CollapsedDimArray(pB)
+    Y = matmul_wrapper(transA, transB, s, a, b)
+
     function matmul_pullback(Ȳ)
         Ȳ = unthunk(Ȳ)
-        ta, pa = trans(A)
-        Â = trans(ta, CollapsedDimArray(pa))
-        tb, pb = trans(B)
-        B̂ = trans(tb, CollapsedDimArray(pb))
+        Â = trans(transA, a)
+        B̂ = trans(transB, b)
 
-        Athunk = ChainRulesCore.@thunk begin
+        Athunk = @thunk begin
             tmp = matmul(Ȳ, batched_adjoint(B̂), s)
             ProjA(size(Â, 3) == 1 ? _sumbatch(tmp) : tmp)
         end
-        Bthunk = ChainRulesCore.@thunk begin
+        Bthunk = @thunk begin
             tmp = matmul(batched_adjoint(Â), Ȳ, s)
             ProjB(size(B̂, 3) == 1 ? _sumbatch(tmp) : tmp)
         end
-        sthunk = ChainRulesCore.@thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
+        sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
     return Y, matmul_pullback
