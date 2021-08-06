@@ -5,6 +5,7 @@ using Zygote
 using Functors
 using LazyArrays
 using PartialFunctions
+using NNlib
 using CUDA
 
 import Base
@@ -44,6 +45,7 @@ Base.LinearIndices(bc::Base.AbstractBroadcasted) = LinearIndices(map(Base.OneTo,
 # include("./attention.jl")
 # include("./simple_attention.jl")
 include("./utils.jl")
+include("./collapseddim.jl")
 include("./gemm.jl")
 include("./matmul.jl")
 include("./grad.jl")

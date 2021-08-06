@@ -3,57 +3,6 @@ using NNlib
 import LinearAlgebra
 import LinearAlgebra.BLAS
 
-@inline function noncollapsed_size(x, xi, xj, n)
-    @assert n > 0
-    if n == 1
-        return ntuple(i->size(x, i), xi-1)
-    elseif n == 2
-        offseti = xi-1
-        return ntuple(i->size(x, i+offseti), xj-xi)
-    elseif n == 3
-        offsetj = xj-1
-        return ntuple(i->size(x, i+offsetj), max(ndims(x)-xj, 0)+1)
-    else
-        return (1,)
-    end    
-end
-
-function collapsed_size(x, xi, xj, n)
-    if n > 3
-        return 1
-    else
-        ncs = noncollapsed_size(x, xi, xj, n)
-        return stable_tuple_prod(ncs)
-    end    
-end
-
-"""
-    collapsed_size(x, xi, xj)
-
-Collapse the dimensionality of `x` into 3 according to `xi` and `xj`.
-
-    (X1, X2, ..., Xi-1, Xi, Xi+1, ..., Xj-1, Xj, ..., Xn)
-     |_____dim1______|  |_______dim2______|  |___dim3__|
-
-This is equivalent to `size(reshape(x, prod(size(x)[1:(xi-1)]), prod(size(x)[xi:(xj-1)]), prod(size(x)[xj:end])))`.
-
-#Example
-
-```julia
-julia> x = randn(7,6,5,4,3,2);
-
-julia> collapsed_size(x, 3,5)
-(42, 20, 6)
-
-```
-"""
-function collapsed_size(x, xi, xj)
-    m = collapsed_size(x, xi, xj, 1)
-    n = collapsed_size(x, xi, xj, 2)
-    b = collapsed_size(x, xi, xj, 3)
-    return (m,n,b)
-end
-
 for (gemm, elty) in NNlib.gemm_datatype_mappings
     @eval begin
 
