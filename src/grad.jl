@@ -84,11 +84,11 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArr
 
         Athunk = @thunk begin
             tmp = matmul(Ȳ, batched_adjoint(B̂), s)
-            ProjA(size(Â, 3) == 1 ? _sumbatch(tmp) : tmp)
+            ProjA(isonebatch(Â) ? _sumbatch(tmp) : tmp)
         end
         Bthunk = @thunk begin
             tmp = matmul(batched_adjoint(Â), Ȳ, s)
-            ProjB(size(B̂, 3) == 1 ? _sumbatch(tmp) : tmp)
+            ProjB(isonebatch(B̂) ? _sumbatch(tmp) : tmp)
         end
         sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
         return (NoTangent(), Athunk, Bthunk, sthunk)
