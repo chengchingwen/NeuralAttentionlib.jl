@@ -25,7 +25,8 @@ end
 @inline function gemm_strided_batched_wrapper(transA::AbstractChar, transB::AbstractChar, alpha::Number, A::CollapsedDimArray, B::CollapsedDimArray)
     m = noncollapsed_size(A.parent, A.si, A.sj, transA == static('N') ? static(1) : static(2))
     n = noncollapsed_size(B.parent, B.si, B.sj, transB == static('N') ? static(2) : static(1))
-    sc3 = size(A, 3) > size(B, 3) ?
+    # batch size differ is allow only when ones batch size is one
+    sc3 = isonebatch(B) ?
         noncollapsed_size(A.parent, A.si, A.sj, static(3)) :
         noncollapsed_size(B.parent, B.si, B.sj, static(3))
 
@@ -50,7 +51,7 @@ end
         gemm_strided_batched!(as_char(transA), as_char(transB), convert(T, alpha), pA, pB, zero(T), C, A.si, A.sj, B.si, B.sj, Ci, Cj)
     end
 
-    return CollapsedDimArray(C, Ci, Cj)
+    return CollapsedDimArray(C, Ci, Cj, A.onebatch & B.onebatch)
 end
 
 function generic_matmul(transA::AbstractChar, transB::AbstractChar, alpha::Number, A, B)
@@ -75,7 +76,7 @@ function generic_matmul(transA::AbstractChar, transB::AbstractChar, alpha::Numbe
         pB = B
         sb3 = size(B, 3)
     end
-    sc3 = size(A, 3) > size(B, 3) ? sa3 : sb3
+    sc3 = isonebatch(B) ? sa3 : sb3
     Ci = static(length(m) + 1)
     Cj = static(Ci + length(n))
     outsize = (m..., n..., sc3...)
@@ -107,5 +108,5 @@ end
 function NNlib.softmax(ca::CollapsedDimArray, args...; kwargs...)
     real_size = size(parent(ca))
     y = softmax(collapseddim(ca), args...; kwargs...)
-    return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj)
+    return CollapsedDimArray(reshape(y, real_size), ca.si, ca.sj)
 end

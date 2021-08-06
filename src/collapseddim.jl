@@ -55,6 +55,11 @@ struct CollapsedDimArray{T, A<:AbstractArray{T}, S1<:StaticInt, S2<:StaticInt, S
     si::S1
     sj::S2
     onebatch::S3
+
+    function CollapsedDimArray(p::AbstractArray, dims::Dims{3}, si::StaticInt, sj::StaticInt, onebatch::StaticBool)
+        @assert isone(dims[3]) == Bool(onebatch)
+        return new{eltype(p), typeof(p), typeof(si), typeof(sj), typeof(onebatch)}(p, dims, si, sj, onebatch)
+    end
 end
 
 Base.unsafe_convert(::Type{Ptr{T}}, ca::CollapsedDimArray{T}) where {T} = Base.unsafe_convert(Ptr{T}, parent(ca))
@@ -68,6 +73,7 @@ Base.strides(ca::CollapsedDimArray) = strides(Base.ReshapedArray(parent(ca), ca.
 
 CollapsedDimArray(ca::CollapsedDimArray) = ca
 CollapsedDimArray(parent) = CollapsedDimArray(parent, static(2), static(3))
+CollapsedDimArray(parent::AbstractVecOrMat) = CollapsedDimArray(parent, static(2), static(3), static(true))
 function CollapsedDimArray(p, si, sj)
     s1 = static(si)
     s2 = static(sj)

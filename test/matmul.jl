@@ -166,8 +166,8 @@
     end
 
     @testset "AD" begin
-        test_rrule(matmul, randn(7,6,5), randn(6, 2), randn(); check_inferred=false)
-        test_rrule(matmul, randn(7,6,5,4), randn(6), randn(); check_inferred=false)
+        test_rrule(matmul, randn(7,6,5), randn(6, 2), randn())
+        test_rrule(matmul, randn(7,6,5,4), randn(6), randn())
         test_rrule(matmul, CollapsedDimArray(randn(2,2,2,2,2,3), 4, 6), batched_transpose(randn(5,4,3)), randn(); check_inferred=false)
     end
 
