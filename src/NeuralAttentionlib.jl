@@ -10,9 +10,7 @@ using CUDA
 import Base
 
 export matmul, CollapsedDimArray, collapseddim, unwrap_collapse,
-    scaled_dot_product_score, masked_score, normalized_score,
-    weighted_sum_mixing, generic_qkv_attention, generic_multihead_qkv_attention,
-    naive_qkv_attention, multihead_qkv_attention
+    attention, generic_attention
 
 
 # fix julia #41054
