@@ -6,7 +6,7 @@
         return matmul(x, y, s) ≈ batched_mul(cx, cy) .* s
     end
     uwcs(x) = size(unwrap_collapse(x))
-    
+
     @testset "gemm_strided Float64" begin
         a = randn(7, 6, 5, 4, 3, 2)
         b = randn(42, 20, 6)
