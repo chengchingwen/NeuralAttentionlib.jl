@@ -14,7 +14,7 @@ end
 
 normalized_score(norm) = normalized_score $ norm
 @inline function normalized_score(norm, score, args...)
-    return norm(score(args...))
+    return _collapsed_call(norm, score(args...))
 end
 
 @inline attention_score(f, args...) = f(args...)

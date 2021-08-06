@@ -104,9 +104,3 @@ NNlib.is_strided(ca::CollapsedDimArray) = NNlib.is_strided(parent(ca))
         return generic_matmul(transA, transB, alpha, A, B)
     end
 end
-
-function NNlib.softmax(ca::CollapsedDimArray, args...; kwargs...)
-    real_size = size(parent(ca))
-    y = softmax(collapseddim(ca), args...; kwargs...)
-    return CollapsedDimArray(reshape(y, real_size), ca.si, ca.sj)
-end

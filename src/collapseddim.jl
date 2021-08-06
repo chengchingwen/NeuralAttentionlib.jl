@@ -114,3 +114,11 @@ unwrap_collapse(ca::CollapsedDimArray) = parent(ca)
 
 @inline isonebatch(x::AbstractArray{T, 3}) where T = isone(size(x, 3))
 @inline isonebatch(ca::CollapsedDimArray) = as_bool(ca.onebatch)
+
+# preserve the dim of first arg
+@inline function _collapsed_call(f, ca::CollapsedDimArray, args...; kwargs...)
+    real_size = size(parent(ca))
+    y = f(collapseddim(ca), args...; kwargs...)
+    return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj, ca.onebatch)
+end
+@inline _collapsed_call(f, args...; kwargs...) = f(args...; kwargs...)
