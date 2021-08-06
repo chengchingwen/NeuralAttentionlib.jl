@@ -4,6 +4,7 @@ using NeuralAttentionlib
 using Random
 using Flux
 using NNlib
+using ChainRulesTestUtils
 
 const tests = [
     "collapseddim",

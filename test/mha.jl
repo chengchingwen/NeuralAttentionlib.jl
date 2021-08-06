@@ -20,7 +20,6 @@
     gradN = Flux.gradient(mha, x) do mha, x
         sum(sin.(atten(mha, x)))
     end
-
     gradT = Flux.gradient(mha, x) do mha, x
         sum(sin.(mha(x,x,x)))
     end
