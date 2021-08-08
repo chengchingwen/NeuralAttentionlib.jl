@@ -4,9 +4,15 @@ using Flux
 using Zygote
 using Functors
 using LazyArrays
+using PartialFunctions
+using NNlib
 using CUDA
 
 import Base
+
+export matmul, CollapsedDimArray, collapseddim, unwrap_collapse,
+    attention, generic_attention
+
 
 # fix julia #41054
 Base.reducedim_init(f, op::Union{typeof(+), typeof(Base.add_sum)}, A::Base.AbstractBroadcasted, region) = Base._reducedim_init(f, op, zero, sum, A, region)
@@ -34,9 +40,19 @@ Base.LinearIndices(bc::Base.AbstractBroadcasted) = LinearIndices(map(Base.OneTo,
 # end
 
 
+include("./utils.jl")
+include("./matmul/collapseddim.jl")
+include("./matmul/gemm.jl")
+include("./matmul/matmul.jl")
+include("./matmul/grad.jl")
+include("./mask.jl")
 
-# include("./utils.jl")
-include("./attention.jl")
-include("./simple_attention.jl")
+include("./functional/utils.jl")
+include("./functional/score.jl")
+include("./functional/mixing.jl")
+include("./functional/attention.jl")
+
+include("./types.jl")
+
 
 end # module
