@@ -90,11 +90,11 @@ end
 Broadcast.broadcastable(ca::CollapsedDimArray) = collapseddim(ca)
 
 function Base.getindex(ca::CollapsedDimArray, i...)
-    return Base.getindex(Base.ReshapedArray(parent(ca), ca.dims, ()), i...)
+    return Base.getindex(collapseddim(ca), i...)
 end
 
 function Base.setindex!(ca::CollapsedDimArray, args...)
-    return Base.setindex!(Base.ReshapedArray(parent(ca), ca.dims, ()), args...)
+    return Base.setindex!(collapseddim(ca), args...)
 end
 
 const CollapsedAdjOrTrans{T} = NNlib.BatchedAdjOrTrans{T, <:CollapsedDimArray{T}}
@@ -122,3 +122,15 @@ unwrap_collapse(ca::CollapsedDimArray) = parent(ca)
     return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj, ca.onebatch)
 end
 @inline _collapsed_call(f, args...; kwargs...) = f(args...; kwargs...)
+
+import Adapt: adapt_structure, adapt
+adapt_structure(to, x::CollapsedDimArray) = CollapsedDimArray(adapt(to, parent(x)), x.dims, x.si, x.sj, x.onebatch)
+
+# GPU kernel compat
+#Adapt.adapt(to::CUDA.Adaptor, x::CollapsedDimArray) = Adapt.adapt(to, collapseddim(x))
+
+@inline function Base.view(ca::CollapsedDimArray, I::Vararg{Any,N}) where {N}
+    return view(collapseddim(ca), I...)
+end
+
+Base.print_array(io::IO, ca::CollapsedDimArray) = Base.print_array(io, collapseddim(ca))
