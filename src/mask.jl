@@ -21,6 +21,9 @@ MaskOp(::Nothing) = nothing
 
 struct NaiveAttenMaskOp <: AbstractAttenMaskOp end
 
+"""
+Directly broadcast multiply mask to attention score.
+"""
 function apply_mask(op::NaiveAttenMaskOp, mask, score)
     gmask = convert(GenericAttenMask, mask)
     return apply_naive_mask(gmask.mask, score)
@@ -46,6 +49,11 @@ function apply_mask(op::GenericAttenMaskOp, mask, score)
     return apply_generic_mask(op, gmask.mask, score)
 end
 
+"""
+Equivalent to `op.apply(score, op.scale .* (op.flip ? .! mask : mask))`.
+
+For example: `apply_generic_mask(GenericAttenMaskOp(.+, static(true), -1e9), mask, score) == @. score + (!mask * -1e9)`.
+"""
 function apply_generic_mask(op::GenericAttenMaskOp, mask, score)
     scale = convert(eltype(score), op.scale)
     apply = op.apply
@@ -58,30 +66,30 @@ function apply_generic_mask(op::GenericAttenMaskOp, mask, score)
     return masked_score
 end
 
-# struct LengthMaskOp <: AbstractAttenMaskOp end
-# MaskOp(::LengthMask) = LengthMaskOp()
+struct LengthMaskOp <: AbstractAttenMaskOp end
+MaskOp(::LengthMask) = LengthMaskOp()
 
-# struct SymmetricLengthAttenMask{N, L <: AbstractArray{Int32, N}} <: AbstractAttenMask
-#     max_length::Int32
-#     lengths::L
-# end
+struct SymmetricLengthAttenMask{N, L <: AbstractArray{Int32, N}} <: AbstractAttenMask
+    max_length::Int32
+    lengths::L
+end
 
-# function SymmetricLengthAttenMask(lengths)
-#     N = ndims(lengths)
-#     max_length = maximum(lengths)
-#     lens = convert(AbstractArray{Int32, N}, lengths)
-#     return SymmetricLengthAttenMask{N, typeof(lens)}(max_length, lens)
-# end
+function SymmetricLengthAttenMask(lengths)
+    N = ndims(lengths)
+    max_length = maximum(lengths)
+    lens = convert(AbstractArray{Int32, N}, lengths)
+    return SymmetricLengthAttenMask{N, typeof(lens)}(max_length, lens)
+end
 
-# loc(c::CartesianIndex) = CartesianIndex(Base.tail(Base.tail(c.I)))
+loc(c::CartesianIndex) = CartesianIndex(Base.tail(Base.tail(c.I)))
 
-# function Base.convert(::Type{GenericAttenMask}, m::SymmetricLengthAttenMask)
-#     len = m.lengths
-#     cinds = CartesianIndices((m.max_length, m.max_length, size(len)...))
-#     refl = Ref(len)
-#     mask = @. (getindex(cinds, 1) <= getindex(refl, loc(cinds))) & (getindex(cinds, 2) <= getindex(refl, loc(cinds)))
-#     return GenericAttenMask(mask)
-# end
+function Base.convert(::Type{GenericAttenMask}, m::SymmetricLengthAttenMask)
+    len = m.lengths
+    cinds = CartesianIndices((m.max_length, m.max_length, size(len)...))
+    refl = Ref(len)
+    mask = @. (getindex(cinds, 1) <= getindex(refl, loc(cinds))) & (getindex(cinds, 2) <= getindex(refl, loc(cinds)))
+    return GenericAttenMask(mask)
+end
 
 
 # struct LengthAttenMask{N, L <: AbstractArray{Int32, N}} <: AbstractAttenMask
