@@ -41,12 +41,21 @@ Base.LinearIndices(bc::Base.AbstractBroadcasted) = LinearIndices(map(Base.OneTo,
 
 
 include("./utils.jl")
+
+# matrix multiplication
 include("./matmul/collapseddim.jl")
 include("./matmul/gemm.jl")
 include("./matmul/matmul.jl")
 include("./matmul/grad.jl")
-include("./mask.jl")
 
+# attention score masking
+include("./mask/indexer.jl")
+include("./mask/mask.jl")
+include("./mask/dataless.jl")
+include("./mask/array.jl")
+include("./mask/wrapper.jl")
+
+# attention architecture
 include("./functional/utils.jl")
 include("./functional/score.jl")
 include("./functional/mixing.jl")
