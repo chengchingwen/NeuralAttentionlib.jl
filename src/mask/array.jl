@@ -1,5 +1,15 @@
 ####################  Array Mask  ####################
 
+struct GenericMask{N, M <:AbstractArray{Bool, N}} <: AbstractArrayMask
+    mask::M
+end
+
+GenericMask(mask) = GenericMask(convert(AbstractArray{Bool}, mask))
+
+adapt_structure(to, x::GenericMask) = GenericMask(adapt(to, x.mask))
+
+Base.@propagate_inbounds getmask_at(m::Indexer{<:GenericMask}, I::Tuple) = m.mask[I...]
+
 struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
     len::L
 end
@@ -7,7 +17,6 @@ end
 SymLengthMask(len) = SymLengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::SymLengthMask) = SymLengthMask(adapt(to, x.len))
-
 
 # TODO: add boundcheck
 Base.@propagate_inbounds function getmask_at(m::Indexer{<:SymLengthMask}, I::Tuple)
