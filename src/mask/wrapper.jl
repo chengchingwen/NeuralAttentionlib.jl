@@ -62,22 +62,40 @@ function Base.show(io::IO, m::CombinedMask)
     io
 end
 
-struct BatchedMask{M<:AbstractArrayMask, S<:StaticInt} <: AbstractAttenMask
+struct BatchedMask{M<:AbstractArrayMask, S<:StaticInt, B<:StaticBool} <: AbstractAttenMask
     mask::M
     batch_dim::S
+    neg::B
 end
 
-BatchedMask(mask, batch_dim::Integer) = BatchedMask(mask, static(batch_dim))
+function BatchedMask(mask, batch_dim::Integer)
+    @assert batch_dim > 2 || batch_dim < 0
+    if batch_dim < 0
+        return BatchedMask(mask, static(-batch_dim), static(true))
+    else
+        return BatchedMask(mask, static(batch_dim), static(false))
+    end
+end
 
-Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = m.batch_dim))
+Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = m.batch_dim, neg = m.neg))
 
-adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim)
+adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim, x.neg)
 
-GetIndexer(m::BatchedMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), batch_dim = m.batch_dim))
+GetIndexer(m::BatchedMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), batch_dim = m.batch_dim, neg = m.neg))
+
+@inline function _tailtuples(::True, I, dim)
+    offset = length(I) - dim
+    return ntuple(i->I[i+offset], dim)
+end
+
+@inline function _tailtuples(::False, I, _dim)
+    dim = _dim - 1
+    return ntuple(i->I[i+dim], length(I)-dim)
+end
 
 Base.@propagate_inbounds function getmask_at(m::Indexer{M}, I::Tuple) where M <: BatchedMask
     i = I[1]
     j = I[2]
-    J = ntuple(i->I[i-1+m.batch_dim], 1+length(I)-m.batch_dim)
+    J = _tailtuples(m.neg, I, m.batch_dim)
     return getmask_at(m.mask, (i, j, J...))
 end

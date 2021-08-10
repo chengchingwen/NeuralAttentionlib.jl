@@ -2,7 +2,7 @@
     using LinearAlgebra
     using NeuralAttentionlib: GenericAttenMaskOp,
         CausalMask, LocalMask, RandomMask, BandPartMask,
-        GenericMask, SymLengthMask, BiLengthMask
+        GenericMask, SymLengthMask, BiLengthMask, BatchedMask
 
     causal(x) = batched_triu!(copy(x), 0)
     trilu(x, d) = batched_tril!(batched_triu!(copy(x), -d), d)
@@ -131,6 +131,33 @@
             min.((1 .- min.(causal(b) .+ grow_length(bmaskk_b, bmaskq_b, 10), 1)) .* trilu(b, 1) .+ bandpart(a, 4, 7), 1)
         @test c .* (!(CausalMask() | BiLengthMask(bmaskq_c, bmaskk_c)) & LocalMask(2) | BandPartMask(4, 7)) ==
             min.((1 .- min.(causal(c) .+ grow_length(bmaskk_c, bmaskq_c, 10), 1)) .* trilu(c, 1) .+ bandpart(a, 4, 7), 1)
+
+
+        @test c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 4) == begin
+            m = reshape(grow_length(bmaskk_b, bmaskq_b, 10), 10, 10, 1, 2)
+            cat(m, m; dims=3)
+        end
+        @test c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 4) == c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), -1)
+
+        @test c .* BatchedMask(SymLengthMask(smask_b), 4) == begin
+            m = reshape(grow_length(smask_b, smask_b, 10), 10, 10, 1, 2)
+            cat(m, m; dims=3)
+        end
+        @test c .* BatchedMask(SymLengthMask(smask_b), 4) == c .* BatchedMask(SymLengthMask(smask_b), -1)
+
+        d = ones(Int, 10, 10, 2, 2, 2)
+
+        @test d .* BatchedMask(BiLengthMask(bmaskq_c, bmaskk_c), 4) == begin
+            m = reshape(grow_length(bmaskk_c, bmaskq_c, 10), 10, 10, 1, 2, 2)
+            cat(m, m; dims=3)
+        end
+        @test d .* BatchedMask(BiLengthMask(bmaskq_c, bmaskk_c), 4) == d .* BatchedMask(BiLengthMask(bmaskq_c, bmaskk_c), -2)
+        @test d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 5) == begin
+            m = reshape(grow_length(bmaskk_b, bmaskq_b, 10), 10, 10, 1, 1, 2)
+            tmp = cat(m, m; dims=3)
+            cat(tmp, tmp; dims=4)
+        end
+        @test d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 5) == d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), -1)
 
     end
 
