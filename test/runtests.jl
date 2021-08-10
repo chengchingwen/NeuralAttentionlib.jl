@@ -11,6 +11,7 @@ const tests = [
     "collapseddim",
     "matmul",
     "mha",
+    "mask",
 ]
 
 Random.seed!(0)
