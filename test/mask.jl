@@ -1,6 +1,7 @@
 @testset "mask" begin
     using LinearAlgebra
-    using NeuralAttentionlib: GenericAttenMaskOp,
+    using NeuralAttentionlib: getmask,
+        GenericAttenMaskOp, NaiveAttenMaskOp,
         CausalMask, LocalMask, RandomMask, BandPartMask,
         GenericMask, SymLengthMask, BiLengthMask, BatchedMask
 
@@ -158,6 +159,21 @@
             cat(tmp, tmp; dims=4)
         end
         @test d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 5) == d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), -1)
+
+    end
+
+    @testset "AD" begin
+        m = (LocalMask(1) | CausalMask() & !(BandPartMask(5,5)) | BiLengthMask([2,3], [3, 7]))
+
+        test_rrule(getindex, m ⊢ NoTangent(), (1, 4, 1))
+        test_rrule(getindex, NeuralAttentionlib.GetIndexer(m) ⊢ NoTangent(), (5, 4, 2))
+        test_rrule(LocalMask, 2)
+
+        test_rrule(getmask, m ⊢ NoTangent(), randn(10, 10, 2), 0.5 ⊢ NoTangent())
+        test_rrule(NeuralAttentionlib.apply_mask, NaiveAttenMaskOp(), m ⊢ NoTangent(), randn(10, 10, 2))
+
+        test_rrule(NeuralAttentionlib.apply_broadcast_mask, (*) ⊢ NoTangent(), m ⊢ NoTangent(), randn(10, 10, 2), 3 ⊢ NoTangent())
+        test_rrule(NeuralAttentionlib.apply_broadcast_mask, (+) ⊢ NoTangent(), m ⊢ NoTangent(), randn(10, 10, 2), -1e9 ⊢ NoTangent(); atol=1e-2)
 
     end
 

@@ -3,7 +3,7 @@ using Base.Broadcast: BroadcastFunction, broadcasted, materialize
 ChainRulesCore.@non_differentiable Base.getindex(m::AbstractAttenMask, I...)
 ChainRulesCore.@non_differentiable Base.getindex(m::MaskIndexer, I...)
 ChainRulesCore.@non_differentiable (::Type{<:AbstractAttenMask})(args...)
-ChainRulesCore.@non_differentiable Broadcast.broadcastable(::AbstractAttenMask)
+ChainRulesCore.@non_differentiable (::Type{<:AbstractAttenMaskOp})(args...)
 ChainRulesCore.@non_differentiable getmask(arg...)
 
 function ChainRulesCore.rrule(::typeof(apply_mask), op::NaiveAttenMaskOp, mask, score)
@@ -34,7 +34,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask)
         end
         return (NoTangent(), NoTangent(), NoTangent(), thk, NoTangent())
     end
-    apply_broadcast_mask(+, mask, score, scale), apply_broadcast_mask_pullback
+    apply_broadcast_mask(*, mask, score, scale), apply_broadcast_mask_pullback
 end
 
 #TODO: use Requires

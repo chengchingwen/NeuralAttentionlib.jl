@@ -22,7 +22,6 @@ Directly broadcast multiply mask to attention score.
 """
 apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score) = score .* mask
 
-
 struct GenericAttenMaskOp{F, B<:StaticBool, T} <: AbstractAttenMaskOp
     apply::F
     flip::B

@@ -5,6 +5,7 @@ using Random
 using Flux
 using NNlib
 using Static
+using ChainRulesCore
 using ChainRulesTestUtils
 
 const tests = [
