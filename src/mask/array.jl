@@ -8,7 +8,7 @@ GenericMask(mask) = GenericMask(convert(AbstractArray{Bool}, mask))
 
 adapt_structure(to, x::GenericMask) = GenericMask(adapt(to, x.mask))
 
-Base.@propagate_inbounds getmask_at(m::Indexer{<:GenericMask}, I::Tuple) = m.mask[I...]
+Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericMask}, I::Tuple) = m.mask[I...]
 
 struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
     len::L
@@ -19,7 +19,7 @@ SymLengthMask(len) = SymLengthMask(convert(AbstractArray{Int32}, len))
 adapt_structure(to, x::SymLengthMask) = SymLengthMask(adapt(to, x.len))
 
 # TODO: add boundcheck
-Base.@propagate_inbounds function getmask_at(m::Indexer{<:SymLengthMask}, I::Tuple)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:SymLengthMask}, I::Tuple)
     i = I[1]
     j = I[2]
     l = m.len[Base.tail(Base.tail(I))...]
@@ -35,7 +35,7 @@ BiLengthMask(q_len, k_len) = BiLengthMask(convert(AbstractArray{Int32}, q_len), 
 
 adapt_structure(to, x::BiLengthMask) = BiLengthMask(adapt(to, x.q_len), adapt(to, x.k_len))
 
-Base.@propagate_inbounds function getmask_at(m::Indexer{<:BiLengthMask}, I::Tuple)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:BiLengthMask}, I::Tuple)
     i = I[1]
     j = I[2]
     J = Base.tail(Base.tail(I))

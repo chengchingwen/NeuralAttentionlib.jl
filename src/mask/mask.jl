@@ -84,15 +84,14 @@ Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex)
 Base.size(::MaskIndexer) = ()
 Base.eltype(::MaskIndexer) = Bool
 
-Base.getindex(m::AbstractAttenMask, I...) = getmask_at(m, I...)
-Base.getindex(m::MaskIndexer, I...) = getmask_at(m, I...)
-
 GetIndexer(m::AbstractDatalessMask) = m
 
-getmask_at(m::AbstractAttenMask, i::CartesianIndex) = getmask_at(m, Tuple(i))
-getmask_at(m::MaskIndexer, i::CartesianIndex) = getmask_at(m, Tuple(i))
+Base.@propagate_inbounds Base.getindex(m::AbstractAttenMask, i::CartesianIndex) = m[Tuple(i)]
+Base.@propagate_inbounds Base.getindex(m::MaskIndexer, i::CartesianIndex) = m[Tuple(i)]
+Base.@propagate_inbounds Base.getindex(m::AbstractAttenMask, I::Integer...) = m[I]
+Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Integer...) = m[I]
+Base.@propagate_inbounds Base.getindex(m::M, I::Tuple) where {M >: AbstractDatalessMask} = GetIndexer(m)[I]
 
-getmask_at(m::M, I::Tuple) where {M >: AbstractDatalessMask} = getmask_at(GetIndexer(m), I)
 
 using Adapt
 using CUDA
