@@ -18,6 +18,8 @@ const tests = [
 Random.seed!(0)
 
 include("old_impl/old_impl.jl")
+using .Old_Impl
+using .Old_Impl: batched_triu!, batched_tril!
 
 @testset "NeuralAttentionlib" begin
     for t in tests

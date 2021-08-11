@@ -128,6 +128,13 @@ collapseddim_nonbatch(ca::CollapsedDimArray) = reshape(parent(ca), (size(ca, 1),
 end
 @inline _collapsed_call(f, args...; kwargs...) = f(args...; kwargs...)
 
+@inline function _collapsed_nonbatch_call(f, ca::CollapsedDimArray, args...; kwargs...)
+    real_size = size(parent(ca))
+    y = f(collapseddim_nonbatch(ca), args...; kwargs...)
+    return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj, ca.onebatch)
+end
+@inline _collapsed_nonbatch_call(f, args...; kwargs...) = f(args...; kwargs...)
+
 import Adapt: adapt_structure, adapt
 adapt_structure(to, x::CollapsedDimArray) = CollapsedDimArray(adapt(to, parent(x)), x.dims, x.si, x.sj, x.onebatch)
 

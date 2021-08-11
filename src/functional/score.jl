@@ -7,13 +7,11 @@ end
 masked_score(mask::Union{AbstractAttenMaskOp, AbstractAttenMask, Nothing}) = masked_score $ mask
 @inline masked_score(::Nothing, score, args...) = score(args...)
 @inline masked_score(::AbstractAttenMaskOp, ::Nothing, score, args...) = score(args...)
-@inline masked_score(maskop::AbstractAttenMaskOp, score, args...) = apply_mask(maskop, score(args...))
 @inline masked_score(mask::AbstractAttenMask, score, args...) = masked_score(MaskOp(mask), mask, score, args...)
 @inline function masked_score(maskop::AbstractAttenMaskOp, mask::AbstractAttenMask, score, args...)
-    sc = score(args...)
-    psize = size(parent(sc))
-    y = apply_mask(maskop, mask, sc)
-    return reshape(y, psize)
+    return _collapsed_nonbatch_call(score(args...)) do sc
+        apply_mask(maskop, mask, sc)
+    end
 end
 
 normalized_score(norm) = normalized_score $ norm
