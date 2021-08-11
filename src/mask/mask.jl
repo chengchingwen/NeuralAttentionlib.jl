@@ -34,6 +34,16 @@ GenericAttenMaskOp(apply, flip::Bool, scale) = GenericAttenMaskOp(apply, static(
 # softmax norm default value
 GenericAttenMaskOp() = GenericAttenMaskOp(.+, static(true), -1e9)
 
+getmask(m::AbstractAttenMask, score) = getmask(m, score, one(eltype(score)))
+function getmask(m::AbstractAttenMask, score, scale)
+    tmp = similar(score)
+    @. tmp = ifelse(m, scale, zero(scale))
+    return tmp
+end
+
+function apply_broadcast_mask(f, mask, score, scale)
+    @. f(score, ifelse(mask, scale, zero(scale)))
+end
 
 """
 Equivalent to `op.apply(score, op.scale .* (op.flip ? .! mask : mask))`.
@@ -43,11 +53,13 @@ For example: `apply_generic_mask(GenericAttenMaskOp(.+, static(true), -1e9), mas
 function apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
     scale = convert(eltype(score), op.scale)
     apply = op.apply
-    m = Base.broadcasted(*, Bool(op.flip) ? !mask : mask, scale)
+    m = Bool(op.flip) ? !mask : mask
+
     if apply isa Base.BroadcastFunction
-        masked_score = Base.Broadcast.materialize(Base.broadcasted(apply.f, score, m))
+        masked_score = apply_broadcast_mask(apply.f, m, score, scale)
     else
-        masked_score = apply(score, Base.Broadcast.materialize(m))
+        tmp = getmask(m, score, scale)
+        masked_score = apply(tmp, score)
     end
     return masked_score
 end

@@ -54,6 +54,7 @@ include("./mask/mask.jl")
 include("./mask/dataless.jl")
 include("./mask/array.jl")
 include("./mask/wrapper.jl")
+include("./mask/grad.jl")
 
 # attention architecture
 include("./functional/utils.jl")
