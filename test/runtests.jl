@@ -11,8 +11,8 @@ using ChainRulesTestUtils
 const tests = [
     "collapseddim",
     "matmul",
-    "mha",
     "mask",
+    "mha",
 ]
 
 Random.seed!(0)
