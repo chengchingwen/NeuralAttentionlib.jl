@@ -1,6 +1,6 @@
 @testset "mask" begin
     using LinearAlgebra
-    using NeuralAttentionlib: getmask,
+    using NeuralAttentionlib: getmask, apply_mask,
         GenericAttenMaskOp, NaiveAttenMaskOp,
         CausalMask, LocalMask, RandomMask, BandPartMask,
         GenericMask, SymLengthMask, BiLengthMask, BatchedMask,
@@ -164,6 +164,22 @@
         f = ones(Int, 10, 10, 2, 6)
         @test e .* RepeatMask(BiLengthMask(bmaskq_b, bmaskk_b), 2) == repeat(grow_length(bmaskk_b, bmaskq_b, 10), inner=(1,1,2))
         @test f .* RepeatMask(BiLengthMask(bmaskq_c, bmaskk_c), 3) == repeat(grow_length(bmaskk_c, bmaskq_c, 10), inner=(1,1,1,3))
+
+    end
+
+    @testset "Op" begin
+        c = ones(10, 10, 2, 2)
+
+        @test apply_mask(CausalMask(), c) == c .* CausalMask()
+        @test apply_mask(NaiveAttenMaskOp(), CausalMask(), c) == c .* CausalMask()
+        @test apply_mask(GenericAttenMaskOp(.*, true, 2), CausalMask(), c) == 2 .* c .* !CausalMask()
+        @test apply_mask(GenericAttenMaskOp(.*, false, 2), CausalMask(), c) == 2 .* c .* CausalMask()
+        @test apply_mask(GenericAttenMaskOp(.+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
+        @test apply_mask(GenericAttenMaskOp(+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
+        @test apply_mask(GenericAttenMaskOp(-, false, 2), CausalMask(), c) == c .- 2 .* CausalMask()
+        @test apply_mask(GenericAttenMaskOp(-, true, 2), CausalMask(), c) == c .- 2 .* !CausalMask()
+        @test apply_mask(GenericAttenMaskOp(./, true, 2), CausalMask(), c) == inv(2) .* c .* !CausalMask()
+        @test apply_mask(GenericAttenMaskOp(./, false, 2), CausalMask(), c) == inv(2) .* c .* CausalMask()
 
     end
 

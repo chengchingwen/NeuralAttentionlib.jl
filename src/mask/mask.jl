@@ -30,6 +30,11 @@ end
 
 GenericAttenMaskOp(apply, flip::Bool, scale) = GenericAttenMaskOp(apply, static(flip), scale)
 
+GenericAttenMaskOp(::typeof(+), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, scale)
+GenericAttenMaskOp(::typeof(-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
+GenericAttenMaskOp(::typeof(.-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
+GenericAttenMaskOp(::typeof(./), flip::Bool, scale) = GenericAttenMaskOp(.*, flip, inv(scale))
+
 # softmax norm default value
 GenericAttenMaskOp() = GenericAttenMaskOp(.+, static(true), -1e9)
 
