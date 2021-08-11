@@ -99,3 +99,21 @@ Base.@propagate_inbounds function getmask_at(m::Indexer{M}, I::Tuple) where M <:
     J = _tailtuples(m.neg, I, m.batch_dim)
     return getmask_at(m.mask, (i, j, J...))
 end
+
+struct RepeatMask{M<:AbstractArrayMask} <: AbstractAttenMask
+    mask::M
+    num::Int
+end
+
+Adapt.adapt(to::CUDA.Adaptor, m::RepeatMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), num = m.num))
+
+adapt_structure(to, x::RepeatMask) = RepeatMask(adapt(to, x.mask), x.num)
+
+GetIndexer(m::RepeatMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), num = m.num))
+
+Base.@propagate_inbounds function getmask_at(m::Indexer{M}, I::Tuple) where M <: RepeatMask
+    dim = length(I)
+    b = I[dim]
+    J = Base.setindex(I,  fld1(b, m.num), dim)
+    return getmask_at(m.mask, J)
+end

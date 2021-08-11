@@ -3,7 +3,8 @@
     using NeuralAttentionlib: getmask,
         GenericAttenMaskOp, NaiveAttenMaskOp,
         CausalMask, LocalMask, RandomMask, BandPartMask,
-        GenericMask, SymLengthMask, BiLengthMask, BatchedMask
+        GenericMask, SymLengthMask, BiLengthMask, BatchedMask,
+        RepeatMask
 
     causal(x) = batched_triu!(copy(x), 0)
     trilu(x, d) = batched_tril!(batched_triu!(copy(x), -d), d)
@@ -159,6 +160,10 @@
             cat(tmp, tmp; dims=4)
         end
         @test d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 5) == d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), -1)
+        e = ones(Int, 10, 10, 4)
+        f = ones(Int, 10, 10, 2, 6)
+        @test e .* RepeatMask(BiLengthMask(bmaskq_b, bmaskk_b), 2) == repeat(grow_length(bmaskk_b, bmaskq_b, 10), inner=(1,1,2))
+        @test f .* RepeatMask(BiLengthMask(bmaskq_c, bmaskk_c), 3) == repeat(grow_length(bmaskk_c, bmaskq_c, 10), inner=(1,1,1,3))
 
     end
 
