@@ -112,6 +112,11 @@ collapseddim(ca::CollapsedAdjOrTrans) = ca isa NNlib.BatchedTranspose ? batched_
 unwrap_collapse(x) = x
 unwrap_collapse(ca::CollapsedDimArray) = parent(ca)
 
+noncollapsed_size(ca::CollapsedDimArray, n) = noncollapsed_size(parent(ca), ca.si, ca.sj, n)
+
+collapseddim_nonbatch(x) = x
+collapseddim_nonbatch(ca::CollapsedDimArray) = reshape(parent(ca), (size(ca, 1), size(ca, 2), noncollapsed_size(ca, 3)...))
+
 @inline isonebatch(x::AbstractArray{T, 3}) where T = isone(size(x, 3))
 @inline isonebatch(ca::CollapsedDimArray) = as_bool(ca.onebatch)
 
@@ -122,6 +127,13 @@ unwrap_collapse(ca::CollapsedDimArray) = parent(ca)
     return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj, ca.onebatch)
 end
 @inline _collapsed_call(f, args...; kwargs...) = f(args...; kwargs...)
+
+@inline function _collapsed_nonbatch_call(f, ca::CollapsedDimArray, args...; kwargs...)
+    real_size = size(parent(ca))
+    y = f(collapseddim_nonbatch(ca), args...; kwargs...)
+    return CollapsedDimArray(reshape(y, real_size), ca.dims, ca.si, ca.sj, ca.onebatch)
+end
+@inline _collapsed_nonbatch_call(f, args...; kwargs...) = f(args...; kwargs...)
 
 import Adapt: adapt_structure, adapt
 adapt_structure(to, x::CollapsedDimArray) = CollapsedDimArray(adapt(to, parent(x)), x.dims, x.si, x.sj, x.onebatch)

@@ -14,7 +14,7 @@ Base.@doc raw"""
 equivalent to `generic_qkv_attention(weighted_sum_mixing, normalized_score(NNlib.softmax) $ masked_score(mask) $ scaled_dot_product_score, q, k, v)`
 """
 @inline naive_qkv_attention(q, k, v, mask=nothing) = unwrap_collapse(weighted_sum_mixing(
-    normalized_score(NNlib.softmax, masked_score, mask, scaled_dot_product_score, q, k),
+    normalized_score(NNlib.softmax, masked_score, GenericAttenMaskOp(), mask, scaled_dot_product_score, q, k),
     v))
 
 @inline function multihead_qkv_attention(head, q, k, v, mask=nothing)
