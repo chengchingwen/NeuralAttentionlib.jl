@@ -1,6 +1,6 @@
 ####################  Wrapper Mask  ####################
 
-struct FlipMask{M} <: AbstractAttenMask
+struct FlipMask{M} <: AbstractWrapperMask
     mask::M
 end
 
@@ -12,11 +12,11 @@ Adapt.adapt(to::CUDA.Adaptor, m::FlipMask) = Indexer{typeof(m)}((mask = adapt(to
 adapt_structure(to, x::FlipMask) = FlipMask(adapt(to, x.mask))
 GetIndexer(m::FlipMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask),))
 
-Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Tuple) = !m.mask[I]
+Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Integer...) = !m.mask[I...]
 
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
 
-struct CombinedMask{C, Ts<:Tuple} <: AbstractAttenMask
+struct CombinedMask{C, Ts<:Tuple} <: AbstractWrapperMask
     f::C
     masks::Ts
 end
@@ -47,6 +47,7 @@ GetIndexer(m::CombinedMask) = Indexer{typeof(m)}((m.f, masks = map(GetIndexer, m
     end
 end
 
+Base.@propagate_inbounds Base.getindex(m::Indexer{M}, I::Integer...) where M <: CombinedMask = m[I]
 Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M <: CombinedMask
     return _combine_getmask(m.f, m.masks, I)
 end
@@ -62,7 +63,7 @@ function Base.show(io::IO, m::CombinedMask)
     io
 end
 
-struct BatchedMask{M<:AbstractArrayMask, S<:StaticInt, B<:StaticBool} <: AbstractAttenMask
+struct BatchedMask{M, S<:StaticInt, B<:StaticBool} <: AbstractWrapperMask
     mask::M
     batch_dim::S
     neg::B
@@ -93,14 +94,14 @@ end
     return ntuple(i->I[i+dim], length(I)-dim)
 end
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M <: BatchedMask
+Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) where M <: BatchedMask
     i = I[1]
     j = I[2]
     J = _tailtuples(m.neg, I, m.batch_dim)
     return m.mask[(i, j, J...)]
 end
 
-struct RepeatMask{M<:AbstractArrayMask} <: AbstractAttenMask
+struct RepeatMask{M} <: AbstractWrapperMask
     mask::M
     num::Int
 end
@@ -111,7 +112,7 @@ adapt_structure(to, x::RepeatMask) = RepeatMask(adapt(to, x.mask), x.num)
 
 GetIndexer(m::RepeatMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), num = m.num))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M <: RepeatMask
+Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) where M <: RepeatMask
     dim = length(I)
     b = I[dim]
     J = Base.setindex(I,  fld1(b, m.num), dim)

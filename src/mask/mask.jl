@@ -70,6 +70,7 @@ end
 
 abstract type AbstractDatalessMask <: AbstractAttenMask end
 abstract type AbstractArrayMask <: AbstractAttenMask end
+abstract type AbstractWrapperMask <: AbstractAttenMask end
 
 Broadcast.broadcastable(m::AbstractAttenMask) = m
 Broadcast.BroadcastStyle(::Type{<:AbstractAttenMask}) = Broadcast.DefaultArrayStyle{0}()
@@ -87,11 +88,10 @@ Base.eltype(::MaskIndexer) = Bool
 GetIndexer(m::AbstractDatalessMask) = m
 
 Base.@propagate_inbounds Base.getindex(m::AbstractAttenMask, i::CartesianIndex) = m[Tuple(i)]
+Base.@propagate_inbounds Base.getindex(m::AbstractAttenMask, I::Tuple) = GetIndexer(m)[I...]
+Base.@propagate_inbounds Base.getindex(m::M, I::Integer...) where {M <: Union{<:AbstractWrapperMask, <:AbstractArrayMask}} = m[I]
 Base.@propagate_inbounds Base.getindex(m::MaskIndexer, i::CartesianIndex) = m[Tuple(i)]
-Base.@propagate_inbounds Base.getindex(m::AbstractAttenMask, I::Integer...) = m[I]
-Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Integer...) = m[I]
-Base.@propagate_inbounds Base.getindex(m::M, I::Tuple) where {M >: AbstractDatalessMask} = GetIndexer(m)[I]
-
+Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
 
 using Adapt
 using CUDA

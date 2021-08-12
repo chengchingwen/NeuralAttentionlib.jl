@@ -186,6 +186,8 @@
     @testset "AD" begin
         m = (LocalMask(1) | CausalMask() & !(BandPartMask(5,5)) | BiLengthMask([2,3], [3, 7]))
 
+        test_rrule(getindex, m ⊢ NoTangent(), 1, 4, 1)
+        test_rrule(getindex, NeuralAttentionlib.GetIndexer(m) ⊢ NoTangent(), 5, 4, 2)
         test_rrule(getindex, m ⊢ NoTangent(), (1, 4, 1))
         test_rrule(getindex, NeuralAttentionlib.GetIndexer(m) ⊢ NoTangent(), (5, 4, 2))
         test_rrule(LocalMask, 2)
