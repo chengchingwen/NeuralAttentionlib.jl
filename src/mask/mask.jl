@@ -41,12 +41,12 @@ GenericAttenMaskOp() = GenericAttenMaskOp(.+, static(true), -1e9)
 getmask(m::AbstractAttenMask, score) = getmask(m, score, one(eltype(score)))
 function getmask(m::AbstractAttenMask, score, scale)
     tmp = similar(score)
-    @. tmp = ifelse(m, scale, zero(scale))
+    @. tmp = m * scale
     return tmp
 end
 
 function apply_broadcast_mask(f, mask, score, scale)
-    @. f(score, ifelse(mask, scale, zero(scale)))
+    @. f(score, mask * scale)
 end
 
 """

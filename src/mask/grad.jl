@@ -32,7 +32,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask)
     function apply_broadcast_mask_pullback(Ȳ)
         thk = @thunk begin
             tmp = unthunk(Ȳ)
-            @. tmp * ifelse(mask, scale, zero(scale))
+            @. tmp * (mask * scale)
         end
         return (NoTangent(), NoTangent(), NoTangent(), thk, NoTangent())
     end
