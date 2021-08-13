@@ -10,8 +10,7 @@ using CUDA
 
 import Base
 
-export matmul, CollapsedDimArray, collapseddim, unwrap_collapse,
-    attention, generic_attention
+export attention, generic_attention
 
 
 # fix julia #41054
@@ -66,7 +65,9 @@ include("./types.jl")
 
 include("./module/utils.jl")
 include("./module/mask.jl")
-using .Masks
+include("./module/matmul.jl")
 
+using .Masks
+using .Matmul
 
 end # module
