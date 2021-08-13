@@ -1,10 +1,7 @@
 @testset "mask" begin
     using LinearAlgebra
-    using NeuralAttentionlib: getmask, apply_mask,
-        GenericAttenMaskOp, NaiveAttenMaskOp,
-        CausalMask, LocalMask, RandomMask, BandPartMask,
-        GenericMask, SymLengthMask, BiLengthMask, BatchedMask,
-        RepeatMask
+    using NeuralAttentionlib.Masks
+    using NeuralAttentionlib: getmask
 
     causal(x) = batched_triu!(copy(x), 0)
     trilu(x, d) = batched_tril!(batched_triu!(copy(x), -d), d)

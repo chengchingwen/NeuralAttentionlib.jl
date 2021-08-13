@@ -1,5 +1,5 @@
 @testset "CollapsedDim" begin
-    using NeuralAttentionlib: collapsed_size, noncollapsed_size
+    using NeuralAttentionlib.Matmul
     x = randn(7,6,5,4,3,2)
 
     @test collapsed_size(x, 3, 5) == (42, 20, 6)
