@@ -1,10 +1,14 @@
 """
-Trait-like type for holding operation related argument, defined how the mask should be apply to input array
+    AbstractAttenMaskOp
+
+Trait-like abstract type for holding operation related argument, defined how the mask should be apply to input array
 """
 abstract type AbstractAttenMaskOp end
 
 """
-Wrapper type for mask data, can be viewed as AbstractArray{Bool}
+    AbstractAttenMask
+
+Abstract type for mask data, can be viewed as `AbstractArray{Bool}`
 """
 abstract type AbstractAttenMask end
 
@@ -18,7 +22,9 @@ MaskOp(::Nothing) = nothing
 struct NaiveAttenMaskOp <: AbstractAttenMaskOp end
 
 """
-Directly broadcast multiply mask to attention score.
+    apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score)
+
+Directly broadcast multiply mask to attention score, i.e. `score .* mask`.
 """
 apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score) = score .* mask
 
@@ -50,9 +56,22 @@ function apply_broadcast_mask(f, mask, score, scale)
 end
 
 """
+    apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
+
 Equivalent to `op.apply(score, op.scale .* (op.flip ? .! mask : mask))`.
 
-For example: `apply_generic_mask(GenericAttenMaskOp(.+, static(true), -1e9), mask, score) == @. score + (!mask * -1e9)`.
+# Example
+
+```julia
+julia> x = randn(10, 10);
+
+julia> m = CausalMask()
+CausalMask()
+
+julia> apply_mask(GenericAttenMaskOp(.+, true, -1e9), m, x) ==  @. x + (!m * -1e9)
+true
+
+```
 """
 function apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
     scale = convert(eltype(score), op.scale)
@@ -78,7 +97,6 @@ Base.size(::AbstractAttenMask) = ()
 Base.eltype(::AbstractAttenMask) = Bool
 Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::CartesianIndex) = I
 
-#const MaskIndexer = Indexer{<:AbstractArrayMask}
 const MaskIndexer = Indexer{<:AbstractAttenMask}
 Broadcast.BroadcastStyle(::Type{<:MaskIndexer}) = Broadcast.DefaultArrayStyle{0}()
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I

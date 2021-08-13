@@ -1,3 +1,31 @@
+"""
+    noncollapsed_size(x, xi, xj, n)
+
+Collapse the dimensionality of `x` into 3 according to `xi` and `xj`.
+
+    (X1, X2, ..., Xi-1, Xi, Xi+1, ..., Xj-1, Xj, ..., Xn)
+     |_____dim1______|  |_______dim2______|  |___dim3__|
+
+But take the size before collapse. e.g. `noncollapsed_size(x, xi, xj, 2)` will be `(Xi, Xi+1, ..., Xj-1)`.
+
+#Example
+
+```julia
+julia> x = randn(7,6,5,4,3,2);
+
+julia> noncollapsed_size(x, 3, 5, 1)
+(7, 6)
+
+julia> noncollapsed_size(x, 3, 5, 2)
+(5, 4)
+
+julia> noncollapsed_size(x, 3, 5, 3)
+(3, 2)
+
+```
+
+See also: [`collapsed_size`](@ref)
+"""
 @inline function noncollapsed_size(x, xi, xj, n)
     @assert n > 0
     if n == 1
@@ -23,7 +51,7 @@ function collapsed_size(x, xi, xj, n)
 end
 
 """
-    collapsed_size(x, xi, xj)
+    collapsed_size(x, xi, xj)::Dim{3}
 
 Collapse the dimensionality of `x` into 3 according to `xi` and `xj`.
 
@@ -37,10 +65,12 @@ This is equivalent to `size(reshape(x, prod(size(x)[1:(xi-1)]), prod(size(x)[xi:
 ```julia
 julia> x = randn(7,6,5,4,3,2);
 
-julia> collapsed_size(x, 3,5)
+julia> collapsed_size(x, 3, 5)
 (42, 20, 6)
 
 ```
+
+See also: [`noncollapsed_size`](@ref)
 """
 function collapsed_size(x, xi, xj)
     m = collapsed_size(x, xi, xj, 1)
@@ -49,6 +79,12 @@ function collapsed_size(x, xi, xj)
     return (m,n,b)
 end
 
+
+"""
+    CollapsedDimArray{T}(array, si::Integer=2, sj::Integer=3) <: AbstractArray{T, 3}
+
+Similar to lazy reshape array with [`collapsed_size`](@ref)
+"""
 struct CollapsedDimArray{T, A<:AbstractArray{T}, S1<:StaticInt, S2<:StaticInt, S3<:StaticBool} <: AbstractArray{T, 3}
     parent::A
     dims::Dims{3}

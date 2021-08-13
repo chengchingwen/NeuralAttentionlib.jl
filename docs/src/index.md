@@ -11,6 +11,7 @@ CurrentModule = NeuralAttentionlib
 
 ```@contents
 Pages = [
+	"term.md",
 	"api.md",
 ]
 ```

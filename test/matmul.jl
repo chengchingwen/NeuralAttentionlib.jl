@@ -1,4 +1,5 @@
 @testset "matmul" begin
+    using NeuralAttentionlib.Matmul
 
     function matmul_test(x, y, s)
         cx = x isa CollapsedDimArray ? collapseddim(x) : x
