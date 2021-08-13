@@ -64,5 +64,9 @@ include("./functional/attention.jl")
 
 include("./types.jl")
 
+include("./module/utils.jl")
+include("./module/mask.jl")
+using .Masks
+
 
 end # module
