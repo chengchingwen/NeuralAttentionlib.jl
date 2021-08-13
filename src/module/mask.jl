@@ -48,8 +48,8 @@ LocalMask
 
 Attention mask that block value randomly.
 
-`p` specify the percentage of value to block. e.g. `A .* RandomMask(0)` is equvalent to `identity(A)` and
- `A .* RandomMask(1)` is equvalent to `zero(A)`.
+`p` specify the percentage of value to block. e.g. `A .* RandomMask(0)` is equivalent to `identity(A)` and
+ `A .* RandomMask(1)` is equivalent to `zero(A)`.
 """
 RandomMask
 
