@@ -97,6 +97,8 @@ Base.size(::AbstractAttenMask) = ()
 Base.eltype(::AbstractAttenMask) = Bool
 Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::CartesianIndex) = I
 
+Base.axes(::AbstractDatalessMask) = MaskAxes{2}()
+
 const MaskIndexer = Indexer{<:AbstractAttenMask}
 Broadcast.BroadcastStyle(::Type{<:MaskIndexer}) = Broadcast.DefaultArrayStyle{0}()
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I

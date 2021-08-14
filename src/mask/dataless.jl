@@ -15,6 +15,8 @@ struct RandomMask <: AbstractDatalessMask
 end
 
 Base.@propagate_inbounds Base.getindex(m::RandomMask, _::Integer...) = rand() > m.p
+Base.@propagate_inbounds Broadcast.newindex(arg::RandomMask, I::Integer)  = I
+Base.axes(::RandomMask) = MaskAxes{0}()
 
 struct BandPartMask <: AbstractDatalessMask
     l::Int
