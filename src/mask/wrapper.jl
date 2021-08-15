@@ -122,3 +122,22 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) wh
     J = Base.setindex(I,  fld1(b, m.num), dim)
     return m.mask[J]
 end
+
+@inline head(t::Tuple) = Base.reverse(Base.tail(Base.reverse(t)))
+
+@inline multiply_constrain(c::AxesConstrain, n) = (c,)
+@inline multiply_constrain(c::DimConstrain, n) = (DimConstrain(c.dim, c.val * n),)
+@inline function multiply_constrain(c::All1Constrain, n)
+    return (ExactNDimConstrain(c.n) , ntuple(c.n - c.from + 1) do i
+        dim = i + c.from - 1
+        DimConstrain(dim, dim != c.n ? 1 : n)
+    end...)
+end
+
+function AxesConstrain(m::RepeatMask)
+    cs = AxesConstrain(m.mask)
+    n = lastindex(cs)
+    lastc = cs[n]
+    h = head(cs)
+    return (h..., multiply_constrain(lastc, m.num)...)
+end

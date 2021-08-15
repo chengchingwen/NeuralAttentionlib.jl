@@ -14,13 +14,14 @@ Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericMask}, I::Integer...)
 
 AxesConstrain(m::GenericMask) = (ExactNDimConstrain(ndims(m)), ntuple(i->DimConstrain(i, size(m.mask, i)), ndims(m))...)
 
-struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
+struct SymLengthMask{N, L <: AbstractArray{Int32, N}, B<:StaticBool} <: AbstractArrayMask
     len::L
+    one::B
 end
 
 Base.ndims(::SymLengthMask{N}) where N = N + 2
 
-SymLengthMask(len) = SymLengthMask(convert(AbstractArray{Int32}, len))
+SymLengthMask(len) = SymLengthMask(convert(AbstractArray{Int32}, len), static(length(len) == 1))
 
 adapt_structure(to, x::SymLengthMask) = SymLengthMask(adapt(to, x.len))
 
@@ -30,20 +31,21 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{<:SymLengthMask}, i, 
     return i <= l && j <= l
 end
 
-AxesConstrain(m::SymLengthMask{N}) where N = length(m.len) == 1 ? # only one mask
-    (LeastNDimConstrain(2), All1Constrain(3)) :
+AxesConstrain(m::SymLengthMask{N}) where N = as_bool(m.one) ? # only one mask
+    (LeastNDimConstrain(2), All1Constrain(3, ndims(m))) :
     (ExactNDimConstrain(ndims(m)), ntuple(i->DimConstrain(i+2, size(m.len, i)), N)...)
 
-struct BiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
+struct BiLengthMask{N, L <: AbstractArray{Int32, N}, B<:StaticBool} <: AbstractArrayMask
     q_len::L
     k_len::L
+    one::B
 end
 
 Base.ndims(::BiLengthMask{N}) where N = N + 2
 
 function BiLengthMask(q_len, k_len)
     @assert size(q_len) == size(k_len)
-    return BiLengthMask(convert(AbstractArray{Int32}, q_len), convert(AbstractArray{Int32}, k_len))
+    return BiLengthMask(convert(AbstractArray{Int32}, q_len), convert(AbstractArray{Int32}, k_len), static(length(q_len) == 1))
 end
 
 adapt_structure(to, x::BiLengthMask) = BiLengthMask(adapt(to, x.q_len), adapt(to, x.k_len))
@@ -55,6 +57,6 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{<:BiLengthMask}, i, j
     return i <= kl && j <= ql
 end
 
-AxesConstrain(m::BiLengthMask{N}) where N = length(m.q_len) == 1 ? # only one mask
-    (LeastNDimConstrain(2), All1Constrain(3)) :
+AxesConstrain(m::BiLengthMask{N}) where N = as_bool(m.one) ? # only one mask
+    (LeastNDimConstrain(2), All1Constrain(3, ndims(m))) :
     (ExactNDimConstrain(ndims(m)), ntuple(i->DimConstrain(i+2, size(m.q_len, i)), N)...)

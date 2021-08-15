@@ -15,6 +15,7 @@ abstract type AxesConstrain end
 
 struct All1Constrain <: AxesConstrain
     from::Int
+    n::Int
 end
 
 struct DimConstrain <: AxesConstrain
@@ -62,10 +63,13 @@ check_constrain(cs::Tuple, x) = check_constrain(Base.tail(cs), check_constrain(c
 
 check_constrain(m::AbstractAttenMask, x) = check_constrain(AxesConstrain(m), x)
 
-combine_axes(A, B::AbstractAttenMask) = combine_axes(B, A)
-combine_axes(A::AbstractAttenMask, B) = check_constrain(A, axes(B))
+@inline combine_axes(A, B::AbstractAttenMask) = combine_axes(B, A)
+@inline combine_axes(A::AbstractAttenMask, B) = check_constrain(A, axes(B))
 
 axislength(x::Integer) = x
 axislength(x) = length(x)
 
 AxesConstrain(::AbstractDatalessMask) = (LeastNDimConstrain(2),)
+
+Base.iterate(c::AxesConstrain) = (c, nothing)
+Base.iterate(c::AxesConstrain, ::Nothing) = nothing
