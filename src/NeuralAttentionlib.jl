@@ -50,6 +50,7 @@ include("./matmul/grad.jl")
 # attention score masking
 include("./mask/indexer.jl")
 include("./mask/mask.jl")
+include("./mask/broadcast.jl")
 include("./mask/dataless.jl")
 include("./mask/array.jl")
 include("./mask/wrapper.jl")

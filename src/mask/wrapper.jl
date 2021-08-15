@@ -14,6 +14,8 @@ GetIndexer(m::FlipMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask),))
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Integer...) = !m.mask[I...]
 
+AxesConstrain(m::FlipMask) = AxesConstrain(m.mask)
+
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
 
 struct CombinedMask{C, Ts<:Tuple} <: AbstractWrapperMask
@@ -51,6 +53,12 @@ Base.@propagate_inbounds Base.getindex(m::Indexer{M}, I::Integer...) where M <: 
 Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M <: CombinedMask
     return _combine_getmask(m.f, m.masks, I)
 end
+
+# function check_constrain(m::CombinedMask, x)
+#     ms = m.masks
+#     combine_axes(ms[1], x)
+# end
+
 
 function Base.show(io::IO, m::CombinedMask)
     print(io, '(')

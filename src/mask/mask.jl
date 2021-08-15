@@ -92,15 +92,14 @@ abstract type AbstractArrayMask <: AbstractAttenMask end
 abstract type AbstractWrapperMask <: AbstractAttenMask end
 
 Broadcast.broadcastable(m::AbstractAttenMask) = m
-Broadcast.BroadcastStyle(::Type{<:AbstractAttenMask}) = Broadcast.DefaultArrayStyle{0}()
-Base.size(::AbstractAttenMask) = ()
 Base.eltype(::AbstractAttenMask) = Bool
 Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::CartesianIndex) = I
+Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::Integer) = I
 
 const MaskIndexer = Indexer{<:AbstractAttenMask}
-Broadcast.BroadcastStyle(::Type{<:MaskIndexer}) = Broadcast.DefaultArrayStyle{0}()
+# Broadcast.BroadcastStyle(::Type{<:MaskIndexer}) = Broadcast.DefaultArrayStyle{0}()
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I
-Base.size(::MaskIndexer) = ()
+# Base.size(::MaskIndexer) = ()
 Base.eltype(::MaskIndexer) = Bool
 
 GetIndexer(m::AbstractDatalessMask) = m
