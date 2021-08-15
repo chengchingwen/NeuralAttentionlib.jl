@@ -54,11 +54,7 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M
     return _combine_getmask(m.f, m.masks, I)
 end
 
-# function check_constrain(m::CombinedMask, x)
-#     ms = m.masks
-#     combine_axes(ms[1], x)
-# end
-
+check_constrain(m::CombinedMask, x) = check_constrain(m.masks, x)
 
 function Base.show(io::IO, m::CombinedMask)
     print(io, '(')
