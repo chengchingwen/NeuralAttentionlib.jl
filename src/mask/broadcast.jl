@@ -23,15 +23,13 @@ struct DimConstrain <: AxesConstrain
     val::Int
 end
 
-struct ExactNDimConstrain <: AxesConstrain
+struct NDimConstrain <: AxesConstrain
     n::Int
+    least::Bool
 end
+NDimConstrain(n) = NDimConstrain(n, false)
 
-struct LeastNDimConstrain <: AxesConstrain
-    n::Int
-end
-
-thrdm(s) = throw(DimensionMismatch("arrays could not be broadcast to a common size; $s"))
+@noinline thrdm(s) = throw(DimensionMismatch("arrays could not be broadcast to a common size; $s"))
 
 function check_constrain(c::All1Constrain, x)
     foreach(c.from:length(x)) do i
@@ -55,9 +53,11 @@ function check_constrain(c::DimConstrain, x)
     return x
 end
 
-check_constrain(c::LeastNDimConstrain, x) = length(x) ≥ c.n ? x : thrdm("mask require ndims(A) ≥ $(c.n)")
-
-check_constrain(c::ExactNDimConstrain, x) = length(x) == c.n ? x : thrdm("mask require ndims(A) == $(c.n)")
+function check_constrain(c::NDimConstrain, x)
+    cmp = c.least ? (≥) : (==)
+    cmp(length(x), c.n) || thrdm("mask require ndims(A) $(cmp) $(c.n)")
+    return x
+end
 
 check_constrain(cs::Tuple{}, x) = x
 check_constrain(cs::Tuple, x) = check_constrain(Base.tail(cs), check_constrain(cs[1], x))
@@ -70,7 +70,7 @@ check_constrain(m::AbstractAttenMask, x) = check_constrain(AxesConstrain(m), x)
 axislength(x::Integer) = x
 axislength(x) = length(x)
 
-AxesConstrain(::AbstractDatalessMask) = (LeastNDimConstrain(2),)
+AxesConstrain(::AbstractDatalessMask) = (NDimConstrain(2, true),)
 
 Base.iterate(c::AxesConstrain) = (c, nothing)
 Base.iterate(c::AxesConstrain, ::Nothing) = nothing

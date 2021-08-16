@@ -128,7 +128,7 @@ end
 @inline multiply_constrain(c::AxesConstrain, n) = (c,)
 @inline multiply_constrain(c::DimConstrain, n) = (DimConstrain(c.dim, c.val * n),)
 @inline function multiply_constrain(c::All1Constrain, n)
-    return (ExactNDimConstrain(c.n) , ntuple(c.n - c.from + 1) do i
+    return (NDimConstrain(c.n) , ntuple(c.n - c.from + 1) do i
         dim = i + c.from - 1
         DimConstrain(dim, dim != c.n ? 1 : n)
     end...)

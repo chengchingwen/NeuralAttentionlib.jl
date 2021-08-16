@@ -12,7 +12,7 @@ adapt_structure(to, x::GenericMask) = GenericMask(adapt(to, x.mask))
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericMask}, I::Integer...) = m.mask[I...]
 
-AxesConstrain(m::GenericMask) = (ExactNDimConstrain(ndims(m)), ntuple(i->DimConstrain(i, size(m.mask, i)), ndims(m))...)
+AxesConstrain(m::GenericMask) = (NDimConstrain(ndims(m)), ntuple(i->DimConstrain(i, size(m.mask, i)), ndims(m))...)
 
 struct SymLengthMask{N, L <: AbstractArray{Int32, N}, B<:StaticBool} <: AbstractArrayMask
     len::L
@@ -32,8 +32,8 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{<:SymLengthMask}, i, 
 end
 
 AxesConstrain(m::SymLengthMask{N}) where N = as_bool(m.one) ? # only one mask
-    (LeastNDimConstrain(2), All1Constrain(3, ndims(m))) :
-    (ExactNDimConstrain(ndims(m)), ntuple(i->DimConstrain(i+2, size(m.len, i)), N)...)
+    (NDimConstrain(2, true), All1Constrain(3, ndims(m))) :
+    (NDimConstrain(ndims(m)), ntuple(i->DimConstrain(i+2, size(m.len, i)), N)...)
 
 struct BiLengthMask{N, L <: AbstractArray{Int32, N}, B<:StaticBool} <: AbstractArrayMask
     q_len::L
@@ -58,5 +58,5 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{<:BiLengthMask}, i, j
 end
 
 AxesConstrain(m::BiLengthMask{N}) where N = as_bool(m.one) ? # only one mask
-    (LeastNDimConstrain(2), All1Constrain(3, ndims(m))) :
-    (ExactNDimConstrain(ndims(m)), ntuple(i->DimConstrain(i+2, size(m.q_len, i)), N)...)
+    (NDimConstrain(2, true), All1Constrain(3, ndims(m))) :
+    (NDimConstrain(ndims(m)), ntuple(i->DimConstrain(i+2, size(m.q_len, i)), N)...)
