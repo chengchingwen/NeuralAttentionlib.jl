@@ -125,19 +125,19 @@ end
 
 @inline head(t::Tuple) = Base.reverse(Base.tail(Base.reverse(t)))
 
-@inline multiply_constrain(c::AxesConstrain, n) = (c,)
-@inline multiply_constrain(c::DimConstrain, n) = (DimConstrain(c.dim, c.val * n),)
-@inline function multiply_constrain(c::All1Constrain, n)
-    return (NDimConstrain(c.n) , ntuple(c.n - c.from + 1) do i
+AxesConstrain(m::RepeatMask) = multiply_constrain(AxesConstrain(m.mask), m.num)
+
+@inline multiply_constrain(cs::Tuple{NDimConstrain}, n) = cs
+@inline function multiply_constrain(cs::Tuple{NDimConstrain, All1Constrain}, n)
+    c = cs[2]
+    return (NDimConstrain(c.n), ntuple(c.n - c.from + 1) do i
         dim = i + c.from - 1
         DimConstrain(dim, dim != c.n ? 1 : n)
     end...)
 end
 
-function AxesConstrain(m::RepeatMask)
-    cs = AxesConstrain(m.mask)
-    n = lastindex(cs)
-    lastc = cs[n]
+@inline function multiply_constrain(cs::Tuple{NDimConstrain, Vararg{DimConstrain}}, n)
     h = head(cs)
-    return (h..., multiply_constrain(lastc, m.num)...)
+    c = cs[end]
+    return (h..., DimConstrain(c.dim, c.val * n))
 end
