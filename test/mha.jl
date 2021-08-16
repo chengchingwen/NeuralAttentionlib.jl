@@ -70,7 +70,7 @@
 
         q_len = [3, 5]
         k_len = [4, 4]
-        lmask = BatchedMask(BiLengthMask(q_len, k_len), -1)
+        lmask = BatchedMask(BiLengthMask(q_len, k_len))
         mask = CausalMask() & lmask
 
         old_q_len = Old_Impl.getmask(map(l->ones(l), q_len))
