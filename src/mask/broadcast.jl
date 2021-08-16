@@ -45,13 +45,14 @@ end
 function check_constrain(c::DimConstrain, x)
     if c.dim > 0
         dim = c.dim
-        xi = length(x) ≥ dim ? axislength(x[c.dim]) : 1
-        return xi == c.val ? x :
-            thrdm("mask require $dim-th dimension to be $(c.val), but get $xi")
+        xi = length(x) ≥ dim ? axislength(x[dim]) : 1
+        xi != c.val && thrdm("mask require $dim-th dimension to be $(c.val), but get $xi")
     else
-        #TODO: write code
-        return x
+        dim = length(x) + c.dim + 1
+        xi = axislength(x[dim])
+        xi != c.val && thrdm("mask require $dim-th dimension to be $(c.val), but get $xi")
     end
+    return x
 end
 
 check_constrain(c::LeastNDimConstrain, x) = length(x) ≥ c.n ? x : thrdm("mask require ndims(A) ≥ $(c.n)")
