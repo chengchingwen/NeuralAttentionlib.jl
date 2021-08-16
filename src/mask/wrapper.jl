@@ -56,6 +56,72 @@ end
 
 check_constrain(m::CombinedMask, x) = check_constrain(m.masks, x)
 
+@inline merge_constrain(cs1, cs2, cs...) = merge_constrain(merge_constrain(cs1, cs2), cs...)
+@inline merge_constrain(::Tuple{}, ::Tuple{}) = ()
+@inline merge_constrain(cs1::Tuple, ::Tuple{}) = cs1
+@inline merge_constrain(::Tuple{}, cs2::Tuple) = cs2
+@inline function merge_constrain(cs1::Tuple, cs2::Tuple)
+    ndc = _merge_ndim_c(cs1[1], cs2[1])
+    dc = _merge_dim_c(Base.tails(cs1, cs2)...)
+    return (ndc, dc...)
+end
+
+_merge_dim_c(::Tuple{},::Tuple{}) = ()
+_merge_dim_c(a::Tuple, ::Tuple{}) = a
+_merge_dim_c(::Tuple{}, b::Tuple) = b
+_merge_dim_c(a::Tuple{All1Constrain}, b::Tuple{All1Constrain}) = All1Constrain(min(a.from, b.from), max(a.n, b.n))
+
+_merge_post_dim_c(::Tuple{}, ::Tuple{}) = ()
+_merge_post_dim_c(::Tuple{}, b::Tuple) = b
+_merge_post_dim_c(a::Tuple, ::Tuple{}) = a
+function _merge_post_dim_c(a::Tuple, b::Tuple)::Tuple{Vararg{DimConstrain}}
+    a1 = a[1]
+    b1 = b[1]
+    if a1.dim < b1.dim
+        return (a1, _merge_post_dim_c(Base.tail(a), b)...)
+    elseif a1.dim > b1.dim
+        return (b1, _merge_post_dim_c(a, Base.tail(b))...)
+    else
+        a1.val != b1.val && thrdm("mask require $(a1.dim)-th dimension to be both $(a1.val) and $(b1.val)")
+        return (a1, _merge_post_dim_c(Base.tails(a, b)...)...)
+    end
+end
+
+function _merge_dim_c(a::Tuple{DimConstrain, Vararg{DimConstrain}}, b::Tuple{DimConstrain, Vararg{DimConstrain}})
+    a1 = a[1]
+    b1 = b[1]
+    if (a1.dim > 0) == (b1.dim > 0)
+        return _merge_post_dim_c(a, b)
+    else
+        if a1.dim < 0
+            n = b[end].dim
+            return _merge_post_dim_c(ntuple(i->DimConstrain(a[i].dim+n+1, a[i].val), length(a)), b)
+        else
+            n = a[end].dim
+            return _merge_post_dim_c(a, ntuple(i->DimConstrain(b[i].dim+n+1, b[i].val), length(b)))
+        end
+    end
+end
+
+_merge_dim_c(a::Tuple{DimConstrain, Vararg{DimConstrain}}, b::Tuple{All1Constrain}) = _merge_dim_c(b, a)
+function _merge_dim_c(a::Tuple{All1Constrain}, b::Tuple{DimConstrain, Vararg{DimConstrain}})
+    c = a[]
+    offset = c.from - 1
+    return _merge_dim_c(ntuple(i->DimConstrain(i+offset, 1), b[end].dim - offset), b)
+end
+
+@inline function _merge_ndim_c(a, b)
+    a.least || b.least || thrdm("mask require both ndims(A) == $(a.n) and ndim(A) == $(b.n)")
+    n = max(a.n, b.n)
+    a.least || a.n == n || thrdm("mask require both ndims(A) == $(a.n) and ndims(A) ≥ $(b.n)")
+    b.least || b.n == n || thrdm("mask require both ndims(A) == $(b.n) and ndims(A) ≥ $(a.n)")
+    return NDimConstrain(n, a.least == b.least)
+end
+
+function AxesConstrain(m::CombinedMask)
+    merge_constrain(map(AxesConstrain, m.masks)...)
+end
+
 function Base.show(io::IO, m::CombinedMask)
     print(io, '(')
     show(io, first(m.masks))
