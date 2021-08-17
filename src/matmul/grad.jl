@@ -1,15 +1,17 @@
-using FiniteDifferences
+@init @require FiniteDifferences="26cc04aa-876d-5657-8c51-4c34ba976000" begin
+    using .FiniteDifferences
 
-function FiniteDifferences.to_vec(X::CollapsedDimArray)
-    x_vec, back = to_vec(collapseddim(X))
-    s = size(parent(X))
-    si = X.si
-    sj = X.sj
-    ob = X.onebatch
-    function CollapsedDimArray_from_vec(x_vec)
-        return CollapsedDimArray(reshape(back(x_vec), s), si, sj, ob)
+    function FiniteDifferences.to_vec(X::CollapsedDimArray)
+        x_vec, back = to_vec(collapseddim(X))
+        s = size(parent(X))
+        si = X.si
+        sj = X.sj
+        ob = X.onebatch
+        function CollapsedDimArray_from_vec(x_vec)
+            return CollapsedDimArray(reshape(back(x_vec), s), si, sj, ob)
+        end
+        return x_vec, CollapsedDimArray_from_vec
     end
-    return x_vec, CollapsedDimArray_from_vec
 end
 
 @inline function _sumbatch(ca::CollapsedDimArray)

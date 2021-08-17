@@ -175,11 +175,12 @@ end
 end
 @inline _collapsed_nonbatch_call(f, args...; kwargs...) = f(args...; kwargs...)
 
-import Adapt: adapt_structure, adapt
 adapt_structure(to, x::CollapsedDimArray) = CollapsedDimArray(adapt(to, parent(x)), x.dims, x.si, x.sj, x.onebatch)
 
 # GPU kernel compat
-Adapt.adapt(to::CUDA.Adaptor, x::CollapsedDimArray) = Adapt.adapt(to, collapseddim(x))
+@init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
+    Adapt.adapt(to::CUDA.Adaptor, x::CollapsedDimArray) = Adapt.adapt(to, collapseddim(x))
+end
 
 @inline function Base.view(ca::CollapsedDimArray, I::Vararg{Any,N}) where {N}
     return view(collapseddim(ca), I...)

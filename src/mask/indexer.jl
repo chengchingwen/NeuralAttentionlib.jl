@@ -36,8 +36,6 @@ function GetIndexer(x)
     end
 end
 
-using Adapt
-import Adapt: adapt_structure, adapt
 adapt_structure(to, x::Indexer) = Indexer{IndexedType(x)}(adapt(to, x.__fields))
 
 
