@@ -41,8 +41,10 @@ include("./types.jl")
 include("./module/utils.jl")
 include("./module/mask.jl")
 include("./module/matmul.jl")
+include("./module/functional.jl")
 
 using .Masks
 using .Matmul
+using .Functional
 
 end # module
