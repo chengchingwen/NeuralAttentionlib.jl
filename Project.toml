@@ -15,7 +15,7 @@ Static = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
 [compat]
 Adapt = "3.3"
 ChainRulesCore = "1.3"
-NNlib = "0.7.28"
+NNlib = "0.7"
 PartialFunctions = "1"
 Requires = "1.1"
 Static = "0.3"
