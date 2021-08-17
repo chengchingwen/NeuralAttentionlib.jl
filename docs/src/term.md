@@ -69,7 +69,7 @@ The attention operation is actually a special way to "mix" (or "pick" in common 
  sum of the input sequence given a word embedding. The idea is furthur generalize to *QKV attention* in the first
  [transformer paper](https://arxiv.org/abs/1706.03762). 
 
-### Attention Score
+### 1. Attention Score
 
 The attention score is used to decide how much the each piece of input information will contribute to the
  output value and also how many entry the attention operation will output. The operation that will modify
@@ -77,12 +77,12 @@ The attention score is used to decide how much the each piece of input informati
  (local attention, random attention, ...), normalization (softmax, l2-norm, ...), and some special attention
  that take other inputs (transformer decoder, relative position encoding, ...).
 
-### Mixing
+### 2. Mixing
 
 We refer to the operation that take the attention score and input value as "mixing". Usually it's just a
  weighted sum over the input value and use the attention score as the weight.
 
-### Attention Operation
+### 3. Attention Operation
 
 The whole scoring + mixing and other pre/post processing made up an attention operation. Things like handling
  multi-head should happen at this level.
@@ -92,12 +92,12 @@ The whole scoring + mixing and other pre/post processing made up an attention op
 
 Attention masks are a bunch of operation that modified the attention score.
 
-### Dataless mask
+### 1. Dataless mask
 
 We use "dataless" to refer to masks that are independent to the input. For example, `CausalMask` works the same
  on each data regardless of the batch size or the data content.
 
-### Array mask
+### 2. Array mask
 
 We call the mask that is dependent to the input as "array mask". For example, `SymLengthMask` is used to avoid
  the padding token being considered in the attention operation, thus each data batch might have different mask value.
