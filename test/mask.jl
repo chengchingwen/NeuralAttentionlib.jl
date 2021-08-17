@@ -177,7 +177,18 @@
 
     end
 
-    @testset "BoundCheck" begin
+    @testset "Broadcast" begin
+        @test trues(5, 5, 1, 2, 1) .* BatchedMask(SymLengthMask([2])) .* CausalMask() ==
+            trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) & CausalMask())
+        @test trues(5, 5, 1, 2, 1) .* BatchedMask(SymLengthMask([2])) .| CausalMask() ==
+            trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) | CausalMask())
+        @test trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) .* CausalMask()) ==
+            trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) & CausalMask())
+        @test trues(5,5,1, 2,1) .* (BatchedMask(SymLengthMask([2])) .| CausalMask() .* LocalMask(1)) ==
+            trues(5,5,1, 2,1) .* (BatchedMask(SymLengthMask([2])) | (CausalMask() & LocalMask(1)))
+        @test trues(5,5,1, 2,1) .* .!(BatchedMask(SymLengthMask([2])) .| CausalMask() .* LocalMask(1)) ==
+            trues(5,5,1, 2,1) .* !(BatchedMask(SymLengthMask([2])) | (CausalMask() & LocalMask(1)))
+
         @test_throws DimensionMismatch randn(5) .* CausalMask()
         @test_throws DimensionMismatch randn(5, 5, 2) .* SymLengthMask([2])
         @test_throws DimensionMismatch randn(5, 5, 2, 1) .* BiLengthMask([2,3], [2,2])
