@@ -39,7 +39,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask)
     apply_broadcast_mask(*, mask, score, scale), apply_broadcast_mask_pullback
 end
 
-#TODO: use Requires
-using Zygote
-Zygote.unbroadcast(x::AbstractAttenMask, _) = nothing
 
+@init @require Zygote="e88e6eb3-aa80-5325-afca-941959d7151f" begin
+    Zygote.unbroadcast(x::AbstractAttenMask, _) = nothing
+end
