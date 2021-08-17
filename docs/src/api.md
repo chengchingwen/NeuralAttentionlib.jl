@@ -4,6 +4,13 @@
 Order   = [:function, :type]
 ```
 
+## Functional
+
+```@autodocs
+Modules = [NeuralAttentionlib, NeuralAttentionlib.Functional, NeuralAttentionlib.Masks]
+Pages   = ["functional.jl"]
+```
+
 ## Mask
 
 ```@autodocs
@@ -14,6 +21,6 @@ Pages   = ["mask.jl"]
 ## Matmul
 
 ```@autodocs
-Modules = [NeuralAttentionlib]
+Modules = [NeuralAttentionlib, NeuralAttentionlib.Matmul]
 Pages   = ["collapseddim.jl", "matmul.jl"]
 ```
