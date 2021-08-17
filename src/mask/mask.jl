@@ -97,9 +97,8 @@ Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::Cartesian
 Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::Integer) = I
 
 const MaskIndexer = Indexer{<:AbstractAttenMask}
-# Broadcast.BroadcastStyle(::Type{<:MaskIndexer}) = Broadcast.DefaultArrayStyle{0}()
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I
-# Base.size(::MaskIndexer) = ()
+Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::Integer) = I
 Base.eltype(::MaskIndexer) = Bool
 
 GetIndexer(m::AbstractDatalessMask) = m
