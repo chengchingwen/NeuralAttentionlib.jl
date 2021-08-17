@@ -132,31 +132,28 @@
             min.((1 .- min.(causal(c) .+ grow_length(bmaskk_c, bmaskq_c, 10), 1)) .* trilu(c, 1) .+ bandpart(a, 4, 7), 1)
 
 
-        @test c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 4) == begin
+        @test c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b)) == begin
             m = reshape(grow_length(bmaskk_b, bmaskq_b, 10), 10, 10, 1, 2)
             cat(m, m; dims=3)
         end
-        @test c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 4) == c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), -1)
 
-        @test c .* BatchedMask(SymLengthMask(smask_b), 4) == begin
+        @test c .* BatchedMask(SymLengthMask(smask_b)) == begin
             m = reshape(grow_length(smask_b, smask_b, 10), 10, 10, 1, 2)
             cat(m, m; dims=3)
         end
-        @test c .* BatchedMask(SymLengthMask(smask_b), 4) == c .* BatchedMask(SymLengthMask(smask_b), -1)
 
         d = ones(Int, 10, 10, 2, 2, 2)
 
-        @test d .* BatchedMask(BiLengthMask(bmaskq_c, bmaskk_c), 4) == begin
+        @test d .* BatchedMask(BiLengthMask(bmaskq_c, bmaskk_c)) == begin
             m = reshape(grow_length(bmaskk_c, bmaskq_c, 10), 10, 10, 1, 2, 2)
             cat(m, m; dims=3)
         end
-        @test d .* BatchedMask(BiLengthMask(bmaskq_c, bmaskk_c), 4) == d .* BatchedMask(BiLengthMask(bmaskq_c, bmaskk_c), -2)
-        @test d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 5) == begin
+        @test d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b)) == begin
             m = reshape(grow_length(bmaskk_b, bmaskq_b, 10), 10, 10, 1, 1, 2)
             tmp = cat(m, m; dims=3)
             cat(tmp, tmp; dims=4)
         end
-        @test d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), 5) == d .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b), -1)
+
         e = ones(Int, 10, 10, 4)
         f = ones(Int, 10, 10, 2, 6)
         @test e .* RepeatMask(BiLengthMask(bmaskq_b, bmaskk_b), 2) == repeat(grow_length(bmaskk_b, bmaskq_b, 10), inner=(1,1,2))
@@ -178,6 +175,30 @@
         @test apply_mask(GenericAttenMaskOp(./, true, 2), CausalMask(), c) == inv(2) .* c .* !CausalMask()
         @test apply_mask(GenericAttenMaskOp(./, false, 2), CausalMask(), c) == inv(2) .* c .* CausalMask()
 
+    end
+
+    @testset "Broadcast" begin
+        @test trues(5, 5, 1, 2, 1) .* BatchedMask(SymLengthMask([2])) .* CausalMask() ==
+            trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) & CausalMask())
+        @test trues(5, 5, 1, 2, 1) .* BatchedMask(SymLengthMask([2])) .| CausalMask() ==
+            trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) | CausalMask())
+        @test trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) .* CausalMask()) ==
+            trues(5, 5, 1, 2, 1) .* (BatchedMask(SymLengthMask([2])) & CausalMask())
+        @test trues(5,5,1, 2,1) .* (BatchedMask(SymLengthMask([2])) .| CausalMask() .* LocalMask(1)) ==
+            trues(5,5,1, 2,1) .* (BatchedMask(SymLengthMask([2])) | (CausalMask() & LocalMask(1)))
+        @test trues(5,5,1, 2,1) .* .!(BatchedMask(SymLengthMask([2])) .| CausalMask() .* LocalMask(1)) ==
+            trues(5,5,1, 2,1) .* !(BatchedMask(SymLengthMask([2])) | (CausalMask() & LocalMask(1)))
+
+        @test_throws DimensionMismatch randn(5) .* CausalMask()
+        @test_throws DimensionMismatch randn(5, 5, 2) .* SymLengthMask([2])
+        @test_throws DimensionMismatch randn(5, 5, 2, 1) .* BiLengthMask([2,3], [2,2])
+        @test_throws DimensionMismatch randn(5, 5, 3) .* BiLengthMask([2,3], [2,2])
+        @test_throws DimensionMismatch randn(5, 5, 2) .* RepeatMask(BiLengthMask([2,3], [2,2]), 3)
+        @test_throws DimensionMismatch randn(5, 5, 3) .* RepeatMask(SymLengthMask([2]), 2)
+        @test_throws DimensionMismatch randn(5, 5, 2, 3) .* BatchedMask(BiLengthMask([2,3], [2,2]))
+        @test_throws DimensionMismatch randn(5, 4) .* GenericMask(rand(Bool, 3, 4))
+        @test_throws DimensionMismatch randn(5, 4, 2) .* (GenericMask(rand(Bool, 3, 4)) | BiLengthMask([2,3], [2,2]))
+        @test_throws DimensionMismatch randn(5, 4) .* (GenericMask(rand(Bool, 3, 4)) | SymLengthMask([2]))
     end
 
     @testset "AD" begin

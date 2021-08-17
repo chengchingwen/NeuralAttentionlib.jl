@@ -154,10 +154,9 @@ logical and of two attention mask
 Base.:&(m1::AbstractAttenMask, m2::AbstractAttenMask)
 
 """
-    BatchedMask(mask::AbstractArrayMask, batch_dim::Int) <: AbstractWrapperMask
+    BatchedMask(mask::AbstractArrayMask) <: AbstractWrapperMask
 
 Attention mask wrapper over array mask for applying the same mask within the same batch.
- Use `batch_dim` to specify from which dim should be treated as batch dims.
 
 # Example
 
@@ -178,9 +177,11 @@ julia> trues(3,3, 2) .* m
  1  1  1
 
 julia> trues(3,3, 2, 2) .* m
-ERROR: [...]
+ERROR: DimensionMismatch("arrays could not be broadcast to a common size; mask require ndims(A) == 3")
+Stacktrace:
+[...]
 
-julia> trues(3,3, 2, 2) .* BatchedMask(m, 4) # 4-th dim is batch dim
+julia> trues(3,3, 2, 2) .* BatchedMask(m) # 4-th dim become batch dim
 3×3×2×2 BitArray{4}:
 [:, :, 1, 1] =
  1  1  0
@@ -201,10 +202,6 @@ julia> trues(3,3, 2, 2) .* BatchedMask(m, 4) # 4-th dim is batch dim
  1  1  1
  1  1  1
  1  1  1
-
-# can also use negative value to count from the last
-julia> trues(3,3, 2, 2) .* BatchedMask(m, 4) == trues(3,3, 2, 2) .* BatchedMask(m, -1)
-true
 
 ```
 """
@@ -234,7 +231,9 @@ julia> trues(3,3, 2) .* m
  1  1  1
 
 julia> trues(3,3, 4) .* m
-[...] # wrong result due to out of bound access
+ERROR: DimensionMismatch("arrays could not be broadcast to a common size; mask require 3-th dimension to be 2, but get 4")
+Stacktrace:
+[...]
 
 julia> trues(3,3, 4) .* RepeatMask(m, 2)
 3×3×4 BitArray{3}:

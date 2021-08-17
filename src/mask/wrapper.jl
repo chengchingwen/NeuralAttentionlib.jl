@@ -14,7 +14,13 @@ GetIndexer(m::FlipMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask),))
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Integer...) = !m.mask[I...]
 
+check_constraint(m::FlipMask, x) = check_constraint(m.mask, x)
+
+AxesConstraint(m::FlipMask) = AxesConstraint(m.mask)
+
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
+
+Broadcast.broadcasted(::MaskStyle, !, m::AbstractAttenMask) = FlipMask(m)
 
 struct CombinedMask{C, Ts<:Tuple} <: AbstractWrapperMask
     f::C
@@ -52,6 +58,14 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M
     return _combine_getmask(m.f, m.masks, I)
 end
 
+check_constraint(m::CombinedMask, x) = check_constraint(m.masks, x)
+
+function AxesConstraint(m::CombinedMask)
+    merge_constraint(map(AxesConstraint, m.masks)...)
+end
+
+Broadcast.broadcasted(::MaskStyle, f, m1::AbstractAttenMask, m2::AbstractAttenMask) = CombinedMask(f, (m1, m2))
+
 function Base.show(io::IO, m::CombinedMask)
     print(io, '(')
     show(io, first(m.masks))
@@ -63,43 +77,49 @@ function Base.show(io::IO, m::CombinedMask)
     io
 end
 
-struct BatchedMask{M, S<:StaticInt, B<:StaticBool} <: AbstractWrapperMask
+struct BatchedMask{M, S<:StaticInt} <: AbstractWrapperMask
     mask::M
     batch_dim::S
-    neg::B
 end
 
-function BatchedMask(mask, batch_dim::Integer)
-    @assert batch_dim > 2 || batch_dim < 0
-    if batch_dim < 0
-        return BatchedMask(mask, static(-batch_dim), static(true))
-    else
-        return BatchedMask(mask, static(batch_dim), static(false))
-    end
+compute_batch_dim(::Tuple{}) = 0
+compute_batch_dim(cs::Tuple{NDimConstraint}) = 0
+compute_batch_dim(cs::Tuple{NDimConstraint, All1Constraint}) = 0
+compute_batch_dim(cs::Tuple{NDimConstraint, Vararg{DimConstraint}}) = length(cs) - 1
+
+function BatchedMask(mask)
+    batch_dim = compute_batch_dim(AxesConstraint(mask))
+    return BatchedMask(mask, static(batch_dim))
 end
 
-Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = m.batch_dim, neg = m.neg))
+Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = m.batch_dim))
 
-adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim, x.neg)
+adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim)
 
-GetIndexer(m::BatchedMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), batch_dim = m.batch_dim, neg = m.neg))
+GetIndexer(m::BatchedMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), batch_dim = m.batch_dim))
 
-@inline function _tailtuples(::True, I, dim)
+@inline function _tailtuples(I, dim)
     offset = length(I) - dim
     return ntuple(i->I[i+offset], dim)
-end
-
-@inline function _tailtuples(::False, I, _dim)
-    dim = _dim - 1
-    return ntuple(i->I[i+dim], length(I)-dim)
 end
 
 Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) where M <: BatchedMask
     i = I[1]
     j = I[2]
-    J = _tailtuples(m.neg, I, m.batch_dim)
+    J = _tailtuples(I, m.batch_dim)
     return m.mask[(i, j, J...)]
 end
+
+batch_constraint(::Tuple{}) = ()
+batch_constraint(cs::Tuple{NDimConstraint}) = (NDimConstraint(cs[1].n, true),)
+batch_constraint(cs::Tuple{NDimConstraint, All1Constraint}) = (NDimConstraint(cs[1].n, true),)
+function batch_constraint(cs::Tuple{NDimConstraint, Vararg{DimConstraint}})
+    dcs = Base.tail(cs)
+    n = length(dcs)
+    return (NDimConstraint(cs[1].n, true), ntuple(i->DimConstraint(i-n-1, dcs[i].val), n)...)
+end
+
+AxesConstraint(m::BatchedMask) = batch_constraint(AxesConstraint(m.mask))
 
 struct RepeatMask{M} <: AbstractWrapperMask
     mask::M
@@ -117,4 +137,24 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) wh
     b = I[dim]
     J = Base.setindex(I,  fld1(b, m.num), dim)
     return m.mask[J]
+end
+
+@inline head(t::Tuple) = Base.reverse(Base.tail(Base.reverse(t)))
+
+AxesConstraint(m::RepeatMask) = multiply_constraint(AxesConstraint(m.mask), m.num)
+
+@inline multiply_constraint(::Tuple{}, _) = ()
+@inline multiply_constraint(cs::Tuple{NDimConstraint}, n) = cs
+@inline function multiply_constraint(cs::Tuple{NDimConstraint, All1Constraint}, n)
+    c = cs[2]
+    return (NDimConstraint(c.n), ntuple(c.n - c.from + 1) do i
+        dim = i + c.from - 1
+        DimConstraint(dim, dim != c.n ? 1 : n)
+    end...)
+end
+
+@inline function multiply_constraint(cs::Tuple{NDimConstraint, Vararg{DimConstraint}}, n)
+    h = head(cs)
+    c = cs[end]
+    return (h..., DimConstraint(c.dim, c.val * n))
 end
