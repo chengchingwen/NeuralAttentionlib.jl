@@ -177,6 +177,19 @@
 
     end
 
+    @testset "BoundCheck" begin
+        @test_throws DimensionMismatch randn(5) .* CausalMask()
+        @test_throws DimensionMismatch randn(5, 5, 2) .* SymLengthMask([2])
+        @test_throws DimensionMismatch randn(5, 5, 2, 1) .* BiLengthMask([2,3], [2,2])
+        @test_throws DimensionMismatch randn(5, 5, 3) .* BiLengthMask([2,3], [2,2])
+        @test_throws DimensionMismatch randn(5, 5, 2) .* RepeatMask(BiLengthMask([2,3], [2,2]), 3)
+        @test_throws DimensionMismatch randn(5, 5, 3) .* RepeatMask(SymLengthMask([2]), 2)
+        @test_throws DimensionMismatch randn(5, 5, 2, 3) .* BatchedMask(BiLengthMask([2,3], [2,2]))
+        @test_throws DimensionMismatch randn(5, 4) .* GenericMask(rand(Bool, 3, 4))
+        @test_throws DimensionMismatch randn(5, 4, 2) .* (GenericMask(rand(Bool, 3, 4)) | BiLengthMask([2,3], [2,2]))
+        @test_throws DimensionMismatch randn(5, 4) .* (GenericMask(rand(Bool, 3, 4)) | SymLengthMask([2]))
+    end
+
     @testset "AD" begin
         m = (LocalMask(1) | CausalMask() & !(BandPartMask(5,5)) | BiLengthMask([2,3], [3, 7]))
 
