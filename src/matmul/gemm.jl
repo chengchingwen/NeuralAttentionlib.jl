@@ -50,6 +50,27 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             return nothing
         end
 
+        @inline function gemm_strided_batched_impl!(
+            transA::Char, transB::Char,
+            m::Int, n::Int, k::Int,
+            alpha::($elty), A::AbstractArray{$elty}, lda::Int, strideA::Int,
+            B::AbstractArray{$elty}, ldb::Int, strideB::Int, beta::($elty),
+            C::AbstractArray{$elty}, ldc::Int, strideC::Int, batchCount::Int)
+
+            ptrA = pointer(A)
+            ptrB = pointer(B)
+            ptrC = pointer(C)
+
+            GC.@preserve A B C begin
+                unsafe_gemm_strided_batched!(
+                    transA, transB, m, n, k,
+                    alpha, ptrA, lda, strideA,
+                    ptrB, ldb, strideB, beta,
+                    ptrC, ldc, strideC, batchCount)
+            end
+            return C
+        end
+
         @inline function gemm_strided_batched!(
             transA::Char, transB::Char,
             alpha::($elty), A::AbstractArray{$elty, 3},
@@ -79,17 +100,12 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             strideC = stride(C, 3)
             batchCount = size(C, 3)
 
-            ptrA = pointer(A)
-            ptrB = pointer(B)
-            ptrC = pointer(C)
+            gemm_strided_batched_impl!(
+                transA, transB, m, n, ka,
+                alpha, A, lda, strideA,
+                B, ldb, strideB, beta,
+                C, ldc, strideC, batchCount)
 
-            GC.@preserve A B C begin
-                unsafe_gemm_strided_batched!(
-                    transA, transB, m, n, ka,
-                    alpha, ptrA, lda, strideA,
-                    ptrB, ldb, strideB, beta,
-                    ptrC, ldc, strideC, batchCount)
-            end
             return C
         end
 
@@ -149,18 +165,13 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             strideB = sb3 == 1 ? 0 : stride(B, Bj)
             strideC = stride(C, Cj)
             batchCount = sc3
-            
-            ptrA = pointer(A)
-            ptrB = pointer(B)
-            ptrC = pointer(C)
 
-            GC.@preserve A B C begin
-                unsafe_gemm_strided_batched!(
-                    transA, transB, m, n, ka,
-                    alpha, ptrA, lda, strideA,
-                    ptrB, ldb, strideB, beta,
-                    ptrC, ldc, strideC, batchCount)
-            end
+            gemm_strided_batched_impl!(
+                transA, transB, m, n, ka,
+                alpha, A, lda, strideA,
+                B, ldb, strideB, beta,
+                C, ldc, strideC, batchCount)
+
             return C
         end
 
@@ -189,5 +200,6 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             Ai, Aj, Bi, Bj) where {N1, N2}
             return gemm_strided_batched(transA, transB, one($elty), A, B, Ai, Aj, Bi, Bj)
         end
+
     end
 end

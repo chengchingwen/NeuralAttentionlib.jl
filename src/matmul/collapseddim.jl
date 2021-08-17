@@ -99,6 +99,7 @@ struct CollapsedDimArray{T, A<:AbstractArray{T}, S1<:StaticInt, S2<:StaticInt, S
 end
 
 Base.unsafe_convert(::Type{Ptr{T}}, ca::CollapsedDimArray{T}) where {T} = Base.unsafe_convert(Ptr{T}, parent(ca))
+Base.pointer(ca::CollapsedDimArray) = pointer(parent(ca))
 Base.parent(ca::CollapsedDimArray) = ca.parent
 Base.similar(ca::CollapsedDimArray, eltype::Type, dims::Dims) = similar(parent(ca), eltype, dims)
 Base.eltype(::CollapsedDimArray{T}) where T = T
@@ -106,6 +107,9 @@ Base.length(ca::CollapsedDimArray) = length(parent(ca))
 Base.size(ca::CollapsedDimArray) = ca.dims
 
 Base.strides(ca::CollapsedDimArray) = strides(Base.ReshapedArray(parent(ca), ca.dims, ()))
+
+Base.reshape(ca::CollapsedDimArray, dims::Dims) = reshape(parent(ca), dims)
+Base.reshape(ca::CollapsedDimArray, dims::Tuple{Vararg{Union{Colon, Int}}}) = reshape(parent(ca), dims)
 
 CollapsedDimArray(ca::CollapsedDimArray) = ca
 CollapsedDimArray(parent) = CollapsedDimArray(parent, static(2), static(3))
@@ -175,7 +179,7 @@ import Adapt: adapt_structure, adapt
 adapt_structure(to, x::CollapsedDimArray) = CollapsedDimArray(adapt(to, parent(x)), x.dims, x.si, x.sj, x.onebatch)
 
 # GPU kernel compat
-#Adapt.adapt(to::CUDA.Adaptor, x::CollapsedDimArray) = Adapt.adapt(to, collapseddim(x))
+Adapt.adapt(to::CUDA.Adaptor, x::CollapsedDimArray) = Adapt.adapt(to, collapseddim(x))
 
 @inline function Base.view(ca::CollapsedDimArray, I::Vararg{Any,N}) where {N}
     return view(collapseddim(ca), I...)

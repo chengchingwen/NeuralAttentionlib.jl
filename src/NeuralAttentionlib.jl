@@ -46,6 +46,7 @@ include("./matmul/collapseddim.jl")
 include("./matmul/gemm.jl")
 include("./matmul/matmul.jl")
 include("./matmul/grad.jl")
+include("./matmul/gpu.jl")
 
 # attention score masking
 include("./mask/indexer.jl")
