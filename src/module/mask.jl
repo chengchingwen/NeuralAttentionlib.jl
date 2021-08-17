@@ -177,7 +177,9 @@ julia> trues(3,3, 2) .* m
  1  1  1
 
 julia> trues(3,3, 2, 2) .* m
-ERROR: [...]
+ERROR: DimensionMismatch("arrays could not be broadcast to a common size; mask require ndims(A) == 3")
+Stacktrace:
+[...]
 
 julia> trues(3,3, 2, 2) .* BatchedMask(m) # 4-th dim become batch dim
 3×3×2×2 BitArray{4}:
@@ -229,7 +231,9 @@ julia> trues(3,3, 2) .* m
  1  1  1
 
 julia> trues(3,3, 4) .* m
-ERROR: [...]
+ERROR: DimensionMismatch("arrays could not be broadcast to a common size; mask require 3-th dimension to be 2, but get 4")
+Stacktrace:
+[...]
 
 julia> trues(3,3, 4) .* RepeatMask(m, 2)
 3×3×4 BitArray{3}:
