@@ -39,7 +39,6 @@ GenericAttenMaskOp(apply, flip::Bool, scale) = GenericAttenMaskOp(apply, static(
 GenericAttenMaskOp(::typeof(+), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, scale)
 GenericAttenMaskOp(::typeof(-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
 GenericAttenMaskOp(::typeof(.-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
-GenericAttenMaskOp(::typeof(./), flip::Bool, scale) = GenericAttenMaskOp(.*, flip, inv(scale))
 
 # softmax norm default value
 GenericAttenMaskOp() = GenericAttenMaskOp(.+, static(true), -1e9)
@@ -51,7 +50,7 @@ function getmask(m::AbstractAttenMask, score, scale)
     return tmp
 end
 
-function apply_broadcast_mask(f, mask, score, scale)
+function apply_broadcast_mask(f, mask::AbstractAttenMask, score, scale)
     @. f(score, mask * scale)
 end
 
@@ -112,3 +111,5 @@ Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
 @init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
     Adapt.adapt(to::CUDA.Adaptor, m::AbstractArrayMask) = Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
 end
+
+randomness(::AbstractAttenMask) = static(false)

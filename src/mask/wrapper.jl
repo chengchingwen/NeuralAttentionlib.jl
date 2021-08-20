@@ -19,6 +19,7 @@ Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Integer...) = 
 check_constraint(m::FlipMask, x) = check_constraint(m.mask, x)
 
 AxesConstraint(m::FlipMask) = AxesConstraint(m.mask)
+randomness(m::FlipMask) = randomness(m.mask)
 
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
 
@@ -70,6 +71,8 @@ function AxesConstraint(m::CombinedMask)
 end
 
 Broadcast.broadcasted(::MaskStyle, f, m1::AbstractAttenMask, m2::AbstractAttenMask) = CombinedMask(f, (m1, m2))
+
+randomness(m::CombinedMask) = static(any(map(randomness, m.masks)))
 
 function Base.show(io::IO, m::CombinedMask)
     print(io, '(')
@@ -127,6 +130,7 @@ function batch_constraint(cs::Tuple{NDimConstraint, Vararg{DimConstraint}})
 end
 
 AxesConstraint(m::BatchedMask) = batch_constraint(AxesConstraint(m.mask))
+randomness(m::BatchedMask) = randomness(m.mask)
 
 struct RepeatMask{M} <: AbstractWrapperMask
     mask::M
@@ -167,3 +171,5 @@ end
     c = cs[end]
     return (h..., DimConstraint(c.dim, c.val * n))
 end
+
+randomness(m::RepeatMask) = randomness(m.mask)

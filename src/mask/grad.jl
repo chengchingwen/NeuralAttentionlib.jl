@@ -9,8 +9,9 @@ ChainRulesCore.@non_differentiable (::Type{<:AbstractAttenMaskOp})(args...)
 ChainRulesCore.@non_differentiable getmask(arg...)
 
 function ChainRulesCore.rrule(::typeof(apply_mask), op::NaiveAttenMaskOp, mask, score)
-    naive_apply_mask_pullback(Ȳ) = (NoTangent(), NoTangent(), NoTangent(), @thunk unthunk(Ȳ) .* mask)
-    return score .* mask, naive_apply_mask_pullback
+    m = as_bool(randomness(mask)) ? getmask(mask, score) : mask
+    naive_apply_mask_pullback(Ȳ) = (NoTangent(), NoTangent(), NoTangent(), @thunk unthunk(Ȳ) .* m)
+    return score .* m, naive_apply_mask_pullback
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask), f, mask, score, scale)
@@ -29,14 +30,17 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask)
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask), ::typeof(*), mask, score, scale)
+    rnm = as_bool(randomness(mask))
+    m = rnm ? getmask(mask, score, scale) : mask
     function apply_broadcast_mask_pullback(Ȳ)
         thk = @thunk begin
             tmp = unthunk(Ȳ)
-            @. tmp * (mask * scale)
+            rnm ? tmp .* m : @. tmp * (mask * scale)
         end
         return (NoTangent(), NoTangent(), NoTangent(), thk, NoTangent())
     end
-    apply_broadcast_mask(*, mask, score, scale), apply_broadcast_mask_pullback
+    fwd = rnm ? score .* m : apply_broadcast_mask(*, mask, score, scale)
+    fwd, apply_broadcast_mask_pullback
 end
 
 

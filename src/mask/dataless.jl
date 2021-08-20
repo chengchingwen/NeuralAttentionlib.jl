@@ -17,6 +17,7 @@ end
 Base.@propagate_inbounds Base.getindex(m::RandomMask, _::Integer...) = rand() > m.p
 
 AxesConstraint(m::RandomMask) = ()
+randomness(::RandomMask) = static(true)
 
 struct BandPartMask <: AbstractDatalessMask
     l::Int
