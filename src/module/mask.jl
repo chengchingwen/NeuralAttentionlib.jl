@@ -6,7 +6,7 @@ using ..NeuralAttentionlib: @imexport
     apply_mask, NaiveAttenMaskOp, GenericAttenMaskOp,
     CausalMask, LocalMask, RandomMask, BandPartMask,
     GenericMask, SymLengthMask, BiLengthMask,
-    BatchedMask, RepeatMask
+    BatchedMask, RepeatMask, getmask
 
 import ..NeuralAttentionlib: AbstractAttenMask, AbstractDatalessMask, AbstractArrayMask
 
@@ -260,5 +260,26 @@ julia> trues(3,3, 4) .* RepeatMask(m, 2)
 ```
 """
 RepeatMask
+
+"""
+    getmask(m::AbstractAttenMask, score, scale = 1)
+
+Convert `m` into mask array of `AbstractArray` for `score` with `scale`.
+
+# Example
+```julia
+julia> getmask(CausalMask(), randn(7,7), 2)
+7×7 Matrix{Float64}:
+ 2.0  2.0  2.0  2.0  2.0  2.0  2.0
+ 0.0  2.0  2.0  2.0  2.0  2.0  2.0
+ 0.0  0.0  2.0  2.0  2.0  2.0  2.0
+ 0.0  0.0  0.0  2.0  2.0  2.0  2.0
+ 0.0  0.0  0.0  0.0  2.0  2.0  2.0
+ 0.0  0.0  0.0  0.0  0.0  2.0  2.0
+ 0.0  0.0  0.0  0.0  0.0  0.0  2.0
+
+```
+"""
+getmask
 
 end
