@@ -211,7 +211,7 @@
         test_rrule(NeuralAttentionlib.apply_mask, NaiveAttenMaskOp(), m ⊢ NoTangent(), randn(10, 10, 2))
 
         test_rrule(NeuralAttentionlib.apply_broadcast_mask, (*) ⊢ NoTangent(), m ⊢ NoTangent(), randn(10, 10, 2), 3 ⊢ NoTangent())
-        test_rrule(NeuralAttentionlib.apply_broadcast_mask, (+) ⊢ NoTangent(), m ⊢ NoTangent(), randn(10, 10, 2), -1e9 ⊢ NoTangent(); atol=1e-2)
+        test_rrule(NeuralAttentionlib.apply_broadcast_mask, (+) ⊢ NoTangent(), m ⊢ NoTangent(), randn(10, 10, 2), -1e9 ⊢ NoTangent(); atol=5e-2)
 
         y, back = Flux.pullback(ones(10, 10), RandomMask(0.5)) do x, m
             apply_mask(m, x)
