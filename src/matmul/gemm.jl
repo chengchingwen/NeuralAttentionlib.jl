@@ -13,7 +13,7 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             ptrB::Ptr{$elty}, ldb::Int, beta::($elty),
             ptrC::Ptr{$elty}, ldc::Int)
 
-            ccall((BLAS.@blasfunc($gemm), BLAS.libblas), Nothing,
+            ccall((BLAS.@blasfunc($gemm), libblas), Nothing,
                   (Ref{UInt8}, Ref{UInt8}, Ref{BLAS.BlasInt}, Ref{BLAS.BlasInt}, Ref{BLAS.BlasInt},
                    Ref{$elty}, Ptr{$elty}, Ref{BLAS.BlasInt},
                    Ptr{$elty}, Ref{BLAS.BlasInt}, Ref{$elty},
