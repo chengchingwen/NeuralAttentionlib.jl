@@ -9,6 +9,8 @@ import Adapt: adapt_structure, adapt
 
 import Base
 
+const libblas = Base.libblas_name
+
 export attention, generic_attention
 
 include("./utils.jl")
