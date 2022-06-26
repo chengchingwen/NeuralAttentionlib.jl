@@ -39,6 +39,11 @@ Base.:&(m1::CombinedMask{typeof(&)}, m2::AbstractAttenMask) = CombinedMask(&, (m
 Base.:&(m1::AbstractAttenMask, m2::CombinedMask{typeof(&)}) = CombinedMask(&, (m1, m2.masks...))
 Base.:&(m1::CombinedMask{typeof(&)}, m2::CombinedMask{typeof(&)}) = CombinedMask(&, (m1.masks..., m2.masks...))
 
+Base.:|(m::AbstractAttenMask, ::Nothing) = m
+Base.:|(::Nothing, m::AbstractAttenMask) = m
+Base.:&(m::AbstractAttenMask, ::Nothing) = m
+Base.:&(::Nothing, m::AbstractAttenMask) = m
+
 @init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
     Adapt.adapt(to::CUDA.Adaptor, m::CombinedMask) = Indexer{typeof(m)}((f = adapt(to, m.f),
                                                                          masks = map(Base.Fix1(adapt, to), m.masks)))
