@@ -24,3 +24,7 @@ check_constraint(y, x) = Broadcast.broadcast_shape(axes(y), x) # fallback
 @inline check_broadcast_axes(shp, A::Broadcasted{<:MaskStyle}) = isnothing(A.axes) ? combine_axes(A.args, shp) : check_broadcast_axes(shp, axes(A))
 
 AxesConstraint(::AbstractDatalessMask) = (NDimConstraint(2, true),)
+
+Base.mapreduce(f, op, A::Broadcasted{<:MaskStyle{S}}, As::Base.AbstractArrayOrBroadcasted...;
+               dims = :, init = nothing) where S =
+    mapreduce(f, op, convert(Broadcasted{S}, A), As...; dims, init)
