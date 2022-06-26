@@ -1,4 +1,5 @@
 @inline trans(b::NNlib.BatchedAdjOrTrans) = (b isa NNlib.BatchedTranspose ? static(Int('T')) : static(Int('C'))), parent(b)
+@inline trans(a::LinearAlgebra.AdjOrTrans) = (a isa LinearAlgebra.Transpose ? static(Int('T')) : static(Int('C'))), parent(a)
 @inline trans(x) = static(Int('N')), x
 @inline trans(c, x) = Int(c) == static(Int('T')) ? batched_transpose(x) :
     Int(c) == static(Int('C')) ? batched_adjoint(x) : x
