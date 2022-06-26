@@ -12,18 +12,18 @@
 
             @inline function gemm_strided_batched!(
                 transA::Char, transB::Char,
-                alpha::($elty), A::CuArray{$elty, 3},
-                B::CuArray{$elty, 3}, beta::($elty),
-                C::CuArray{$elty, 3})
+                alpha::($elty), A::StridedCuArray{$elty, 3},
+                B::StridedCuArray{$elty, 3}, beta::($elty),
+                C::StridedCuArray{$elty, 3})
                 return CUBLAS.gemm_strided_batched!(transA, transB, alpha, A, B, beta, C)
             end
 
             @inline function gemm_strided_batched_impl!(
                 transA::Char, transB::Char,
                 m::Int, n::Int, k::Int,
-                alpha::($elty), A::CuArray{$elty}, lda::Int, strideA::Int,
-                B::CuArray{$elty}, ldb::Int, strideB::Int, beta::($elty),
-                C::CuArray{$elty}, ldc::Int, strideC::Int, batchCount::Int)
+                alpha::($elty), A::StridedCuArray{$elty}, lda::Int, strideA::Int,
+                B::StridedCuArray{$elty}, ldb::Int, strideB::Int, beta::($elty),
+                C::StridedCuArray{$elty}, ldc::Int, strideC::Int, batchCount::Int)
 
                 CUBLAS.$fname(CUBLAS.handle(),
                               transA, transB, m, n, k,
