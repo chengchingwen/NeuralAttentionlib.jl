@@ -1,5 +1,7 @@
 module Old_Impl
 
+using CUDA
+
 export MultiheadAttention
 
 const Abstract3DTensor{T} = AbstractArray{T, 3}

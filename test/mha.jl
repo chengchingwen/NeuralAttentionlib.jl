@@ -18,6 +18,9 @@
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = true, pdrop = 0) # disable dropout
 
+        mha = device(mha)
+        x = device(x)
+
         @test mha(x,x,x) ≈ atten(mha, x)
 
         gradN = Flux.gradient(mha, x) do mha, x
@@ -27,14 +30,14 @@
             sum(sin.(mha(x,x,x)))
         end
 
-        @test isapprox(gradN[1].iqproj.weight, gradT[1].iqproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].ikproj.weight, gradT[1].ikproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].ivproj.weight, gradT[1].ivproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].oproj.weight, gradT[1].oproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].iqproj.bias, gradT[1].iqproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].ivproj.bias, gradT[1].ivproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].oproj.bias, gradT[1].oproj.bias; atol = 1e-12)
+        @test isapprox(gradN[1].iqproj.weight, gradT[1].iqproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.weight, gradT[1].ikproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.weight, gradT[1].ivproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.weight, gradT[1].oproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].iqproj.bias, gradT[1].iqproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.bias, gradT[1].ivproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.bias, gradT[1].oproj.bias; atol = 1e-4)
         @test gradN[2] ≈ gradT[2]
     end
 
@@ -42,6 +45,9 @@
         x = randn(input_dims, 3, 2)
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = false, pdrop = 0) # disable dropout
+
+        mha = device(mha)
+        x = device(x)
 
         @test mha(x,x,x) ≈ atten(mha, x, CausalMask())
 
@@ -52,14 +58,14 @@
             sum(sin.(mha(x,x,x)))
         end
 
-        @test isapprox(gradN[1].iqproj.weight, gradT[1].iqproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].ikproj.weight, gradT[1].ikproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].ivproj.weight, gradT[1].ivproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].oproj.weight, gradT[1].oproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].iqproj.bias, gradT[1].iqproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].ivproj.bias, gradT[1].ivproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].oproj.bias, gradT[1].oproj.bias; atol = 1e-12)
+        @test isapprox(gradN[1].iqproj.weight, gradT[1].iqproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.weight, gradT[1].ikproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.weight, gradT[1].ivproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.weight, gradT[1].oproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].iqproj.bias, gradT[1].iqproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.bias, gradT[1].ivproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.bias, gradT[1].oproj.bias; atol = 1e-4)
         @test gradN[2] ≈ gradT[2]
     end
 
@@ -78,6 +84,11 @@
         old_mask = zeros(6, 6, 2)
         old_mask[1:4, 1:5, :] .= Old_Impl.getmask(old_k_len, old_q_len)
 
+        mha = device(mha)
+        x = device(x)
+        mask = device(mask)
+        old_mask = device(old_mask)
+
         @test mha(x,x,x, mask=old_mask) ≈ atten(mha, x, mask)
 
         gradN = Flux.gradient(mha, x, mask) do mha, x, m
@@ -87,14 +98,14 @@
             sum(sin.(mha(x,x,x, mask=m)))
         end
 
-        @test isapprox(gradN[1].iqproj.weight, gradT[1].iqproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].ikproj.weight, gradT[1].ikproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].ivproj.weight, gradT[1].ivproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].oproj.weight, gradT[1].oproj.weight; atol = 1e-12)
-        @test isapprox(gradN[1].iqproj.bias, gradT[1].iqproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].ivproj.bias, gradT[1].ivproj.bias; atol = 1e-12)
-        @test isapprox(gradN[1].oproj.bias, gradT[1].oproj.bias; atol = 1e-12)
+        @test isapprox(gradN[1].iqproj.weight, gradT[1].iqproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.weight, gradT[1].ikproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.weight, gradT[1].ivproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.weight, gradT[1].oproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].iqproj.bias, gradT[1].iqproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.bias, gradT[1].ivproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.bias, gradT[1].oproj.bias; atol = 1e-4)
         @test gradN[2] ≈ gradT[2]
         @test gradN[3] == gradT[3]
     end

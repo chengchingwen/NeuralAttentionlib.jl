@@ -1,4 +1,5 @@
 include("./batched_gemm.jl")
+include("./batched_gemm_gpu.jl")
 
 using ZygoteRules: @adjoint
 
