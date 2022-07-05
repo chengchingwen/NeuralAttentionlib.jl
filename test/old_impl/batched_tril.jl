@@ -11,7 +11,7 @@ function batched_tril!(x::A, d) where {T, N, A <: AbstractArray{T, N}}
     ms = s[1] * s[2]
     len = Int(length(x) // ms)
     Wt = Core.apply_type(A.name.wrapper, T, 2)
-    Threads.@threads for i = 1:len
+    for i = 1:len
       tril!(Base.unsafe_wrap(Wt, Base.pointer(x, (ms * (i - 1) + 1)), m), d)
     end
     return x
@@ -29,7 +29,7 @@ function batched_triu!(x::A, d) where {T, N, A <: AbstractArray{T, N}}
     ms = s[1] * s[2]
     len = Int(length(x) // ms)
     Wt = Core.apply_type(A.name.wrapper, T, 2)
-    Threads.@threads for i = 1:len
+    for i = 1:len
       triu!(Base.unsafe_wrap(Wt, Base.pointer(x, (ms * (i - 1) + 1)), m), d)
     end
     return x
