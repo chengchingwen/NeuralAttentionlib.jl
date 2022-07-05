@@ -7,9 +7,7 @@ end
 Base.:!(m::AbstractAttenMask) = FlipMask(m)
 Base.:!(m::FlipMask) = m.mask
 
-@init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
-    Adapt.adapt(to::CUDA.Adaptor, m::FlipMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask),))
-end
+Adapt.adapt(to::CUDA.Adaptor, m::FlipMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask),))
 
 adapt_structure(to, x::FlipMask) = FlipMask(adapt(to, x.mask))
 GetIndexer(m::FlipMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask),))
@@ -44,10 +42,8 @@ Base.:|(::Nothing, m::AbstractAttenMask) = m
 Base.:&(m::AbstractAttenMask, ::Nothing) = m
 Base.:&(::Nothing, m::AbstractAttenMask) = m
 
-@init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
-    Adapt.adapt(to::CUDA.Adaptor, m::CombinedMask) = Indexer{typeof(m)}((f = adapt(to, m.f),
-                                                                         masks = map(Base.Fix1(adapt, to), m.masks)))
-end
+Adapt.adapt(to::CUDA.Adaptor, m::CombinedMask) = Indexer{typeof(m)}((f = adapt(to, m.f),
+                                                                     masks = map(Base.Fix1(adapt, to), m.masks)))
 
 adapt_structure(to, x::CombinedMask) = CombinedMask(x.f, adapt(to, x.masks))
 GetIndexer(m::CombinedMask) = Indexer{typeof(m)}((m.f, masks = map(GetIndexer, m.masks)))
@@ -105,9 +101,7 @@ function BatchedMask(mask)
     return BatchedMask(mask, static(batch_dim))
 end
 
-@init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
-    Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = m.batch_dim))
-end
+Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = m.batch_dim))
 
 adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim)
 
@@ -142,9 +136,7 @@ struct RepeatMask{M} <: AbstractWrapperMask
     num::Int
 end
 
-@init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
-    Adapt.adapt(to::CUDA.Adaptor, m::RepeatMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), num = m.num))
-end
+Adapt.adapt(to::CUDA.Adaptor, m::RepeatMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), num = m.num))
 
 adapt_structure(to, x::RepeatMask) = RepeatMask(adapt(to, x.mask), x.num)
 

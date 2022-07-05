@@ -2,8 +2,10 @@ module NeuralAttentionlib
 
 using PartialFunctions
 using NNlib
+using NNlibCUDA
 
 using Requires
+using CUDA
 using Adapt
 import Adapt: adapt_structure, adapt
 

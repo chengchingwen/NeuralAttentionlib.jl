@@ -111,6 +111,12 @@ Base.strides(ca::CollapsedDimArray) = strides(Base.ReshapedArray(parent(ca), ca.
 Base.reshape(ca::CollapsedDimArray, dims::Dims) = reshape(parent(ca), dims)
 Base.reshape(ca::CollapsedDimArray, dims::Tuple{Vararg{Union{Colon, Int}}}) = reshape(parent(ca), dims)
 
+Base.isapprox(a::CollapsedDimArray, b::CollapsedDimArray; kwargs...) = isapprox(collapseddim(a), collapseddim(b); kwargs...)
+Base.isapprox(a::CollapsedDimArray, b::AbstractArray; kwargs...) = isapprox(collapseddim(a), b; kwargs...)
+Base.isapprox(a::AbstractArray, b::CollapsedDimArray; kwargs...) = isapprox(a, collapseddim(b); kwargs...)
+
+Base.collect(ca::CollapsedDimArray) = reshape(collect(parent(ca)), ca.dims)
+
 CollapsedDimArray(ca::CollapsedDimArray) = ca
 CollapsedDimArray(parent) = CollapsedDimArray(parent, static(2), static(3))
 CollapsedDimArray(parent::AbstractVecOrMat) = CollapsedDimArray(parent, static(2), static(3), static(true))
@@ -178,9 +184,7 @@ end
 adapt_structure(to, x::CollapsedDimArray) = CollapsedDimArray(adapt(to, parent(x)), x.dims, x.si, x.sj, x.onebatch)
 
 # GPU kernel compat
-@init @require CUDA="052768ef-5323-5732-b1bb-66c8b64840ba" begin
-    Adapt.adapt(to::CUDA.Adaptor, x::CollapsedDimArray) = Adapt.adapt(to, collapseddim(x))
-end
+Adapt.adapt(to, x::CollapsedDimArray) = Adapt.adapt(to, collapseddim(x))
 
 @inline function Base.view(ca::CollapsedDimArray, I::Vararg{Any,N}) where {N}
     return view(collapseddim(ca), I...)

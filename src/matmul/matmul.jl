@@ -5,7 +5,17 @@
     Int(c) == static(Int('C')) ? batched_adjoint(x) : x
 
 matmul(a, b) = matmul(a, b, true)
-matmul(a::AbstractVecOrMat, b::AbstractVecOrMat, s::Number) = (a * b) .* s
+matmul(a::AbstractVector, b::AbstractVecOrMat, s::Number) = matmul(reshape(a, length(a), 1), b, s)
+function matmul(a::AbstractMatrix, b::AbstractVecOrMat, s::Number)
+    TS = promote_type(eltype(a), eltype(b))
+    A = convert(AbstractArray{TS}, a)
+    B = convert(AbstractArray{TS}, b)
+    m = size(a, 1)
+    n = size(b, 2)
+    C = similar(b, TS, (m, n))
+    return LinearAlgebra.mul!(C, A, B, s, false)
+end
+
 function matmul(a::AbstractArray, b::AbstractArray, s::Number)
     transA, pA = trans(a)
     transB, pB = trans(b)
