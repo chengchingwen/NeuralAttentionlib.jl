@@ -11,16 +11,15 @@ masked_score(mask::Union{AbstractAttenMaskOp, AbstractAttenMask, Nothing}) = mas
 masked_score(maskop::AbstractAttenMaskOp, mask::Union{AbstractAttenMask, Nothing}) = masked_score $ maskop $ mask
 @inline masked_score(::Nothing, score, args...) = score(args...)
 @inline masked_score(::AbstractAttenMaskOp, ::Nothing, score, args...) = score(args...)
-@inline masked_score(mask::AbstractAttenMask, score, args...) = masked_score(MaskOp(mask), mask, score, args...)
-@inline function masked_score(maskop::AbstractAttenMaskOp, mask::AbstractAttenMask, score, args...)
-    return collapseddims_nonbatch(score(args...)) do sc
-        apply_mask(maskop, mask, sc)
-    end
-end
+@inline masked_score(mask::AbstractAttenMask, score, args...) = masked_score(NaiveAttenMaskOp(), mask, score, args...)
+@inline masked_score(maskop::AbstractAttenMaskOp, mask::AbstractAttenMask, score, args...) =
+    collapseddims_nonbatch(apply_mask $ maskop $ mask, score(args...))
 
 normalized_score(norm) = normalized_score $ norm
-@inline function normalized_score(norm, score, args...)
-    return collapseddims(norm, score(args...))
-end
+@inline normalized_score(norm, score, args...) = collapseddims(norm, score(args...))
+
+dropout(x, p) = x .* getmask(RandomMask(p), x, inv(1 - p))
+dropout_score(p) = dropout_score $ p
+@inline dropout_score(p, score, args...) = collapseddims(Base.Fix2(dropout, p), score(args...))
 
 @inline attention_score(f, args...) = f(args...)

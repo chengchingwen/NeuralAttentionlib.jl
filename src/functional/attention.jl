@@ -34,34 +34,18 @@ end
     end
 end
 
-function naive_qkv_attention(q::AbstractArray, k::AbstractArray, v::AbstractArray, mask=nothing)
-    return generic_qkv_attention(
-        weighted_sum_mixing,
-        normalized_score(NNlib.softmax) $ masked_score(GenericAttenMaskOp(), mask) $ scaled_dot_product_score,
-        q, k, v
-    )
-end
+naive_attention_score() = normalized_score(NNlib.softmax) $ scaled_dot_product_score
+naive_attention_score(mask) = normalized_score(NNlib.softmax) $ masked_score(GenericAttenMaskOp(), mask) $ scaled_dot_product_score
+naive_attention_score(mask, p) = dropout_score(p) $ naive_attention_score(mask)
 
-function multihead_qkv_attention(head::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, mask=nothing)
-    return generic_multihead_qkv_attention(
-        weighted_sum_mixing,
-        normalized_score(NNlib.softmax) $ masked_score(GenericAttenMaskOp(), mask) $ scaled_dot_product_score,
-        head, q, k, v
-    )
-end
+naive_qkv_attention(q::AbstractArray, k::AbstractArray, v::AbstractArray, args...) =
+    generic_qkv_attention(weighted_sum_mixing, naive_attention_score(args...), q, k, v)
 
-function naive_qkv_attention(::typeof(score_returning), q::AbstractArray, k::AbstractArray, v::AbstractArray, mask=nothing)
-    return generic_qkv_attention(
-        score_returning(weighted_sum_mixing),
-        normalized_score(NNlib.softmax) $ masked_score(GenericAttenMaskOp(), mask) $ scaled_dot_product_score,
-        q, k, v
-    )
-end
+naive_qkv_attention(::typeof(score_returning), q::AbstractArray, k::AbstractArray, v::AbstractArray, args...) =
+    generic_qkv_attention(score_returning(weighted_sum_mixing), naive_attention_score(args...), q, k, v)
 
-function multihead_qkv_attention(::typeof(score_returning), head::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, mask=nothing)
-    return generic_multihead_qkv_attention(
-        score_returning(weighted_sum_mixing),
-        normalized_score(NNlib.softmax) $ masked_score(GenericAttenMaskOp(), mask) $ scaled_dot_product_score,
-        head, q, k, v
-    )
-end
+multihead_qkv_attention(head::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, args...) =
+    generic_multihead_qkv_attention(weighted_sum_mixing, naive_attention_score(args...), head, q, k, v)
+
+multihead_qkv_attention(::typeof(score_returning), head::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, args...) =
+    generic_multihead_qkv_attention(score_returning(weighted_sum_mixing), naive_attention_score(args...), head, q, k, v)
