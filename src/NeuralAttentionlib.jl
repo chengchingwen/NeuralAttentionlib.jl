@@ -18,7 +18,7 @@ export attention, generic_attention
 include("./utils.jl")
 
 # matrix multiplication
-include("./matmul/collapseddim.jl")
+include("./matmul/collapseddims.jl")
 include("./matmul/gemm.jl")
 include("./matmul/matmul.jl")
 include("./matmul/grad.jl")

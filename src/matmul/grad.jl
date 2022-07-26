@@ -1,43 +1,43 @@
 @init @require FiniteDifferences="26cc04aa-876d-5657-8c51-4c34ba976000" begin
     using .FiniteDifferences
 
-    function FiniteDifferences.to_vec(X::CollapsedDimArray)
-        x_vec, back = to_vec(collapseddim(X))
+    function FiniteDifferences.to_vec(X::CollapsedDimsArray)
+        x_vec, back = to_vec(collapseddims(X))
         s = size(parent(X))
         ni = X.ni
         nj = X.nj
-        function CollapsedDimArray_from_vec(x_vec)
-            return CollapsedDimArray(reshape(back(x_vec), s), ni, nj)
+        function CollapsedDimsArray_from_vec(x_vec)
+            return CollapsedDimsArray(reshape(back(x_vec), s), ni, nj)
         end
-        return x_vec, CollapsedDimArray_from_vec
+        return x_vec, CollapsedDimsArray_from_vec
     end
 end
 
-@inline function _sumbatch(ca::CollapsedDimArray)
+@inline function _sumbatch(ca::CollapsedDimsArray)
     offset = static(ndims(parent(ca))) - ca.nj
     y = sum(parent(ca); dims = ntuple(Base.Fix1(+, offset), ca.nj))
-    return CollapsedDimArray(y, ca.ni, ca.nj)
+    return CollapsedDimsArray(y, ca.ni, ca.nj)
 end
 
 using ChainRulesCore
 using ChainRulesCore: NoTangent, @thunk
 import ChainRulesCore: ProjectTo
-function ChainRulesCore.rrule(::Type{CollapsedDimArray}, x, dims, ni, nj)
+function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x, dims, ni, nj)
     s = size(x)
-    function CollapsedDimArray_pullback(Ȳ)
+    function CollapsedDimsArray_pullback(Ȳ)
         ∂x = @thunk begin
             tmp = unwrap_collapse(unthunk(Ȳ))
             size(tmp) == s ? tmp : reshape(tmp, s)
         end
         return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
     end
-    return CollapsedDimArray(x, dims, ni, nj), CollapsedDimArray_pullback
+    return CollapsedDimsArray(x, dims, ni, nj), CollapsedDimsArray_pullback
 end
 
-function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimArray)
+function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimsArray)
     ni, nj = x.ni, x.nj
     function collapsed_parent_pullback(Ȳ)
-        ∂x = @thunk CollapsedDimArray(unthunk(Ȳ), ni, nj)
+        ∂x = @thunk CollapsedDimsArray(unthunk(Ȳ), ni, nj)
         return (NoTangent(), ∂x)
     end
     return parent(x), collapsed_parent_pullback
@@ -55,17 +55,17 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractVecOrMat, B::Abstract
     return Y, matmul_pullback
 end
 
-function ProjectTo(ca::CollapsedDimArray)
+function ProjectTo(ca::CollapsedDimsArray)
     dims = size(parent(ca))
-    return ProjectTo{CollapsedDimArray}(; dims=dims, ni = ca.ni, nj = ca.nj)
+    return ProjectTo{CollapsedDimsArray}(; dims=dims, ni = ca.ni, nj = ca.nj)
 end
 
-function (project::ProjectTo{CollapsedDimArray})(dx::AbstractArray)
+function (project::ProjectTo{CollapsedDimsArray})(dx::AbstractArray)
     dx = unwrap_collapse(dx)
-    return CollapsedDimArray(reshape(dx, project.dims), project.ni, project.nj)
+    return CollapsedDimsArray(reshape(dx, project.dims), project.ni, project.nj)
 end
 
-function (project::ProjectTo{AbstractArray})(dx::CollapsedDimArray)
+function (project::ProjectTo{AbstractArray})(dx::CollapsedDimsArray)
     dx = reshape(unwrap_collapse(dx), project.axes)
     return project(dx)
 end
@@ -76,8 +76,8 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArr
 
     transA, pA = trans(A)
     transB, pB = trans(B)
-    a = CollapsedDimArray(pA)
-    b = CollapsedDimArray(pB)
+    a = CollapsedDimsArray(pA)
+    b = CollapsedDimsArray(pB)
     Y = matmul_wrapper(transA, transB, s, a, b)
 
     function matmul_pullback(Ȳ)
