@@ -45,13 +45,13 @@ if !USE_CUDA
             test_rrule(parent, CollapsedDimsArray(x, 3, 0))
 
             test_rrule(CollapsedDimsArray, randn(6), (6, 1, 1),
-                       static(0), static(0))
+                       static(0) ⊢ NoTangent(), static(0) ⊢ NoTangent())
             test_rrule(CollapsedDimsArray, x, (42, 20, 6),
-                       static(2), static(2))
+                       static(2) ⊢ NoTangent(), static(2) ⊢ NoTangent())
             test_rrule(CollapsedDimsArray, x, (7, 6, 120),
-                       static(1), static(4))
+                       static(1) ⊢ NoTangent(), static(4) ⊢ NoTangent())
             test_rrule(CollapsedDimsArray, x, (210, 24, 1),
-                       static(3), static(0))
+                       static(3) ⊢ NoTangent(), static(0) ⊢ NoTangent())
 
         end
 
