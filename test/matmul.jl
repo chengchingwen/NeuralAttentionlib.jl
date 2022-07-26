@@ -129,8 +129,8 @@
             ct = drandn(elt, 60, 42, 2)
             s = drand(elt) + 1
 
-            ca1 = CollapsedDimArray(a, 3, 5)
-            ca2 = CollapsedDimArray(a, 3, 6)
+            ca1 = CollapsedDimArray(a, 2, 2)
+            ca2 = CollapsedDimArray(a, 3, 1)
 
             @test matmul_test(ca1, bt, s)
             @test matmul_test(ca1, batched_transpose(b), s)
@@ -173,7 +173,7 @@
         @testset "AD" begin
             test_rrule(matmul, randn(7,6,5), randn(6, 2), randn())
             test_rrule(matmul, randn(7,6,5,4), randn(6), randn())
-            test_rrule(matmul, CollapsedDimArray(randn(2,2,2,2,2,3), 4, 6), batched_transpose(randn(5,4,3)), randn(); check_inferred=false)
+            test_rrule(matmul, CollapsedDimArray(randn(2,2,2,2,2,3), 2, 1), batched_transpose(randn(5,4,3)), randn())
         end
     end
 
