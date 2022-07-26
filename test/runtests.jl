@@ -10,7 +10,7 @@ using ChainRulesCore
 using ChainRulesTestUtils
 
 const tests = [
-    "collapseddim",
+    "collapseddims",
     "matmul",
     "mask",
     "mha",
