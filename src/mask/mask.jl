@@ -14,10 +14,7 @@ abstract type AbstractAttenMask end
 
 apply_mask(::Nothing, s) = s
 apply_mask(_, ::Nothing, s) = s
-apply_mask(::Nothing, m, s) = apply_mask(m, s)
-apply_mask(m, s) = apply_mask(MaskOp(m), m, s)
-MaskOp(m) = NaiveAttenMaskOp()
-MaskOp(::Nothing) = nothing
+apply_mask(m, s) = apply_mask(NaiveAttenMaskOp(), m, s)
 
 struct NaiveAttenMaskOp <: AbstractAttenMaskOp end
 
@@ -33,18 +30,16 @@ struct GenericAttenMaskOp{F, B<:StaticBool, T} <: AbstractAttenMaskOp
     flip::B
     scale::T
 end
+GenericAttenMaskOp(apply::F, flip::Bool, scale) where F = GenericAttenMaskOp(apply, static(flip), scale)
 
-GenericAttenMaskOp(apply, flip::Bool, scale) = GenericAttenMaskOp(apply, static(flip), scale)
-
-GenericAttenMaskOp(::typeof(+), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, scale)
-GenericAttenMaskOp(::typeof(-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
-GenericAttenMaskOp(::typeof(.-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
+GenericAttenMaskOp(::typeof(+), flip::StaticBool, scale) = GenericAttenMaskOp(.+, flip, scale)
+GenericAttenMaskOp(::typeof(-), flip::StaticBool, scale) = GenericAttenMaskOp(.+, flip, -scale)
+GenericAttenMaskOp(::typeof(.-), flip::StaticBool, scale) = GenericAttenMaskOp(.+, flip, -scale)
 
 # softmax norm default value
 GenericAttenMaskOp() = GenericAttenMaskOp(.+, static(true), -1e9)
 
-getmask(m::AbstractAttenMask, score) = getmask(m, score, one(eltype(score)))
-function getmask(m::AbstractAttenMask, score, scale)
+function getmask(m::AbstractAttenMask, score, scale = one(eltype(score)))
     tmp = similar(score)
     @. tmp = m * scale
     return tmp
