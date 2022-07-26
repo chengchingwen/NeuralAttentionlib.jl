@@ -1,19 +1,15 @@
 module NeuralAttentionlib
 
-using PartialFunctions
-using NNlib
-using NNlibCUDA
+using Static
 
-using Requires
 using CUDA
 using Adapt
 import Adapt: adapt_structure, adapt
 
-import Base
+using NNlib
+using NNlibCUDA
 
-const libblas = Base.libblas_name
-
-export attention, generic_attention
+using Requires
 
 include("./utils.jl")
 
