@@ -8,7 +8,7 @@ ChainRulesCore.@non_differentiable (::Type{<:AbstractAttenMask})(args...)
 ChainRulesCore.@non_differentiable (::Type{<:AbstractMaskOp})(args...)
 ChainRulesCore.@non_differentiable getmask(arg...)
 
-function ChainRulesCore.rrule(::typeof(apply_mask), op::NaiveAttenMaskOp, mask, score)
+function ChainRulesCore.rrule(::typeof(apply_mask), op::NaiveMaskOp, mask, score)
     m = as_bool(randomness(mask)) ? getmask(mask, score) : mask
     naive_apply_mask_pullback(Ȳ) = (NoTangent(), NoTangent(), NoTangent(), @thunk unthunk(Ȳ) .* m)
     return score .* m, naive_apply_mask_pullback

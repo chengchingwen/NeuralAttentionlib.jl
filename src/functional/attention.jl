@@ -35,7 +35,7 @@ end
 end
 
 naive_attention_score() = normalized_score(NNlib.softmax) $ scaled_dot_product_score
-naive_attention_score(mask) = normalized_score(NNlib.softmax) $ masked_score(GenericAttenMaskOp(), mask) $ scaled_dot_product_score
+naive_attention_score(mask) = normalized_score(NNlib.softmax) $ masked_score(GenericMaskOp(), mask) $ scaled_dot_product_score
 naive_attention_score(mask, p) = dropout_score(p) $ naive_attention_score(mask)
 
 naive_qkv_attention(q::AbstractArray, k::AbstractArray, v::AbstractArray, args...) =

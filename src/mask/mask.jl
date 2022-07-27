@@ -28,30 +28,30 @@ abstract type AbstractAttenMask <: AbstractMask end
 
 apply_mask(::Nothing, s) = s
 apply_mask(_, ::Nothing, s) = s
-apply_mask(m, s) = apply_mask(NaiveAttenMaskOp(), m, s)
+apply_mask(m, s) = apply_mask(NaiveMaskOp(), m, s)
 
-struct NaiveAttenMaskOp <: AbstractMaskOp end
+struct NaiveMaskOp <: AbstractMaskOp end
 
 """
-    apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score)
+    apply_mask(op::NaiveMaskOp, mask::AbstractAttenMask, score)
 
 Directly broadcast multiply mask to attention score, i.e. `score .* mask`.
 """
-apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score) = score .* mask
+apply_mask(op::NaiveMaskOp, mask::AbstractAttenMask, score) = score .* mask
 
-struct GenericAttenMaskOp{F, B<:StaticBool, T} <: AbstractMaskOp
+struct GenericMaskOp{F, B<:StaticBool, T} <: AbstractMaskOp
     apply::F
     flip::B
     scale::T
 end
-GenericAttenMaskOp(apply::F, flip::Bool, scale) where F = GenericAttenMaskOp(apply, static(flip), scale)
+GenericMaskOp(apply::F, flip::Bool, scale) where F = GenericMaskOp(apply, static(flip), scale)
 
-GenericAttenMaskOp(::typeof(+), flip::StaticBool, scale) = GenericAttenMaskOp(.+, flip, scale)
-GenericAttenMaskOp(::typeof(-), flip::StaticBool, scale) = GenericAttenMaskOp(.+, flip, -scale)
-GenericAttenMaskOp(::typeof(.-), flip::StaticBool, scale) = GenericAttenMaskOp(.+, flip, -scale)
+GenericMaskOp(::typeof(+), flip::StaticBool, scale) = GenericMaskOp(.+, flip, scale)
+GenericMaskOp(::typeof(-), flip::StaticBool, scale) = GenericMaskOp(.+, flip, -scale)
+GenericMaskOp(::typeof(.-), flip::StaticBool, scale) = GenericMaskOp(.+, flip, -scale)
 
 # softmax norm default value
-GenericAttenMaskOp() = GenericAttenMaskOp(.+, static(true), -1e9)
+GenericMaskOp() = GenericMaskOp(.+, static(true), -1e9)
 
 function getmask(m::AbstractAttenMask, score, scale = one(eltype(score)))
     tmp = similar(score)
@@ -64,7 +64,7 @@ function apply_broadcast_mask(f, mask::AbstractAttenMask, score, scale)
 end
 
 """
-    apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
+    apply_mask(op::GenericMaskOp, mask::AbstractAttenMask, score)
 
 Equivalent to `op.apply(score, op.scale .* (op.flip ? .! mask : mask))`.
 
@@ -76,12 +76,12 @@ julia> x = randn(10, 10);
 julia> m = CausalMask()
 CausalMask()
 
-julia> apply_mask(GenericAttenMaskOp(.+, true, -1e9), m, x) ==  @. x + (!m * -1e9)
+julia> apply_mask(GenericMaskOp(.+, true, -1e9), m, x) ==  @. x + (!m * -1e9)
 true
 
 ```
 """
-function apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
+function apply_mask(op::GenericMaskOp, mask::AbstractAttenMask, score)
     scale = convert(eltype(score), op.scale)
     apply = op.apply
     m = Bool(op.flip) ? !mask : mask

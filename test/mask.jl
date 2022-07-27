@@ -167,13 +167,13 @@
         c = dones(10, 10, 2, 2)
 
         @test apply_mask(CausalMask(), c) == c .* CausalMask()
-        @test apply_mask(NaiveAttenMaskOp(), CausalMask(), c) == c .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(.*, true, 2), CausalMask(), c) == 2 .* c .* !CausalMask()
-        @test apply_mask(GenericAttenMaskOp(.*, false, 2), CausalMask(), c) == 2 .* c .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(.+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(-, false, 2), CausalMask(), c) == c .- 2 .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(-, true, 2), CausalMask(), c) == c .- 2 .* !CausalMask()
+        @test apply_mask(NaiveMaskOp(), CausalMask(), c) == c .* CausalMask()
+        @test apply_mask(GenericMaskOp(.*, true, 2), CausalMask(), c) == 2 .* c .* !CausalMask()
+        @test apply_mask(GenericMaskOp(.*, false, 2), CausalMask(), c) == 2 .* c .* CausalMask()
+        @test apply_mask(GenericMaskOp(.+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
+        @test apply_mask(GenericMaskOp(+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
+        @test apply_mask(GenericMaskOp(-, false, 2), CausalMask(), c) == c .- 2 .* CausalMask()
+        @test apply_mask(GenericMaskOp(-, true, 2), CausalMask(), c) == c .- 2 .* !CausalMask()
     end
 
     @testset "Broadcast" begin
@@ -211,7 +211,7 @@
             test_rrule(LocalMask, 2)
 
             test_rrule(getmask, m ⊢ NoTangent(), drandn(10, 10, 2), 0.5 ⊢ NoTangent())
-            test_rrule(NeuralAttentionlib.apply_mask, NaiveAttenMaskOp(), m ⊢ NoTangent(), drandn(10, 10, 2))
+            test_rrule(NeuralAttentionlib.apply_mask, NaiveMaskOp(), m ⊢ NoTangent(), drandn(10, 10, 2))
 
             test_rrule(NeuralAttentionlib.apply_broadcast_mask, (*) ⊢ NoTangent(), m ⊢ NoTangent(), drandn(10, 10, 2), 3 ⊢ NoTangent())
             test_rrule(NeuralAttentionlib.apply_broadcast_mask, (+) ⊢ NoTangent(), m ⊢ NoTangent(), drandn(10, 10, 2), -1e9 ⊢ NoTangent(); atol=5e-2)
@@ -222,7 +222,7 @@
             @test y == back(dones(10, 10))[1]
 
             y, back = Flux.pullback(dones(10, 10), RandomMask(0.5)) do x, m
-                apply_mask(GenericAttenMaskOp(.*, true, 2), m, x)
+                apply_mask(GenericMaskOp(.*, true, 2), m, x)
             end
             @test y == back(dones(10, 10))[1]
 

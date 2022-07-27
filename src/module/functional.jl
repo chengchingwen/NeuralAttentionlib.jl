@@ -43,7 +43,7 @@ The scaled dot-product attention of a regular transformer layer.
 
 ``Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V``
 
-It's equivalent to `generic_qkv_attention(weighted_sum_mixing, normalized_score(NNlib.softmax) $ masked_score(GenericAttenMaskOp(), mask) $ scaled_dot_product_score, q, k, v)`.
+It's equivalent to `generic_qkv_attention(weighted_sum_mixing, normalized_score(NNlib.softmax) $ masked_score(GenericMaskOp(), mask) $ scaled_dot_product_score, q, k, v)`.
 
 #Example
 

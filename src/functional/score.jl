@@ -11,7 +11,7 @@ masked_score(mask::Union{AbstractMaskOp, AbstractAttenMask, Nothing}) = masked_s
 masked_score(maskop::AbstractMaskOp, mask::Union{AbstractAttenMask, Nothing}) = masked_score $ maskop $ mask
 @inline masked_score(::Nothing, score, args...) = score(args...)
 @inline masked_score(::AbstractMaskOp, ::Nothing, score, args...) = score(args...)
-@inline masked_score(mask::AbstractAttenMask, score, args...) = masked_score(NaiveAttenMaskOp(), mask, score, args...)
+@inline masked_score(mask::AbstractAttenMask, score, args...) = masked_score(NaiveMaskOp(), mask, score, args...)
 @inline masked_score(maskop::AbstractMaskOp, mask::AbstractAttenMask, score, args...) =
     collapseddims_nonbatch(apply_mask $ maskop $ mask, score(args...))
 

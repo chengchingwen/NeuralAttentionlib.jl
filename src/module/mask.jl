@@ -3,7 +3,7 @@ module Masks
 using ..NeuralAttentionlib: @imexport
 
 @imexport import ..NeuralAttentionlib:
-    apply_mask, NaiveAttenMaskOp, GenericAttenMaskOp,
+    apply_mask, NaiveMaskOp, GenericMaskOp,
     CausalMask, LocalMask, RandomMask, BandPartMask,
     GenericMask, SymLengthMask, BiLengthMask,
     BatchedMask, RepeatMask, getmask
