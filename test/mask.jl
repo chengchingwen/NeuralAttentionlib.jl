@@ -163,6 +163,30 @@
 
     end
 
+    @testset "Sequence" begin
+        a = device(reshape(hcat([1, 1, 1, 1, 0], [1,1,1,0,0]), (1, 5, 2)))
+        b = device([4,3])
+        x = drandn(10, 5, 2)
+
+        @test x .* a == x .* LengthMask(b)
+        @test x .* a == x .* GenericSequenceMask(a)
+
+
+        len = [5]
+        l = 2
+        for f in (+, *)
+            @test f(l, LengthMask(len)).len[] == f(l, len[])
+            @test f(l, SymLengthMask(len)).len[] == f(l, len[])
+            @test f(l, BiLengthMask(len, len)).q_len[] == f(l, len[])
+            @test f(l, BiLengthMask(len, len)).k_len[] == f(l, len[])
+        end
+
+        @test (LengthMask(len) - l).len[] == len[] - l
+        @test (SymLengthMask(len) - l).len[] == len[] - l
+        @test (BiLengthMask(len, len) - l).q_len[] == len[] - l
+        @test (BiLengthMask(len, len) - l).k_len[] == len[] - l
+    end
+
     @testset "Op" begin
         c = dones(10, 10, 2, 2)
 

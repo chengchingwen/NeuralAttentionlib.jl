@@ -43,3 +43,9 @@ AxesConstraint(m::LengthMask{N}) where N = length(m.len) == 1 ? # only one mask
     (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+2, size(m.len, i)), N)...)
 
 AttenMask(m::LengthMask) = SymLengthMask(m.len)
+
+Base.:(+)(m::LengthMask, l::Integer) = LengthMask(m.len .+ l)
+Base.:(*)(m::LengthMask, l::Integer) = LengthMask(m.len .* l)
+Base.:(-)(m::LengthMask, l::Integer) = LengthMask(m.len .- l)
+Base.:(+)(l::Integer, m::LengthMask) = m + l
+Base.:(*)(l::Integer, m::LengthMask) = m * l

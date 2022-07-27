@@ -10,7 +10,7 @@ using ..NeuralAttentionlib: @imexport
     GenericSequenceMask, LengthMask
 
 import ..NeuralAttentionlib: AbstractMask, AbstractSequenceMask, AbstractAttenMask,
-    AbstractDatalessMask, AbstractArrayMask
+    AbstractDatalessMask, AbstractArrayMask, AttenMask
 
 """
     AbstractDatalessMask <: AbstractAttenMask

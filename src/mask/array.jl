@@ -34,6 +34,12 @@ AxesConstraint(m::SymLengthMask{N}) where N = length(m.len) == 1 ? # only one ma
     (NDimConstraint(2, true), All1Constraint(3, ndims(m))) :
     (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+2, size(m.len, i)), N)...)
 
+Base.:(+)(m::SymLengthMask, l::Integer) = SymLengthMask(m.len .+ l)
+Base.:(*)(m::SymLengthMask, l::Integer) = SymLengthMask(m.len .* l)
+Base.:(-)(m::SymLengthMask, l::Integer) = SymLengthMask(m.len .- l)
+Base.:(+)(l::Integer, m::SymLengthMask) = m + l
+Base.:(*)(l::Integer, m::SymLengthMask) = m * l
+
 struct BiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
     q_len::L
     k_len::L
@@ -58,3 +64,9 @@ end
 AxesConstraint(m::BiLengthMask{N}) where N = length(m.q_len) == 1 ? # only one mask
     (NDimConstraint(2, true), All1Constraint(3, ndims(m))) :
     (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+2, size(m.q_len, i)), N)...)
+
+Base.:(+)(m::BiLengthMask, l::Integer) = BiLengthMask(m.q_len .+ l, m.k_len .+ l)
+Base.:(*)(m::BiLengthMask, l::Integer) = BiLengthMask(m.q_len .* l, m.k_len .* l)
+Base.:(-)(m::BiLengthMask, l::Integer) = BiLengthMask(m.q_len .- l, m.k_len .- l)
+Base.:(+)(l::Integer, m::BiLengthMask) = m + l
+Base.:(*)(l::Integer, m::BiLengthMask) = m * l
