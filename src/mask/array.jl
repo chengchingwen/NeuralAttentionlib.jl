@@ -3,6 +3,7 @@
 struct GenericMask{N, M <:AbstractArray{Bool, N}} <: AbstractArrayMask
     mask::M
 end
+GenericMask(mask::AbstractArray) = GenericMask(convert(AbstractArray{Bool}, mask))
 
 Base.ndims(::GenericMask{N}) where N = N
 
@@ -14,14 +15,14 @@ Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericMask}, I::Integer...)
 
 AxesConstraint(m::GenericMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i, size(m.mask, i)), ndims(m))...)
 
-struct SymLengthMask{N, L <: AbstractArray{Int32, N}, B<:StaticBool} <: AbstractArrayMask
+struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
     len::L
-    one::B
 end
 
 Base.ndims(::SymLengthMask{N}) where N = N + 2
 
-SymLengthMask(len) = SymLengthMask(convert(AbstractArray{Int32}, len), static(length(len) == 1))
+SymLengthMask(len::Integer) = SymLengthMask(Int32[len])
+SymLengthMask(len::AbstractArray) = SymLengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::SymLengthMask) = SymLengthMask(adapt(to, x.len))
 
@@ -31,21 +32,20 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{<:SymLengthMask}, i, 
     return i <= l && j <= l
 end
 
-AxesConstraint(m::SymLengthMask{N}) where N = as_bool(m.one) ? # only one mask
+AxesConstraint(m::SymLengthMask{N}) where N = length(m.len) == 1 ? # only one mask
     (NDimConstraint(2, true), All1Constraint(3, ndims(m))) :
     (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+2, size(m.len, i)), N)...)
 
-struct BiLengthMask{N, L <: AbstractArray{Int32, N}, B<:StaticBool} <: AbstractArrayMask
+struct BiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
     q_len::L
     k_len::L
-    one::B
 end
 
 Base.ndims(::BiLengthMask{N}) where N = N + 2
 
 function BiLengthMask(q_len, k_len)
     @assert size(q_len) == size(k_len)
-    return BiLengthMask(convert(AbstractArray{Int32}, q_len), convert(AbstractArray{Int32}, k_len), static(length(q_len) == 1))
+    return BiLengthMask(convert(AbstractArray{Int32}, q_len), convert(AbstractArray{Int32}, k_len))
 end
 
 adapt_structure(to, x::BiLengthMask) = BiLengthMask(adapt(to, x.q_len), adapt(to, x.k_len))
@@ -57,6 +57,6 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{<:BiLengthMask}, i, j
     return i <= kl && j <= ql
 end
 
-AxesConstraint(m::BiLengthMask{N}) where N = as_bool(m.one) ? # only one mask
+AxesConstraint(m::BiLengthMask{N}) where N = length(m.q_len) == 1 ? # only one mask
     (NDimConstraint(2, true), All1Constraint(3, ndims(m))) :
     (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+2, size(m.q_len, i)), N)...)
