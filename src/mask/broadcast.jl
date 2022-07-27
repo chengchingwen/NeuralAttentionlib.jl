@@ -1,4 +1,4 @@
-import Base.Broadcast: BroadcastStyle, Broadcasted, combine_axes, check_broadcast_axes
+import Base.Broadcast: BroadcastStyle, Broadcasted, combine_axes, broadcast_shape, instantiate
 
 BroadcastStyle(::Type{<:AbstractAttenMask}) =  MaskStyle()
 
@@ -11,20 +11,24 @@ BroadcastStyle(a::MaskStyle{M}, b::Broadcast.BroadcastStyle) where M = MaskStyle
 
 Base.similar(bc::Broadcasted{MaskStyle{M}}, ::Type{Eltype}) where {M, Eltype} = similar(Broadcasted{M}(bc.f, bc.args, bc.axes), Eltype)
 
-check_constraint(m::AbstractAttenMask, x) = check_constraint(AxesConstraint(m), x)
-check_constraint(y, x) = Broadcast.broadcast_shape(axes(y), x) # fallback
+@inline function instantiate(bc::Broadcasted{MaskStyle{M}}) where M
+    if bc.axes isa Nothing
+        axes = combine_axes(bc.args...)
+    else
+        axes = bc.axes
+    end
+    return Broadcasted{M}(bc.f, bc.args, axes)
+end
 
-@inline combine_axes(A, B::AbstractAttenMask) = combine_axes(B, A)
-@inline combine_axes(A::AbstractAttenMask, B...) = check_constraint(A, combine_axes(B...))
-@inline combine_axes(A, B::Broadcasted{<:MaskStyle}) = combine_axes(B, A)
-@inline combine_axes(A::Broadcasted{<:MaskStyle}, B...) = check_constraint(A.args, combine_axes(B...))
-@inline combine_axes(A::Broadcasted{<:MaskStyle}, B::AbstractAttenMask) = combine_axes(B, A.args...)
+Base.axes(m::AbstractAttenMask) = AxesConstraint(m)
 
-@inline check_broadcast_axes(shp, A::AbstractAttenMask) = check_constraint(A, shp)
-@inline check_broadcast_axes(shp, A::Broadcasted{<:MaskStyle}) = isnothing(A.axes) ? combine_axes(A.args, shp) : check_broadcast_axes(shp, axes(A))
+const AxesConstraints = Tuple{Vararg{AxesConstraint}}
 
-AxesConstraint(::AbstractDatalessMask) = (NDimConstraint(2, true),)
+broadcast_shape(c1::AxesConstraints, c2::AxesConstraints, shapes::Tuple...) = broadcast_shape(merge_constraint(c1, c2), shapes...)
+broadcast_shape(c1::AxesConstraints, shape::Tuple, shapes::Tuple...) = broadcast_shape(check_constraint(c1, shape), shapes...)
+broadcast_shape(shape::Tuple, c1::AxesConstraints, shapes::Tuple...) = broadcast_shape(check_constraint(c1, shape), shapes...)
 
-Base.mapreduce(f, op, A::Broadcasted{<:MaskStyle{S}}, As::Base.AbstractArrayOrBroadcasted...;
-               dims = :, init = nothing) where S =
-    mapreduce(f, op, convert(Broadcasted{S}, A), As...; dims, init)
+function Base.mapreduce(f, op, A::Broadcasted{<:MaskStyle}, As::Base.AbstractArrayOrBroadcasted...;
+                        dims = :, init = nothing)
+    return mapreduce(f, op, instantiate(A), map(instantiate, As)...; dims, init)
+end

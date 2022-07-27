@@ -44,7 +44,6 @@ Base.:&(::Nothing, m::AbstractAttenMask) = m
 
 Adapt.adapt(to::CUDA.Adaptor, m::CombinedMask) = Indexer{typeof(m)}((f = adapt(to, m.f),
                                                                      masks = map(Base.Fix1(adapt, to), m.masks)))
-
 adapt_structure(to, x::CombinedMask) = CombinedMask(x.f, adapt(to, x.masks))
 GetIndexer(m::CombinedMask) = Indexer{typeof(m)}((m.f, masks = map(GetIndexer, m.masks)))
 

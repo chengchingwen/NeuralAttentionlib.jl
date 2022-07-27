@@ -1,5 +1,7 @@
 ####################  Dataless Mask  ####################
 
+AxesConstraint(::AbstractDatalessMask) = (NDimConstraint(2, true),)
+
 struct CausalMask <: AbstractDatalessMask end
 
 Base.@propagate_inbounds Base.getindex(::CausalMask, i, j, _...) = j >= i
