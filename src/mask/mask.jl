@@ -1,9 +1,9 @@
 """
-    AbstractAttenMaskOp
+    AbstractMaskOp
 
 Trait-like abstract type for holding operation related argument, defined how the mask should be apply to input array
 """
-abstract type AbstractAttenMaskOp end
+abstract type AbstractMaskOp end
 
 """
     AbstractAttenMask
@@ -16,7 +16,7 @@ apply_mask(::Nothing, s) = s
 apply_mask(_, ::Nothing, s) = s
 apply_mask(m, s) = apply_mask(NaiveAttenMaskOp(), m, s)
 
-struct NaiveAttenMaskOp <: AbstractAttenMaskOp end
+struct NaiveAttenMaskOp <: AbstractMaskOp end
 
 """
     apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score)
@@ -25,7 +25,7 @@ Directly broadcast multiply mask to attention score, i.e. `score .* mask`.
 """
 apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score) = score .* mask
 
-struct GenericAttenMaskOp{F, B<:StaticBool, T} <: AbstractAttenMaskOp
+struct GenericAttenMaskOp{F, B<:StaticBool, T} <: AbstractMaskOp
     apply::F
     flip::B
     scale::T
