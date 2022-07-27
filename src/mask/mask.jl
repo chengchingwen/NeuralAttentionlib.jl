@@ -6,11 +6,25 @@ Trait-like abstract type for holding operation related argument, defined how the
 abstract type AbstractMaskOp end
 
 """
-    AbstractAttenMask
+    AbstractMask
 
-Abstract type for mask data, can be viewed as `AbstractArray{Bool}`
+Abstract type for mask data.
 """
-abstract type AbstractAttenMask end
+abstract type AbstractMask end
+
+"""
+    AbstractSequenceMask <: AbstractMask
+
+Abstract type for mask data specifically for sequence.
+"""
+abstract type AbstractSequenceMask <: AbstractMask end
+
+"""
+    AbstractAttenMask <: AbstractMask
+
+Abstract type for mask data specifically for attention.
+"""
+abstract type AbstractAttenMask <: AbstractMask end
 
 apply_mask(::Nothing, s) = s
 apply_mask(_, ::Nothing, s) = s
