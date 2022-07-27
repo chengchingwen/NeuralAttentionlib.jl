@@ -3,6 +3,8 @@ using NNlib
 import LinearAlgebra
 import LinearAlgebra.BLAS
 
+const libblas = Base.libblas_name
+
 for (gemm, elty) in NNlib.gemm_datatype_mappings
     @eval begin
 
@@ -131,12 +133,12 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             C::AbstractArray{$elty, N3},
             Ai, Aj, Bi, Bj, Ci, Cj) where {N1, N2, N3}
 
-            # (A1, A2, ..., Ai-1, Ai, Ai+1, ..., Aj-1, Aj, ..., An)
-            #  |______lda______|  |_______K/M_______|  |__batch__|
-            # (B1, B2, ..., Bi-1, Bi, Bi+1, ..., Bj-1, Bj, ..., Bn)
-            #  |______ldb______|  |_______K/N_______|  |__batch__|
-            # (C1, C2, ..., Ci-1, Ci, Ci+1, ..., Cj-1, Cj, ..., Cn)
-            #  |______ldc______|  |_______K/N_______|  |__batch__|
+            # (a1, a2, ..., ai-1, ai, ai+1, ..., aj-1, aj, ..., an)
+            #  |______lda______|  |____K/M (Ai)_____|  |___Aj____|
+            # (b1, b2, ..., bi-1, bi, bi+1, ..., bj-1, bj, ..., bn)
+            #  |______ldb______|  |____K/N (Bi)_____|  |___Bj____|
+            # (c1, c2, ..., ci-1, ci, ci+1, ..., cj-1, cj, ..., cn)
+            #  |______ldc______|  |____K/N (Ci)_____|  |___Cj____|
 
             Base.require_one_based_indexing(A, B, C)
             BLAS.chkstride1(A, B, C)
@@ -156,14 +158,14 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             if m != sc1 || n != sc2 || ka != kb
                 throw(DimensionMismatch("A has size ($m,$ka,$sa3), B has size ($kb,$n,$sb3), C has size ($sc1, $sc2, $sc3)"))
             end
-            
-            lda = max(1, stride(A, Ai))
-            ldb = max(1, stride(B, Bi))
-            ldc = max(1, stride(C, Ci))
 
-            strideA = sa3 == 1 ? 0 : stride(A, Aj)
-            strideB = sb3 == 1 ? 0 : stride(B, Bj)
-            strideC = stride(C, Cj)
+            lda = max(1, stride(A, N1 - Ai - Aj + 1))
+            ldb = max(1, stride(B, N2 - Bi - Bj + 1))
+            ldc = max(1, stride(C, N3 - Ci - Cj + 1))
+
+            strideA = sa3 == 1 ? 0 : stride(A, N1 - Aj + 1)
+            strideB = sb3 == 1 ? 0 : stride(B, N2 - Bj + 1)
+            strideC = stride(C, N3 - Cj + 1)
             batchCount = sc3
 
             gemm_strided_batched_impl!(
@@ -187,8 +189,8 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
                 noncollapsed_size(A, Ai, Aj, 3) :
                 noncollapsed_size(B, Bi, Bj, 3)
 
-            Ci = length(m) + 1
-            Cj = Ci + length(n)
+            Ci = length(n)
+            Cj = length(sc3)
             C = similar(B, (m..., n..., sc3...))
             return gemm_strided_batched!(transA, transB, alpha, A, B, zero($elty), C, Ai, Aj, Bi, Bj, Ci, Cj)
         end

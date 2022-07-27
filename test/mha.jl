@@ -1,5 +1,5 @@
 @testset "MHA" begin
-    using NeuralAttentionlib: CausalMask, BiLengthMask, BatchedMask
+    using NeuralAttentionlib: CausalMask, BiLengthMask, BatchedMask, LengthMask, SymLengthMask
     head = 4
     input_dims = 7
     head_dims = 5
@@ -79,6 +79,9 @@
         lmask = BatchedMask(BiLengthMask(q_len, k_len))
         mask = CausalMask() & lmask
 
+        mask2 = CausalMask() & BatchedMask(LengthMask(q_len))
+        mask3 = CausalMask() & BatchedMask(SymLengthMask(q_len))
+
         old_q_len = Old_Impl.getmask(map(l->ones(l), q_len))
         old_k_len = Old_Impl.getmask(map(l->ones(l), k_len))
         old_mask = zeros(6, 6, 2)
@@ -90,6 +93,7 @@
         old_mask = device(old_mask)
 
         @test mha(x,x,x, mask=old_mask) ≈ atten(mha, x, mask)
+        @test atten(mha, x, mask2) ≈ atten(mha, x, mask3)
 
         gradN = Flux.gradient(mha, x, mask) do mha, x, m
             sum(sin.(atten(mha, x, m)))

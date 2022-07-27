@@ -10,10 +10,10 @@
         return collect(a) ≈ b
     end
     function matmul_test(x, y, s)
-        cx = x isa NeuralAttentionlib.Collapsed ? collapseddim(x) : x
-        cy = y isa NeuralAttentionlib.Collapsed ? collapseddim(y) : y
-        @assert !(cx isa CollapsedDimArray) "$(typeof(cx))"
-        @assert !(cy isa CollapsedDimArray) "$(typeof(cy))"
+        cx = x isa NeuralAttentionlib.Collapsed ? collapseddims(x) : x
+        cy = y isa NeuralAttentionlib.Collapsed ? collapseddims(y) : y
+        @assert !(cx isa CollapsedDimsArray) "$(typeof(cx))"
+        @assert !(cy isa CollapsedDimsArray) "$(typeof(cy))"
         return matmul(x, y, s) ≈ batched_mul(cx, cy) .* s
     end
     uwcs(x) = size(unwrap_collapse(x))
@@ -129,8 +129,8 @@
             ct = drandn(elt, 60, 42, 2)
             s = drand(elt) + 1
 
-            ca1 = CollapsedDimArray(a, 3, 5)
-            ca2 = CollapsedDimArray(a, 3, 6)
+            ca1 = CollapsedDimsArray(a, 2, 2)
+            ca2 = CollapsedDimsArray(a, 3, 1)
 
             @test matmul_test(ca1, bt, s)
             @test matmul_test(ca1, batched_transpose(b), s)
@@ -173,7 +173,7 @@
         @testset "AD" begin
             test_rrule(matmul, randn(7,6,5), randn(6, 2), randn())
             test_rrule(matmul, randn(7,6,5,4), randn(6), randn())
-            test_rrule(matmul, CollapsedDimArray(randn(2,2,2,2,2,3), 4, 6), batched_transpose(randn(5,4,3)), randn(); check_inferred=false)
+            test_rrule(matmul, CollapsedDimsArray(randn(2,2,2,2,2,3), 2, 1), batched_transpose(randn(5,4,3)), randn())
         end
     end
 

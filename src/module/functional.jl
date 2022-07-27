@@ -43,7 +43,7 @@ The scaled dot-product attention of a regular transformer layer.
 
 ``Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V``
 
-It's equivalent to `generic_qkv_attention(weighted_sum_mixing, normalized_score(NNlib.softmax) $ masked_score(mask) $ scaled_dot_product_score, q, k, v)`.
+It's equivalent to `generic_qkv_attention(weighted_sum_mixing, normalized_score(NNlib.softmax) $ masked_score(GenericMaskOp(), mask) $ scaled_dot_product_score, q, k, v)`.
 
 #Example
 
@@ -106,7 +106,8 @@ normalized_score
 
 @doc raw"""
     masked_score(mask) = masked_score $ mask
-    masked_score(maskop::AbstractAttenMaskOp, mask::AbstractAttenMask, score, args...)
+    masked_score(maskop, mask) = masked_score $ maskop $ mask
+    masked_score(maskop::AbstractMaskOp, mask::AbstractMask, score, args...)
 
 Masked attention score api. Applying the `mask` according to `maskop` on the attention score
  compute from `score(args...)`.
@@ -138,7 +139,7 @@ dot_product_score
 """
     split_head(head::Int, x)
 
-Split the first dimension into `head` piece of small vector. Equivalent to 
+Split the first dimension into `head` piece of small vector. Equivalent to
  `reshape(x, :, head, tail(size(x))...)`.
 """
 split_head

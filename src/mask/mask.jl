@@ -1,61 +1,72 @@
 """
-    AbstractAttenMaskOp
+    AbstractMaskOp
 
 Trait-like abstract type for holding operation related argument, defined how the mask should be apply to input array
 """
-abstract type AbstractAttenMaskOp end
+abstract type AbstractMaskOp end
 
 """
-    AbstractAttenMask
+    AbstractMask
 
-Abstract type for mask data, can be viewed as `AbstractArray{Bool}`
+Abstract type for mask data.
 """
-abstract type AbstractAttenMask end
+abstract type AbstractMask end
+
+"""
+    AbstractSequenceMask <: AbstractMask
+
+Abstract type for mask data specifically for sequence.
+"""
+abstract type AbstractSequenceMask <: AbstractMask end
+
+"""
+    AbstractAttenMask <: AbstractMask
+
+Abstract type for mask data specifically for attention.
+"""
+abstract type AbstractAttenMask <: AbstractMask end
+
+AttenMask(m::AbstractAttenMask) = m
 
 apply_mask(::Nothing, s) = s
 apply_mask(_, ::Nothing, s) = s
-apply_mask(::Nothing, m, s) = apply_mask(m, s)
-apply_mask(m, s) = apply_mask(MaskOp(m), m, s)
-MaskOp(m) = NaiveAttenMaskOp()
-MaskOp(::Nothing) = nothing
+apply_mask(m, s) = apply_mask(NaiveMaskOp(), m, s)
 
-struct NaiveAttenMaskOp <: AbstractAttenMaskOp end
+struct NaiveMaskOp <: AbstractMaskOp end
 
 """
-    apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score)
+    apply_mask(op::NaiveMaskOp, mask::AbstractMask, score)
 
 Directly broadcast multiply mask to attention score, i.e. `score .* mask`.
 """
-apply_mask(op::NaiveAttenMaskOp, mask::AbstractAttenMask, score) = score .* mask
+apply_mask(op::NaiveMaskOp, mask::AbstractMask, score) = score .* mask
 
-struct GenericAttenMaskOp{F, B<:StaticBool, T} <: AbstractAttenMaskOp
+struct GenericMaskOp{F, B<:StaticBool, T} <: AbstractMaskOp
     apply::F
     flip::B
     scale::T
 end
+GenericMaskOp(apply::F, flip::Bool, scale) where F = GenericMaskOp(apply, static(flip), scale)
 
-GenericAttenMaskOp(apply, flip::Bool, scale) = GenericAttenMaskOp(apply, static(flip), scale)
-
-GenericAttenMaskOp(::typeof(+), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, scale)
-GenericAttenMaskOp(::typeof(-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
-GenericAttenMaskOp(::typeof(.-), flip::Bool, scale) = GenericAttenMaskOp(.+, flip, -scale)
+GenericMaskOp(::typeof(+), flip::StaticBool, scale) = GenericMaskOp(.+, flip, scale)
+GenericMaskOp(::typeof(-), flip::StaticBool, scale) = GenericMaskOp(.+, flip, -scale)
+GenericMaskOp(::typeof(.-), flip::StaticBool, scale) = GenericMaskOp(.+, flip, -scale)
 
 # softmax norm default value
-GenericAttenMaskOp() = GenericAttenMaskOp(.+, static(true), -1e9)
+GenericMaskOp() = GenericMaskOp(.+, static(true), -1e9)
 
-getmask(m::AbstractAttenMask, score) = getmask(m, score, one(eltype(score)))
-function getmask(m::AbstractAttenMask, score, scale)
+function getmask(m::AbstractMask, score, scale = one(eltype(score)))
     tmp = similar(score)
     @. tmp = m * scale
     return tmp
 end
 
-function apply_broadcast_mask(f, mask::AbstractAttenMask, score, scale)
+function apply_broadcast_mask(f, mask::AbstractMask, score, scale)
     @. f(score, mask * scale)
 end
 
 """
-    apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
+    apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
 
 Equivalent to `op.apply(score, op.scale .* (op.flip ? .! mask : mask))`.
 
@@ -67,12 +78,12 @@ julia> x = randn(10, 10);
 julia> m = CausalMask()
 CausalMask()
 
-julia> apply_mask(GenericAttenMaskOp(.+, true, -1e9), m, x) ==  @. x + (!m * -1e9)
+julia> apply_mask(GenericMaskOp(.+, true, -1e9), m, x) ==  @. x + (!m * -1e9)
 true
 
 ```
 """
-function apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
+function apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
     scale = convert(eltype(score), op.scale)
     apply = op.apply
     m = Bool(op.flip) ? !mask : mask
@@ -86,28 +97,29 @@ function apply_mask(op::GenericAttenMaskOp, mask::AbstractAttenMask, score)
     return masked_score
 end
 
+abstract type AbstractWrapperMask <: AbstractMask end
+
 abstract type AbstractDatalessMask <: AbstractAttenMask end
 abstract type AbstractArrayMask <: AbstractAttenMask end
-abstract type AbstractWrapperMask <: AbstractAttenMask end
 
-Broadcast.broadcastable(m::AbstractAttenMask) = m
-Base.eltype(::AbstractAttenMask) = Bool
-Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::CartesianIndex) = I
-Base.@propagate_inbounds Broadcast.newindex(arg::AbstractAttenMask, I::Integer) = I
+Broadcast.broadcastable(m::AbstractMask) = m
+Base.eltype(::AbstractMask) = Bool
+Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::CartesianIndex) = I
+Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::Integer) = I
 
-const MaskIndexer = Indexer{<:AbstractAttenMask}
+const MaskIndexer = Indexer{<:AbstractMask}
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::Integer) = I
 Base.eltype(::MaskIndexer) = Bool
 
 GetIndexer(m::AbstractDatalessMask) = m
 
-Base.@propagate_inbounds Base.getindex(m::AbstractAttenMask, i::CartesianIndex) = m[Tuple(i)]
-Base.@propagate_inbounds Base.getindex(m::AbstractAttenMask, I::Tuple) = GetIndexer(m)[I...]
+Base.@propagate_inbounds Base.getindex(m::AbstractMask, i::CartesianIndex) = m[Tuple(i)]
+Base.@propagate_inbounds Base.getindex(m::AbstractMask, I::Tuple) = GetIndexer(m)[I...]
 Base.@propagate_inbounds Base.getindex(m::M, I::Integer...) where {M <: Union{<:AbstractWrapperMask, <:AbstractArrayMask}} = m[I]
 Base.@propagate_inbounds Base.getindex(m::MaskIndexer, i::CartesianIndex) = m[Tuple(i)]
 Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
 
 Adapt.adapt(to::CUDA.Adaptor, m::AbstractArrayMask) = Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
 
-randomness(::AbstractAttenMask) = static(false)
+randomness(::AbstractMask) = static(false)

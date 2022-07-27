@@ -58,9 +58,9 @@
         gmask_b = drand(Bool, 10, 10, 2)
         gmask_c = drand(Bool, 10, 10, 2, 2)
 
-        @test a .* GenericMask(gmask_a) == convert(AbstractArray{Int}, gmask_a)
-        @test b .* GenericMask(gmask_b) == convert(AbstractArray{Int}, gmask_b)
-        @test c .* GenericMask(gmask_c) == convert(AbstractArray{Int}, gmask_c)
+        @test a .* GenericAttenMask(gmask_a) == convert(AbstractArray{Int}, gmask_a)
+        @test b .* GenericAttenMask(gmask_b) == convert(AbstractArray{Int}, gmask_b)
+        @test c .* GenericAttenMask(gmask_c) == convert(AbstractArray{Int}, gmask_c)
 
         smask_a = [5] |> device
         smask_b = [3, 5] |> device
@@ -104,9 +104,9 @@
         @test a .* !BandPartMask(3, 5) == 1 .- bandpart(a, 3, 5)
         @test b .* !BandPartMask(3, 5) == 1 .- bandpart(b, 3, 5)
         @test c .* !BandPartMask(3, 5) == 1 .- bandpart(c, 3, 5)
-        @test a .* !GenericMask(gmask_a) == 1 .- convert(AbstractArray{Int}, gmask_a)
-        @test b .* !GenericMask(gmask_b) == 1 .- convert(AbstractArray{Int}, gmask_b)
-        @test c .* !GenericMask(gmask_c) == 1 .- convert(AbstractArray{Int}, gmask_c)
+        @test a .* !GenericAttenMask(gmask_a) == 1 .- convert(AbstractArray{Int}, gmask_a)
+        @test b .* !GenericAttenMask(gmask_b) == 1 .- convert(AbstractArray{Int}, gmask_b)
+        @test c .* !GenericAttenMask(gmask_c) == 1 .- convert(AbstractArray{Int}, gmask_c)
         @test a .* !SymLengthMask(smask_a) == 1 .- dropdims(grow_length(smask_a, smask_a, 10), dims=3)
         @test b .* !SymLengthMask(smask_b) == 1 .- grow_length(smask_b, smask_b, 10)
         @test c .* !SymLengthMask(smask_c) == 1 .- grow_length(smask_c, smask_c, 10)
@@ -163,17 +163,41 @@
 
     end
 
+    @testset "Sequence" begin
+        a = device(reshape(hcat([1, 1, 1, 1, 0], [1,1,1,0,0]), (1, 5, 2)))
+        b = device([4,3])
+        x = drandn(10, 5, 2)
+
+        @test x .* a == x .* LengthMask(b)
+        @test x .* a == x .* GenericSequenceMask(a)
+
+
+        len = [5]
+        l = 2
+        for f in (+, *)
+            @test f(l, LengthMask(len)).len[] == f(l, len[])
+            @test f(l, SymLengthMask(len)).len[] == f(l, len[])
+            @test f(l, BiLengthMask(len, len)).q_len[] == f(l, len[])
+            @test f(l, BiLengthMask(len, len)).k_len[] == f(l, len[])
+        end
+
+        @test (LengthMask(len) - l).len[] == len[] - l
+        @test (SymLengthMask(len) - l).len[] == len[] - l
+        @test (BiLengthMask(len, len) - l).q_len[] == len[] - l
+        @test (BiLengthMask(len, len) - l).k_len[] == len[] - l
+    end
+
     @testset "Op" begin
         c = dones(10, 10, 2, 2)
 
         @test apply_mask(CausalMask(), c) == c .* CausalMask()
-        @test apply_mask(NaiveAttenMaskOp(), CausalMask(), c) == c .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(.*, true, 2), CausalMask(), c) == 2 .* c .* !CausalMask()
-        @test apply_mask(GenericAttenMaskOp(.*, false, 2), CausalMask(), c) == 2 .* c .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(.+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(-, false, 2), CausalMask(), c) == c .- 2 .* CausalMask()
-        @test apply_mask(GenericAttenMaskOp(-, true, 2), CausalMask(), c) == c .- 2 .* !CausalMask()
+        @test apply_mask(NaiveMaskOp(), CausalMask(), c) == c .* CausalMask()
+        @test apply_mask(GenericMaskOp(.*, true, 2), CausalMask(), c) == 2 .* c .* !CausalMask()
+        @test apply_mask(GenericMaskOp(.*, false, 2), CausalMask(), c) == 2 .* c .* CausalMask()
+        @test apply_mask(GenericMaskOp(.+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
+        @test apply_mask(GenericMaskOp(+, false, 2), CausalMask(), c) == c .+ 2 .* CausalMask()
+        @test apply_mask(GenericMaskOp(-, false, 2), CausalMask(), c) == c .- 2 .* CausalMask()
+        @test apply_mask(GenericMaskOp(-, true, 2), CausalMask(), c) == c .- 2 .* !CausalMask()
     end
 
     @testset "Broadcast" begin
@@ -195,9 +219,9 @@
         @test_throws DimensionMismatch drandn(5, 5, 2) .* RepeatMask(BiLengthMask([2,3], [2,2]), 3)
         @test_throws DimensionMismatch drandn(5, 5, 3) .* RepeatMask(SymLengthMask([2]), 2)
         @test_throws DimensionMismatch drandn(5, 5, 2, 3) .* BatchedMask(BiLengthMask([2,3], [2,2]))
-        @test_throws DimensionMismatch drandn(5, 4) .* GenericMask(drand(Bool, 3, 4))
-        @test_throws DimensionMismatch drandn(5, 4, 2) .* (GenericMask(drand(Bool, 3, 4)) | BiLengthMask([2,3], [2,2]))
-        @test_throws DimensionMismatch drandn(5, 4) .* (GenericMask(drand(Bool, 3, 4)) | SymLengthMask([2]))
+        @test_throws DimensionMismatch drandn(5, 4) .* GenericAttenMask(drand(Bool, 3, 4))
+        @test_throws DimensionMismatch drandn(5, 4, 2) .* (GenericAttenMask(drand(Bool, 3, 4)) | BiLengthMask([2,3], [2,2]))
+        @test_throws DimensionMismatch drandn(5, 4) .* (GenericAttenMask(drand(Bool, 3, 4)) | SymLengthMask([2]))
     end
 
     if !USE_CUDA
@@ -211,7 +235,7 @@
             test_rrule(LocalMask, 2)
 
             test_rrule(getmask, m ⊢ NoTangent(), drandn(10, 10, 2), 0.5 ⊢ NoTangent())
-            test_rrule(NeuralAttentionlib.apply_mask, NaiveAttenMaskOp(), m ⊢ NoTangent(), drandn(10, 10, 2))
+            test_rrule(NeuralAttentionlib.apply_mask, NaiveMaskOp(), m ⊢ NoTangent(), drandn(10, 10, 2))
 
             test_rrule(NeuralAttentionlib.apply_broadcast_mask, (*) ⊢ NoTangent(), m ⊢ NoTangent(), drandn(10, 10, 2), 3 ⊢ NoTangent())
             test_rrule(NeuralAttentionlib.apply_broadcast_mask, (+) ⊢ NoTangent(), m ⊢ NoTangent(), drandn(10, 10, 2), -1e9 ⊢ NoTangent(); atol=5e-2)
@@ -222,7 +246,7 @@
             @test y == back(dones(10, 10))[1]
 
             y, back = Flux.pullback(dones(10, 10), RandomMask(0.5)) do x, m
-                apply_mask(GenericAttenMaskOp(.*, true, 2), m, x)
+                apply_mask(GenericMaskOp(.*, true, 2), m, x)
             end
             @test y == back(dones(10, 10))[1]
 

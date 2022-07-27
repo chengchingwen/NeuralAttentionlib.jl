@@ -110,7 +110,7 @@ end
 
 _merge_dim_c(a::Tuple{DimConstraint, Vararg{DimConstraint}}, b::Tuple{All1Constraint}) = _merge_dim_c(b, a)
 function _merge_dim_c(a::Tuple{All1Constraint}, b::Tuple{DimConstraint, Vararg{DimConstraint}})
-    c = a[]
+    c = a[1]
     offset = c.from - 1
     return _merge_dim_c(ntuple(i->DimConstraint(i+offset, 1), b[end].dim - offset), b)
 end

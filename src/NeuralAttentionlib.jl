@@ -1,24 +1,20 @@
 module NeuralAttentionlib
 
-using PartialFunctions
-using NNlib
-using NNlibCUDA
+using Static
 
-using Requires
 using CUDA
 using Adapt
 import Adapt: adapt_structure, adapt
 
-import Base
+using NNlib
+using NNlibCUDA
 
-const libblas = Base.libblas_name
-
-export attention, generic_attention
+using Requires
 
 include("./utils.jl")
 
 # matrix multiplication
-include("./matmul/collapseddim.jl")
+include("./matmul/collapseddims.jl")
 include("./matmul/gemm.jl")
 include("./matmul/matmul.jl")
 include("./matmul/grad.jl")
@@ -29,6 +25,7 @@ include("./mask/indexer.jl")
 include("./mask/mask.jl")
 include("./mask/constraint.jl")
 include("./mask/broadcast.jl")
+include("./mask/sequence.jl")
 include("./mask/dataless.jl")
 include("./mask/array.jl")
 include("./mask/wrapper.jl")

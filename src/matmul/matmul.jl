@@ -19,27 +19,27 @@ end
 function matmul(a::AbstractArray, b::AbstractArray, s::Number)
     transA, pA = trans(a)
     transB, pB = trans(b)
-    A = CollapsedDimArray(pA)
-    B = CollapsedDimArray(pB)
+    A = CollapsedDimsArray(pA)
+    B = CollapsedDimsArray(pB)
     return matmul_wrapper(transA, transB, s, A, B)
 end
 
 @inline gemm_strided_batched_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::AbstractArray, B::AbstractArray) =
-    gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimArray(A), CollapsedDimArray(B))
+    gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimsArray(A), CollapsedDimsArray(B))
 
-@inline gemm_strided_batched_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::AbstractArray, B::CollapsedDimArray) =
-    gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimArray(A), B)
+@inline gemm_strided_batched_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::AbstractArray, B::CollapsedDimsArray) =
+    gemm_strided_batched_wrapper(transA, transB, alpha, CollapsedDimsArray(A), B)
 
-@inline gemm_strided_batched_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::CollapsedDimArray, B::AbstractArray) =
-    gemm_strided_batched_wrapper(transA, transB, alpha, A, CollapsedDimArray(B))
+@inline gemm_strided_batched_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::CollapsedDimsArray, B::AbstractArray) =
+    gemm_strided_batched_wrapper(transA, transB, alpha, A, CollapsedDimsArray(B))
 
-@inline function gemm_strided_batched_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::CollapsedDimArray, B::CollapsedDimArray)
-    m = noncollapsed_size(A.parent, A.si, A.sj, Int(transA) == static(Int('N')) ? static(1) : static(2))
-    n = noncollapsed_size(B.parent, B.si, B.sj, Int(transB) == static(Int('N')) ? static(2) : static(1))
+@inline function gemm_strided_batched_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::CollapsedDimsArray, B::CollapsedDimsArray)
+    m = noncollapsed_size(A.parent, A.ni, A.nj, Int(transA) == static(Int('N')) ? static(1) : static(2))
+    n = noncollapsed_size(B.parent, B.ni, B.nj, Int(transB) == static(Int('N')) ? static(2) : static(1))
     # batch size differ is allow only when ones batch size is one
-    sc3 = isonebatch(B) ?
-        noncollapsed_size(A.parent, A.si, A.sj, static(3)) :
-        noncollapsed_size(B.parent, B.si, B.sj, static(3))
+    sc3 = B.nj == 0 ?
+        noncollapsed_size(A.parent, A.ni, A.nj, static(3)) :
+        noncollapsed_size(B.parent, B.ni, B.nj, static(3))
 
     T = promote_type(eltype(A), eltype(B))
     if eltype(A) == T
@@ -53,49 +53,49 @@ end
         pB = convert(AbstractArray{T}, parent(B))
     end
 
-    Ci = static(length(m) + 1)
-    Cj = static(Ci + length(n))
+    Ci = static(length(n))
+    Cj = static(length(sc3))
     C = similar(pB, T, (m..., n..., sc3...))
     if ndims(pA) == ndims(pB) == ndims(C) == 3
         gemm_strided_batched!(as_char(transA), as_char(transB), convert(T, alpha), pA, pB, zero(T), C)
     else
-        gemm_strided_batched!(as_char(transA), as_char(transB), convert(T, alpha), pA, pB, zero(T), C, A.si, A.sj, B.si, B.sj, Ci, Cj)
+        gemm_strided_batched!(as_char(transA), as_char(transB), convert(T, alpha), pA, pB, zero(T), C, A.ni, A.nj, B.ni, B.nj, Ci, Cj)
     end
 
-    return CollapsedDimArray(C, Ci, Cj, A.onebatch & B.onebatch)
+    return CollapsedDimsArray(C, Ci, Cj)
 end
 
 function generic_matmul(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A, B)
     T = promote_type(eltype(A), eltype(B))
     scale = convert(T, alpha)
-    if A isa CollapsedDimArray
-        m = noncollapsed_size(A.parent, A.si, A.sj, Int(transA) == static(Int('N')) ? static(1) : static(2))
-        pA = collapseddim(A)
-        sa3 = noncollapsed_size(A.parent, A.si, A.sj, static(3))
+    if A isa CollapsedDimsArray
+        m = noncollapsed_size(A.parent, A.ni, A.nj, Int(transA) == static(Int('N')) ? static(1) : static(2))
+        pA = collapseddims(A)
+        sa3 = noncollapsed_size(A.parent, A.ni, A.nj, static(3))
     else
         m = size(A, Int(transA) == static(Int('N')) ? static(1) : static(2))
         pA = A
         sa3 = size(A, 3)
     end
 
-    if B isa CollapsedDimArray
-        n = noncollapsed_size(B.parent, B.si, B.sj, Int(transB) == static(Int('N')) ? static(2) : static(1))
-        pB = collapseddim(B)
-        sb3 = noncollapsed_size(B.parent, B.si, B.sj, static(3))
+    if B isa CollapsedDimsArray
+        n = noncollapsed_size(B.parent, B.ni, B.nj, Int(transB) == static(Int('N')) ? static(2) : static(1))
+        pB = collapseddims(B)
+        sb3 = noncollapsed_size(B.parent, B.ni, B.nj, static(3))
     else
         n = size(B, Int(transB) == static(Int('N')) ? static(2) : static(1))
         pB = B
         sb3 = size(B, 3)
     end
-    sc3 = isonebatch(B) ? sa3 : sb3
-    Ci = static(length(m) + 1)
-    Cj = static(Ci + length(n))
+    sc3 = B.nj == 0 ? sa3 : sb3
+    Ci = static(length(n))
+    Cj = static(length(sc3))
     outsize = (m..., n..., sc3...)
     y = scale .* batched_mul(trans(transA, pA), trans(transB, pB))
-    return CollapsedDimArray(reshape(y, outsize), Ci, Cj)
+    return CollapsedDimsArray(reshape(y, outsize), Ci, Cj)
 end
 
-NNlib.is_strided(ca::CollapsedDimArray) = NNlib.is_strided(parent(ca))
+NNlib.is_strided(ca::CollapsedDimsArray) = NNlib.is_strided(parent(ca))
 
 @inline function matmul_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::AbstractArray{TA, 3}, B::AbstractArray{TB, 3}) where {TA, TB}
     mA = size(A, Int(transA) == static(Int('N')) ? 1 : 2)

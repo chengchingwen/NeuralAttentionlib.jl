@@ -1,14 +1,14 @@
 using Base.Broadcast: BroadcastFunction, broadcasted, materialize
 
-ChainRulesCore.@non_differentiable Base.getindex(m::AbstractAttenMask, I::Integer...)
+ChainRulesCore.@non_differentiable Base.getindex(m::AbstractMask, I::Integer...)
 ChainRulesCore.@non_differentiable Base.getindex(m::MaskIndexer, I::Integer...)
-ChainRulesCore.@non_differentiable Base.getindex(m::AbstractAttenMask, I::Tuple)
+ChainRulesCore.@non_differentiable Base.getindex(m::AbstractMask, I::Tuple)
 ChainRulesCore.@non_differentiable Base.getindex(m::MaskIndexer, I::Tuple)
-ChainRulesCore.@non_differentiable (::Type{<:AbstractAttenMask})(args...)
-ChainRulesCore.@non_differentiable (::Type{<:AbstractAttenMaskOp})(args...)
+ChainRulesCore.@non_differentiable (::Type{<:AbstractMask})(args...)
+ChainRulesCore.@non_differentiable (::Type{<:AbstractMaskOp})(args...)
 ChainRulesCore.@non_differentiable getmask(arg...)
 
-function ChainRulesCore.rrule(::typeof(apply_mask), op::NaiveAttenMaskOp, mask, score)
+function ChainRulesCore.rrule(::typeof(apply_mask), op::NaiveMaskOp, mask, score)
     m = as_bool(randomness(mask)) ? getmask(mask, score) : mask
     naive_apply_mask_pullback(Ȳ) = (NoTangent(), NoTangent(), NoTangent(), @thunk unthunk(Ȳ) .* m)
     return score .* m, naive_apply_mask_pullback
@@ -45,7 +45,7 @@ end
 
 
 @init @require Zygote="e88e6eb3-aa80-5325-afca-941959d7151f" begin
-    Zygote.unbroadcast(x::AbstractAttenMask, _) = nothing
+    Zygote.unbroadcast(x::AbstractMask, _) = nothing
 
     function Zygote._pullback(ctx::Zygote.AContext, ::typeof(Broadcast.broadcasted), ::MaskStyle{M}, f, args...) where M
         return y, ∇broadcasted = Zygote._pullback(ctx, Broadcast.broadcasted, M(), f, args...)
