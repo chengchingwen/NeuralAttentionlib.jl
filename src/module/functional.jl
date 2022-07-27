@@ -107,7 +107,7 @@ normalized_score
 @doc raw"""
     masked_score(mask) = masked_score $ mask
     masked_score(maskop, mask) = masked_score $ maskop $ mask
-    masked_score(maskop::AbstractMaskOp, mask::AbstractAttenMask, score, args...)
+    masked_score(maskop::AbstractMaskOp, mask::AbstractMask, score, args...)
 
 Masked attention score api. Applying the `mask` according to `maskop` on the attention score
  compute from `score(args...)`.

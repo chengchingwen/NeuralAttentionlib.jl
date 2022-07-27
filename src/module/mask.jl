@@ -5,11 +5,12 @@ using ..NeuralAttentionlib: @imexport
 @imexport import ..NeuralAttentionlib:
     apply_mask, NaiveMaskOp, GenericMaskOp,
     CausalMask, LocalMask, RandomMask, BandPartMask,
-    GenericMask, SymLengthMask, BiLengthMask,
-    BatchedMask, RepeatMask, getmask
+    GenericAttenMask, SymLengthMask, BiLengthMask,
+    BatchedMask, RepeatMask, getmask,
+    GenericSequenceMask, LengthMask
 
-import ..NeuralAttentionlib: AbstractAttenMask, AbstractDatalessMask, AbstractArrayMask
-
+import ..NeuralAttentionlib: AbstractMask, AbstractSequenceMask, AbstractAttenMask,
+    AbstractDatalessMask, AbstractArrayMask
 
 """
     AbstractDatalessMask <: AbstractAttenMask
@@ -62,11 +63,11 @@ Attention mask that only allow [band_part](https://www.tensorflow.org/api_docs/p
 BandPartMask
 
 """
-    GenericMask <: AbstractArrayMask
+    GenericAttenMask <: AbstractArrayMask
 
 Generic attention mask. Just a wrapper over `AbstractArray{Bool}` for dispatch.
 """
-GenericMask
+GenericAttenMask
 
 """
     SymLengthMask(len::AbstractArray{Int, N}) <: AbstractArrayMask
@@ -132,29 +133,29 @@ See also: [`SymLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
 BiLengthMask
 
 """
-    !m::AbstractAttenMask
+    !m::AbstractMask
 
 Boolean not of an attention mask
 """
-Base.:!(m::AbstractAttenMask)
+Base.:!(m::AbstractMask)
 
 """
-    m1::AbstractAttenMask | m2::AbstractAttenMask
+    m1::AbstractMask | m2::AbstractMask
 
 logical or of two attention mask
 """
-Base.:|(m1::AbstractAttenMask, m2::AbstractAttenMask)
+Base.:|(m1::AbstractMask, m2::AbstractMask)
 
 
 """
-    m1::AbstractAttenMask & m2::AbstractAttenMask
+    m1::AbstractMask & m2::AbstractMask
 
 logical and of two attention mask
 """
-Base.:&(m1::AbstractAttenMask, m2::AbstractAttenMask)
+Base.:&(m1::AbstractMask, m2::AbstractMask)
 
 """
-    BatchedMask(mask::AbstractArrayMask) <: AbstractWrapperMask
+    BatchedMask(mask::AbstractMask) <: AbstractWrapperMask
 
 Attention mask wrapper over array mask for applying the same mask within the same batch.
 
@@ -208,7 +209,7 @@ julia> trues(3,3, 2, 2) .* BatchedMask(m) # 4-th dim become batch dim
 BatchedMask
 
 """
-    RepeatMask(mask::AbstractAttenMask, num::Int) <: AbstractWrapperMask
+    RepeatMask(mask::AbstractMask, num::Int) <: AbstractWrapperMask
 
 Attention mask wrapper over array mask for doing inner repeat on the last dimension.
 
@@ -262,7 +263,7 @@ julia> trues(3,3, 4) .* RepeatMask(m, 2)
 RepeatMask
 
 """
-    getmask(m::AbstractAttenMask, score, scale = 1)
+    getmask(m::AbstractMask, score, scale = 1)
 
 Convert `m` into mask array of `AbstractArray` for `score` with `scale`.
 

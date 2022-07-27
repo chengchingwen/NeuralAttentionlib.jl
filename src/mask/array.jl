@@ -1,19 +1,17 @@
 ####################  Array Mask  ####################
 
-struct GenericMask{N, M <:AbstractArray{Bool, N}} <: AbstractArrayMask
+struct GenericAttenMask{N, M <:AbstractArray{Bool, N}} <: AbstractArrayMask
     mask::M
 end
-GenericMask(mask::AbstractArray) = GenericMask(convert(AbstractArray{Bool}, mask))
+GenericAttenMask(mask) = GenericAttenMask(convert(AbstractArray{Bool}, mask))
 
-Base.ndims(::GenericMask{N}) where N = N
+Base.ndims(::GenericAttenMask{N}) where N = N
 
-GenericMask(mask) = GenericMask(convert(AbstractArray{Bool}, mask))
+adapt_structure(to, x::GenericAttenMask) = GenericAttenMask(adapt(to, x.mask))
 
-adapt_structure(to, x::GenericMask) = GenericMask(adapt(to, x.mask))
+Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericAttenMask}, I::Integer...) = m.mask[I...]
 
-Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericMask}, I::Integer...) = m.mask[I...]
-
-AxesConstraint(m::GenericMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i, size(m.mask, i)), ndims(m))...)
+AxesConstraint(m::GenericAttenMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i, size(m.mask, i)), ndims(m))...)
 
 struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
     len::L

@@ -7,13 +7,13 @@ end
     return matmul(batched_adjoint(k), q, s)
 end
 
-masked_score(mask::Union{AbstractMaskOp, AbstractAttenMask, Nothing}) = masked_score $ mask
-masked_score(maskop::AbstractMaskOp, mask::Union{AbstractAttenMask, Nothing}) = masked_score $ maskop $ mask
+masked_score(mask::Union{AbstractMaskOp, AbstractMask, Nothing}) = masked_score $ mask
+masked_score(maskop::AbstractMaskOp, mask::Union{AbstractMask, Nothing}) = masked_score $ maskop $ mask
 @inline masked_score(::Nothing, score, args...) = score(args...)
 @inline masked_score(::AbstractMaskOp, ::Nothing, score, args...) = score(args...)
-@inline masked_score(mask::AbstractAttenMask, score, args...) = masked_score(NaiveMaskOp(), mask, score, args...)
-@inline masked_score(maskop::AbstractMaskOp, mask::AbstractAttenMask, score, args...) =
-    collapseddims_nonbatch(apply_mask $ maskop $ mask, score(args...))
+@inline masked_score(mask::AbstractMask, score, args...) = masked_score(NaiveMaskOp(), mask, score, args...)
+@inline masked_score(maskop::AbstractMaskOp, mask::AbstractMask, score, args...) =
+    collapseddims_nonbatch(apply_mask $ maskop $ AttenMask(mask), score(args...))
 
 normalized_score(norm) = normalized_score $ norm
 @inline normalized_score(norm, score, args...) = collapseddims(norm, score(args...))

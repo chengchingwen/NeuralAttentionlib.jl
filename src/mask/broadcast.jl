@@ -1,6 +1,6 @@
 import Base.Broadcast: BroadcastStyle, Broadcasted, combine_axes, broadcast_shape, instantiate
 
-BroadcastStyle(::Type{<:AbstractAttenMask}) =  MaskStyle()
+BroadcastStyle(::Type{<:AbstractMask}) =  MaskStyle()
 
 struct MaskStyle{A} <: Broadcast.BroadcastStyle end
 
@@ -20,7 +20,7 @@ Base.similar(bc::Broadcasted{MaskStyle{M}}, ::Type{Eltype}) where {M, Eltype} = 
     return Broadcasted{M}(bc.f, bc.args, axes)
 end
 
-Base.axes(m::AbstractAttenMask) = AxesConstraint(m)
+Base.axes(m::AbstractMask) = AxesConstraint(m)
 
 const AxesConstraints = Tuple{Vararg{AxesConstraint}}
 

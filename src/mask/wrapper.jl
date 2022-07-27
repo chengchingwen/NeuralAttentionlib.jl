@@ -4,7 +4,9 @@ struct FlipMask{M} <: AbstractWrapperMask
     mask::M
 end
 
-Base.:!(m::AbstractAttenMask) = FlipMask(m)
+AttenMask(m::FlipMask) = FlipMask(AttenMask(m.mask))
+
+Base.:!(m::AbstractMask) = FlipMask(m)
 Base.:!(m::FlipMask) = m.mask
 
 Adapt.adapt(to::CUDA.Adaptor, m::FlipMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask),))
@@ -21,26 +23,26 @@ randomness(m::FlipMask) = randomness(m.mask)
 
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
 
-Broadcast.broadcasted(::MaskStyle, !, m::AbstractAttenMask) = FlipMask(m)
-
 struct CombinedMask{C, Ts<:Tuple} <: AbstractWrapperMask
     f::C
     masks::Ts
 end
 
-Base.:|(m1::AbstractAttenMask, m2::AbstractAttenMask) = CombinedMask(|, (m1, m2))
-Base.:|(m1::CombinedMask{typeof(|)}, m2::AbstractAttenMask) = CombinedMask(|, (m1.masks..., m2))
-Base.:|(m1::AbstractAttenMask, m2::CombinedMask{typeof(|)}) = CombinedMask(|, (m1, m2.masks...))
+AttenMask(c::CombinedMask) = CombinedMask(c.f, map(AttenMask, c.masks))
+
+Base.:|(m1::AbstractMask, m2::AbstractMask) = CombinedMask(|, (m1, m2))
+Base.:|(m1::CombinedMask{typeof(|)}, m2::AbstractMask) = CombinedMask(|, (m1.masks..., m2))
+Base.:|(m1::AbstractMask, m2::CombinedMask{typeof(|)}) = CombinedMask(|, (m1, m2.masks...))
 Base.:|(m1::CombinedMask{typeof(|)}, m2::CombinedMask{typeof(|)}) = CombinedMask(|, (m1.masks..., m2.masks...))
-Base.:&(m1::AbstractAttenMask, m2::AbstractAttenMask) = CombinedMask(&, (m1, m2))
-Base.:&(m1::CombinedMask{typeof(&)}, m2::AbstractAttenMask) = CombinedMask(&, (m1.masks..., m2))
-Base.:&(m1::AbstractAttenMask, m2::CombinedMask{typeof(&)}) = CombinedMask(&, (m1, m2.masks...))
+Base.:&(m1::AbstractMask, m2::AbstractMask) = CombinedMask(&, (m1, m2))
+Base.:&(m1::CombinedMask{typeof(&)}, m2::AbstractMask) = CombinedMask(&, (m1.masks..., m2))
+Base.:&(m1::AbstractMask, m2::CombinedMask{typeof(&)}) = CombinedMask(&, (m1, m2.masks...))
 Base.:&(m1::CombinedMask{typeof(&)}, m2::CombinedMask{typeof(&)}) = CombinedMask(&, (m1.masks..., m2.masks...))
 
-Base.:|(m::AbstractAttenMask, ::Nothing) = m
-Base.:|(::Nothing, m::AbstractAttenMask) = m
-Base.:&(m::AbstractAttenMask, ::Nothing) = m
-Base.:&(::Nothing, m::AbstractAttenMask) = m
+Base.:|(m::AbstractMask, ::Nothing) = m
+Base.:|(::Nothing, m::AbstractMask) = m
+Base.:&(m::AbstractMask, ::Nothing) = m
+Base.:&(::Nothing, m::AbstractMask) = m
 
 Adapt.adapt(to::CUDA.Adaptor, m::CombinedMask) = Indexer{typeof(m)}((f = adapt(to, m.f),
                                                                      masks = map(Base.Fix1(adapt, to), m.masks)))
@@ -70,8 +72,6 @@ function AxesConstraint(m::CombinedMask)
     merge_constraint(map(AxesConstraint, m.masks)...)
 end
 
-Broadcast.broadcasted(::MaskStyle, f, m1::AbstractAttenMask, m2::AbstractAttenMask) = CombinedMask(f, (m1, m2))
-
 randomness(m::CombinedMask) = static(any(map(randomness, m.masks)))
 
 function Base.show(io::IO, m::CombinedMask)
@@ -89,6 +89,8 @@ struct BatchedMask{M, S<:StaticInt} <: AbstractWrapperMask
     mask::M
     batch_dim::S
 end
+
+AttenMask(b::BatchedMask) = BatchedMask(AttenMask(b.mask), b.batch_dim)
 
 compute_batch_dim(::Tuple{}) = 0
 compute_batch_dim(cs::Tuple{NDimConstraint}) = 0
@@ -134,6 +136,8 @@ struct RepeatMask{M} <: AbstractWrapperMask
     mask::M
     num::Int
 end
+
+AttenMask(r::RepeatMask) = RepeatMask(AttenMask(r.mask), r.num)
 
 Adapt.adapt(to::CUDA.Adaptor, m::RepeatMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), num = m.num))
 

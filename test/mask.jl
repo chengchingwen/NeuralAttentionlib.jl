@@ -58,9 +58,9 @@
         gmask_b = drand(Bool, 10, 10, 2)
         gmask_c = drand(Bool, 10, 10, 2, 2)
 
-        @test a .* GenericMask(gmask_a) == convert(AbstractArray{Int}, gmask_a)
-        @test b .* GenericMask(gmask_b) == convert(AbstractArray{Int}, gmask_b)
-        @test c .* GenericMask(gmask_c) == convert(AbstractArray{Int}, gmask_c)
+        @test a .* GenericAttenMask(gmask_a) == convert(AbstractArray{Int}, gmask_a)
+        @test b .* GenericAttenMask(gmask_b) == convert(AbstractArray{Int}, gmask_b)
+        @test c .* GenericAttenMask(gmask_c) == convert(AbstractArray{Int}, gmask_c)
 
         smask_a = [5] |> device
         smask_b = [3, 5] |> device
@@ -104,9 +104,9 @@
         @test a .* !BandPartMask(3, 5) == 1 .- bandpart(a, 3, 5)
         @test b .* !BandPartMask(3, 5) == 1 .- bandpart(b, 3, 5)
         @test c .* !BandPartMask(3, 5) == 1 .- bandpart(c, 3, 5)
-        @test a .* !GenericMask(gmask_a) == 1 .- convert(AbstractArray{Int}, gmask_a)
-        @test b .* !GenericMask(gmask_b) == 1 .- convert(AbstractArray{Int}, gmask_b)
-        @test c .* !GenericMask(gmask_c) == 1 .- convert(AbstractArray{Int}, gmask_c)
+        @test a .* !GenericAttenMask(gmask_a) == 1 .- convert(AbstractArray{Int}, gmask_a)
+        @test b .* !GenericAttenMask(gmask_b) == 1 .- convert(AbstractArray{Int}, gmask_b)
+        @test c .* !GenericAttenMask(gmask_c) == 1 .- convert(AbstractArray{Int}, gmask_c)
         @test a .* !SymLengthMask(smask_a) == 1 .- dropdims(grow_length(smask_a, smask_a, 10), dims=3)
         @test b .* !SymLengthMask(smask_b) == 1 .- grow_length(smask_b, smask_b, 10)
         @test c .* !SymLengthMask(smask_c) == 1 .- grow_length(smask_c, smask_c, 10)
@@ -195,9 +195,9 @@
         @test_throws DimensionMismatch drandn(5, 5, 2) .* RepeatMask(BiLengthMask([2,3], [2,2]), 3)
         @test_throws DimensionMismatch drandn(5, 5, 3) .* RepeatMask(SymLengthMask([2]), 2)
         @test_throws DimensionMismatch drandn(5, 5, 2, 3) .* BatchedMask(BiLengthMask([2,3], [2,2]))
-        @test_throws DimensionMismatch drandn(5, 4) .* GenericMask(drand(Bool, 3, 4))
-        @test_throws DimensionMismatch drandn(5, 4, 2) .* (GenericMask(drand(Bool, 3, 4)) | BiLengthMask([2,3], [2,2]))
-        @test_throws DimensionMismatch drandn(5, 4) .* (GenericMask(drand(Bool, 3, 4)) | SymLengthMask([2]))
+        @test_throws DimensionMismatch drandn(5, 4) .* GenericAttenMask(drand(Bool, 3, 4))
+        @test_throws DimensionMismatch drandn(5, 4, 2) .* (GenericAttenMask(drand(Bool, 3, 4)) | BiLengthMask([2,3], [2,2]))
+        @test_throws DimensionMismatch drandn(5, 4) .* (GenericAttenMask(drand(Bool, 3, 4)) | SymLengthMask([2]))
     end
 
     if !USE_CUDA
