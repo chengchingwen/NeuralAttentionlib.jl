@@ -79,8 +79,8 @@
         lmask = BatchedMask(BiLengthMask(q_len, k_len))
         mask = CausalMask() & lmask
 
-        mask2 = CausalMask() & BatchedMask(LengthMask(q_len))
-        mask3 = CausalMask() & BatchedMask(SymLengthMask(q_len))
+        mask2 = device(CausalMask() & BatchedMask(LengthMask(q_len)))
+        mask3 = device(CausalMask() & BatchedMask(SymLengthMask(q_len)))
 
         old_q_len = Old_Impl.getmask(map(l->ones(l), q_len))
         old_k_len = Old_Impl.getmask(map(l->ones(l), k_len))
