@@ -74,7 +74,7 @@ end
 _merge_dim_c(::Tuple{},::Tuple{}) = ()
 _merge_dim_c(a::Tuple, ::Tuple{}) = a
 _merge_dim_c(::Tuple{}, b::Tuple) = b
-_merge_dim_c(a::Tuple{All1Constraint}, b::Tuple{All1Constraint}) = All1Constraint(min(a.from, b.from), max(a.n, b.n))
+_merge_dim_c((a,)::Tuple{All1Constraint}, (b,)::Tuple{All1Constraint}) = All1Constraint(min(a.from, b.from), max(a.n, b.n))
 
 _merge_post_dim_c(::Tuple{}, ::Tuple{}) = ()
 _merge_post_dim_c(::Tuple{}, b::Tuple) = b
@@ -116,6 +116,7 @@ function _merge_dim_c(a::Tuple{All1Constraint}, b::Tuple{DimConstraint, Vararg{D
 end
 
 @inline function _merge_ndim_c(a, b)
+    a == b && return a
     a.least || b.least || thrdm("mask require both ndims(A) == $(a.n) and ndim(A) == $(b.n)")
     n = max(a.n, b.n)
     a.least || a.n == n || thrdm("mask require both ndims(A) == $(a.n) and ndims(A) ≥ $(b.n)")
