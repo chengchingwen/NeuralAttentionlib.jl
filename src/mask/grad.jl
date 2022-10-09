@@ -46,8 +46,4 @@ end
 
 @init @require Zygote="e88e6eb3-aa80-5325-afca-941959d7151f" begin
     Zygote.unbroadcast(x::AbstractMask, _) = nothing
-
-    function Zygote._pullback(ctx::Zygote.AContext, ::typeof(Broadcast.broadcasted), ::MaskStyle{M}, f, args...) where M
-        return y, ∇broadcasted = Zygote._pullback(ctx, Broadcast.broadcasted, M(), f, args...)
-    end
 end

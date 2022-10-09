@@ -12,7 +12,7 @@ Base.:!(m::FlipMask) = m.mask
 Adapt.adapt(to::CUDA.Adaptor, m::FlipMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask),))
 
 adapt_structure(to, x::FlipMask) = FlipMask(adapt(to, x.mask))
-GetIndexer(m::FlipMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask),))
+GetIndexer(m::FlipMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size),), dest_size)
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Integer...) = !m.mask[I...]
 
@@ -47,7 +47,7 @@ Base.:&(::Nothing, m::AbstractMask) = m
 Adapt.adapt(to::CUDA.Adaptor, m::CombinedMask) = Indexer{typeof(m)}((f = adapt(to, m.f),
                                                                      masks = map(Base.Fix1(adapt, to), m.masks)))
 adapt_structure(to, x::CombinedMask) = CombinedMask(x.f, adapt(to, x.masks))
-GetIndexer(m::CombinedMask) = Indexer{typeof(m)}((m.f, masks = map(GetIndexer, m.masks)))
+GetIndexer(m::CombinedMask, dest_size = nothing) = Indexer{typeof(m)}((m.f, masks = map(Base.Fix2(GetIndexer, dest_size), m.masks)))
 
 @inline function _combine_getmask(f, masks, I)
     if length(masks) == 2
@@ -106,7 +106,7 @@ Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt
 
 adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim)
 
-GetIndexer(m::BatchedMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), batch_dim = m.batch_dim))
+GetIndexer(m::BatchedMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size), batch_dim = m.batch_dim))
 
 @inline function _tailtuples(I, dim)
     offset = length(I) - dim
@@ -143,7 +143,7 @@ Adapt.adapt(to::CUDA.Adaptor, m::RepeatMask) = Indexer{typeof(m)}((mask = adapt(
 
 adapt_structure(to, x::RepeatMask) = RepeatMask(adapt(to, x.mask), x.num)
 
-GetIndexer(m::RepeatMask) = Indexer{typeof(m)}((mask = GetIndexer(m.mask), num = m.num))
+GetIndexer(m::RepeatMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size), num = m.num))
 
 Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) where M <: RepeatMask
     dim = length(I)

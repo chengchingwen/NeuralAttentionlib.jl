@@ -112,7 +112,7 @@ Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex)
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::Integer) = I
 Base.eltype(::MaskIndexer) = Bool
 
-GetIndexer(m::AbstractDatalessMask) = m
+GetIndexer(m::AbstractDatalessMask, dest_size = nothing) = m
 
 Base.@propagate_inbounds Base.getindex(m::AbstractMask, i::CartesianIndex) = m[Tuple(i)]
 Base.@propagate_inbounds Base.getindex(m::AbstractMask, I::Tuple) = GetIndexer(m)[I...]
