@@ -123,3 +123,4 @@ Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
 Adapt.adapt(to::CUDA.Adaptor, m::AbstractArrayMask) = Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
 
 randomness(::AbstractMask) = static(false)
+require_dest(::AbstractMask) = static(false)

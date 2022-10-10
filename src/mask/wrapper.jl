@@ -20,6 +20,7 @@ check_constraint(m::FlipMask, x) = check_constraint(m.mask, x)
 
 AxesConstraint(m::FlipMask) = AxesConstraint(m.mask)
 randomness(m::FlipMask) = randomness(m.mask)
+require_dest(m::FlipMask) = require_dest(m.mask)
 
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
 
@@ -73,6 +74,7 @@ function AxesConstraint(m::CombinedMask)
 end
 
 randomness(m::CombinedMask) = static(any(map(randomness, m.masks)))
+require_dest(m::CombinedMask) = static(any(map(require_dest, m.masks)))
 
 function Base.show(io::IO, m::CombinedMask)
     print(io, '(')
@@ -131,6 +133,7 @@ end
 
 AxesConstraint(m::BatchedMask) = batch_constraint(AxesConstraint(m.mask))
 randomness(m::BatchedMask) = randomness(m.mask)
+require_dest(m::BatchedMask) = require_dest(m.mask)
 
 struct RepeatMask{M} <: AbstractWrapperMask
     mask::M
@@ -173,3 +176,4 @@ end
 end
 
 randomness(m::RepeatMask) = randomness(m.mask)
+require_dest(m::RepeatMask) = require_dest(m.mask)

@@ -8,5 +8,5 @@ const AxesConstraints = Tuple{Vararg{AxesConstraint}}
 
 function Base.Broadcast.preprocess(dest, m::AbstractMask)
     check_constraint(AxesConstraint(m), axes(dest))
-    return GetIndexer(m, (size(dest, 1), size(dest, 2)))
+    return GetIndexer(m, as_bool(require_dest(m)) ? size(dest) : nothing)
 end

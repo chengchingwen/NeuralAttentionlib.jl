@@ -75,6 +75,8 @@ end
 
 Base.ndims(::RevSymLengthMask{N}) where N = N + 2
 
+require_dest(::RevSymLengthMask) = static(true)
+
 RevSymLengthMask(len::Integer) = RevSymLengthMask(Int32[len])
 RevSymLengthMask(len::AbstractArray) = RevSymLengthMask(convert(AbstractArray{Int32}, len))
 
@@ -102,6 +104,8 @@ struct RevBiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
 end
 
 Base.ndims(::RevBiLengthMask{N}) where N = N + 2
+
+require_dest(::RevBiLengthMask) = static(true)
 
 function RevBiLengthMask(q_len, k_len)
     @assert size(q_len) == size(k_len)

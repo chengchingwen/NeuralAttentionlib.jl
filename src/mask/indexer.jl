@@ -1,6 +1,6 @@
 abstract type AbstractIndexer end
 
-struct Indexer{T, D<:Union{Nothing, NTuple{2, Int}}, Ns<:NamedTuple} <: AbstractIndexer
+struct Indexer{T, D<:Union{Nothing, Tuple{Vararg{Int}}}, Ns<:NamedTuple} <: AbstractIndexer
     __fields::Ns
     dest_size::D
 end
