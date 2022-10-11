@@ -17,7 +17,7 @@ adapt_structure(to, x::GenericSequenceMask) = GenericSequenceMask(adapt(to, x.ma
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericSequenceMask}, I::Integer...) = m.mask[1, Base.tail(I)...]
 
-AxesConstraint(m::GenericSequenceMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+1, size(m.mask, i+1)), ndims(m)-1)...)
+AxesConstraint(m::GenericSequenceMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+1, size(m.mask, i+1), i < 2), ndims(m)-1)...)
 
 AttenMask(m::GenericSequenceMask) = GenericAttenMask(PermutedDimsArray(m.mask, ntuple(i-> i == 1 ? 2 : i == 2 ? 1 : i, Val(ndims(m)))) .* m.mask)
 

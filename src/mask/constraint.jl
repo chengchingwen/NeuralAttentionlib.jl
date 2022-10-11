@@ -13,7 +13,9 @@ end
 struct DimConstraint <: AxesConstraint
     dim::Int
     val::Int
+    fixed::Bool
 end
+DimConstraint(dim, val) = DimConstraint(dim, val, false)
 
 struct NDimConstraint <: AxesConstraint
     n::Int

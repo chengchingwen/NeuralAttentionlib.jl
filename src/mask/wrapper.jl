@@ -97,7 +97,7 @@ AttenMask(b::BatchedMask) = BatchedMask(AttenMask(b.mask), b.batch_dim)
 compute_batch_dim(::Tuple{}) = 0
 compute_batch_dim(cs::Tuple{NDimConstraint}) = 0
 compute_batch_dim(cs::Tuple{NDimConstraint, All1Constraint}) = 0
-compute_batch_dim(cs::Tuple{NDimConstraint, Vararg{DimConstraint}}) = length(cs) - 1
+compute_batch_dim(cs::Tuple{NDimConstraint, Vararg{DimConstraint}}) = count(c->!c.fixed, Base.tail(cs))
 
 function BatchedMask(mask)
     batch_dim = compute_batch_dim(AxesConstraint(mask))
@@ -128,7 +128,7 @@ batch_constraint(cs::Tuple{NDimConstraint, All1Constraint}) = (NDimConstraint(cs
 function batch_constraint(cs::Tuple{NDimConstraint, Vararg{DimConstraint}})
     dcs = Base.tail(cs)
     n = length(dcs)
-    return (NDimConstraint(cs[1].n, true), ntuple(i->DimConstraint(i-n-1, dcs[i].val), n)...)
+    return (NDimConstraint(cs[1].n, true), ntuple(i-> dcs[i].fixed ? dcs[i] : DimConstraint(i-n-1, dcs[i].val), n)...)
 end
 
 AxesConstraint(m::BatchedMask) = batch_constraint(AxesConstraint(m.mask))
@@ -155,8 +155,6 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) wh
     return m.mask[J]
 end
 
-@inline head(t::Tuple) = Base.reverse(Base.tail(Base.reverse(t)))
-
 AxesConstraint(m::RepeatMask) = multiply_constraint(AxesConstraint(m.mask), m.num)
 
 @inline multiply_constraint(::Tuple{}, _) = ()
@@ -170,9 +168,9 @@ AxesConstraint(m::RepeatMask) = multiply_constraint(AxesConstraint(m.mask), m.nu
 end
 
 @inline function multiply_constraint(cs::Tuple{NDimConstraint, Vararg{DimConstraint}}, n)
-    h = head(cs)
+    h = Base.front(cs)
     c = cs[end]
-    return (h..., DimConstraint(c.dim, c.val * n))
+    return (h..., DimConstraint(c.dim, c.val * n, c.fixed))
 end
 
 randomness(m::RepeatMask) = randomness(m.mask)

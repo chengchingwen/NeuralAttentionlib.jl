@@ -11,7 +11,7 @@ adapt_structure(to, x::GenericAttenMask) = GenericAttenMask(adapt(to, x.mask))
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericAttenMask}, I::Integer...) = m.mask[I...]
 
-AxesConstraint(m::GenericAttenMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i, size(m.mask, i)), ndims(m))...)
+AxesConstraint(m::GenericAttenMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i, size(m.mask, i), i <= 2), ndims(m))...)
 
 struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
     len::L
