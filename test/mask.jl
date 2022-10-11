@@ -48,6 +48,7 @@
         end
         return y |> device
     end
+    grow_rlength(len1, len2, n) = reverse!(reverse!(grow_length(len1, len2, n); dims=1); dims=2)
 
     @testset "array mask" begin
         a = dones(Int, 10, 10)
@@ -78,6 +79,13 @@
         @test b .* BiLengthMask(bmaskq_b, bmaskk_b) == grow_length(bmaskk_b, bmaskq_b, 10)
         @test c .* BiLengthMask(bmaskq_c, bmaskk_c) == grow_length(bmaskk_c, bmaskq_c, 10)
 
+        rev!(x) = reverse!(reverse!(x; dims=1); dims=2)
+        @test a .* RevSymLengthMask(smask_a) == rev!(a .* SymLengthMask(smask_a))
+        @test b .* RevSymLengthMask(smask_b) == rev!(b .* SymLengthMask(smask_b))
+        @test c .* RevSymLengthMask(smask_c) == rev!(c .* SymLengthMask(smask_c))
+        @test a .* RevBiLengthMask(bmaskq_a, bmaskk_a) == rev!(a .* BiLengthMask(bmaskq_a, bmaskk_a))
+        @test b .* RevBiLengthMask(bmaskq_b, bmaskk_b) == rev!(b .* BiLengthMask(bmaskq_b, bmaskk_b))
+        @test c .* RevBiLengthMask(bmaskq_c, bmaskk_c) == rev!(c .* BiLengthMask(bmaskq_c, bmaskk_c))
     end
 
     @testset "wrapper mask" begin
@@ -104,6 +112,9 @@
         @test a .* !BandPartMask(3, 5) == 1 .- bandpart(a, 3, 5)
         @test b .* !BandPartMask(3, 5) == 1 .- bandpart(b, 3, 5)
         @test c .* !BandPartMask(3, 5) == 1 .- bandpart(c, 3, 5)
+        @test a .* (!BiLengthMask(bmaskq_a, bmaskk_a) & BiLengthMask(bmaskq_a, bmaskk_a)) |> iszero
+        @test b .* (!BiLengthMask(bmaskq_b, bmaskk_b) & BiLengthMask(bmaskq_b, bmaskk_b)) |> iszero
+        @test c .* (!BiLengthMask(bmaskq_c, bmaskk_c) & BiLengthMask(bmaskq_c, bmaskk_c)) |> iszero
         @test a .* !GenericAttenMask(gmask_a) == 1 .- convert(AbstractArray{Int}, gmask_a)
         @test b .* !GenericAttenMask(gmask_b) == 1 .- convert(AbstractArray{Int}, gmask_b)
         @test c .* !GenericAttenMask(gmask_c) == 1 .- convert(AbstractArray{Int}, gmask_c)
@@ -133,6 +144,16 @@
         @test c .* (!(CausalMask() | BiLengthMask(bmaskq_c, bmaskk_c)) & LocalMask(2) | BandPartMask(4, 7)) ==
             min.((1 .- min.(causal(c) .+ grow_length(bmaskk_c, bmaskq_c, 10), 1)) .* trilu(c, 1) .+ bandpart(a, 4, 7), 1)
 
+        @test a .* (!CausalMask() | RevBiLengthMask(bmaskq_a, bmaskk_a) & LocalMask(2) | BandPartMask(4, 7)) == min.((1 .- causal(a)) .+ (dropdims(grow_rlength(bmaskk_a, bmaskq_a, 10), dims=3) .* trilu(a, 1)) .+ bandpart(a, 4, 7), 1)
+        @test b .* (!CausalMask() | RevBiLengthMask(bmaskq_b, bmaskk_b) & LocalMask(2) | BandPartMask(4, 7)) == min.((1 .- causal(b)) .+ (grow_rlength(bmaskk_b, bmaskq_b, 10) .* trilu(b, 1)) .+ bandpart(a, 4, 7), 1)
+        @test c .* (!CausalMask() | RevBiLengthMask(bmaskq_c, bmaskk_c) & LocalMask(2) | BandPartMask(4, 7)) == min.((1 .- causal(c)) .+ (grow_rlength(bmaskk_c, bmaskq_c, 10) .* trilu(c, 1)) .+ bandpart(a, 4, 7), 1)
+
+        @test a .* (!(CausalMask() | RevBiLengthMask(bmaskq_a, bmaskk_a)) & LocalMask(2) | BandPartMask(4, 7)) ==
+            min.((1 .- min.(causal(a) .+ (dropdims(grow_rlength(bmaskk_a, bmaskq_a, 10), dims=3)), 1)) .* trilu(a, 1) .+ bandpart(a, 4, 7), 1)
+        @test b .* (!(CausalMask() | RevBiLengthMask(bmaskq_b, bmaskk_b)) & LocalMask(2) | BandPartMask(4, 7)) ==
+            min.((1 .- min.(causal(b) .+ grow_rlength(bmaskk_b, bmaskq_b, 10), 1)) .* trilu(b, 1) .+ bandpart(a, 4, 7), 1)
+        @test c .* (!(CausalMask() | RevBiLengthMask(bmaskq_c, bmaskk_c)) & LocalMask(2) | BandPartMask(4, 7)) ==
+            min.((1 .- min.(causal(c) .+ grow_rlength(bmaskk_c, bmaskq_c, 10), 1)) .* trilu(c, 1) .+ bandpart(a, 4, 7), 1)
 
         @test c .* BatchedMask(BiLengthMask(bmaskq_b, bmaskk_b)) == begin
             m = reshape(grow_length(bmaskk_b, bmaskq_b, 10), 10, 10, 1, 2)
@@ -161,30 +182,50 @@
         @test e .* RepeatMask(BiLengthMask(bmaskq_b, bmaskk_b), 2) == device(repeat(collect(grow_length(bmaskk_b, bmaskq_b, 10)), inner=(1,1,2)))
         @test f .* RepeatMask(BiLengthMask(bmaskq_c, bmaskk_c), 3) == device(repeat(collect(grow_length(bmaskk_c, bmaskq_c, 10)), inner=(1,1,1,3)))
 
+        nested_mask = (BatchedMask(BatchedMask((LocalMask(1) | CausalMask() & !(BandPartMask(5,5)) & BatchedMask(RevBiLengthMask([2,3], [3, 5])) | RepeatMask(GenericAttenMask(rand(Bool, 10, 10, 1)), 2)))) | CausalMask() & LocalMask(3))
+        @test collect(b .* device(nested_mask)) == collect(b) .* nested_mask
+        @test collect(c .* device(nested_mask)) == collect(c) .* nested_mask
     end
 
     @testset "Sequence" begin
-        a = device(reshape(hcat([1, 1, 1, 1, 0], [1,1,1,0,0]), (1, 5, 2)))
+        a0 = hcat([1, 1, 1, 1, 0], [1,1,1,0,0])
+        ra0 = hcat([0, 1, 1, 1, 1], [0,0,1,1,1])
+        a = device(reshape(a0, (1, 5, 2)))
+        ra = device(reshape(ra0, (1, 5, 2)))
         b = device([4,3])
         x = drandn(10, 5, 2)
+        a2 = device(repeat(reshape(a0, (1, 5, 1, 2)); inner=(1,1,2,1)))
+        ra2 = device(repeat(reshape(ra0, (1, 5, 1, 2)); inner=(1,1,2,1)))
+        x2 = drandn(10, 5, 2,2)
 
         @test x .* a == x .* LengthMask(b)
+        @test x .* ra == x .* RevLengthMask(b)
         @test x .* a == x .* GenericSequenceMask(a)
-
+        @test x2 .* a2 == x2 .* BatchedMask(LengthMask(b))
+        @test x2 .* ra2 == x2 .* BatchedMask(RevLengthMask(b))
+        @test x2 .* a2 == x2 .* BatchedMask(GenericSequenceMask(a))
 
         len = [5]
         l = 2
         for f in (+, *)
             @test f(l, LengthMask(len)).len[] == f(l, len[])
+            @test f(l, RevLengthMask(len)).len[] == f(l, len[])
             @test f(l, SymLengthMask(len)).len[] == f(l, len[])
             @test f(l, BiLengthMask(len, len)).q_len[] == f(l, len[])
             @test f(l, BiLengthMask(len, len)).k_len[] == f(l, len[])
+            @test f(l, RevSymLengthMask(len)).len[] == f(l, len[])
+            @test f(l, RevBiLengthMask(len, len)).q_len[] == f(l, len[])
+            @test f(l, RevBiLengthMask(len, len)).k_len[] == f(l, len[])
         end
 
         @test (LengthMask(len) - l).len[] == len[] - l
         @test (SymLengthMask(len) - l).len[] == len[] - l
         @test (BiLengthMask(len, len) - l).q_len[] == len[] - l
         @test (BiLengthMask(len, len) - l).k_len[] == len[] - l
+        @test (RevLengthMask(len) - l).len[] == len[] - l
+        @test (RevSymLengthMask(len) - l).len[] == len[] - l
+        @test (RevBiLengthMask(len, len) - l).q_len[] == len[] - l
+        @test (RevBiLengthMask(len, len) - l).k_len[] == len[] - l
     end
 
     @testset "Op" begin
