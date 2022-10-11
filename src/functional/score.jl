@@ -21,5 +21,6 @@ normalized_score(norm) = normalized_score $ norm
 dropout(x, p) = x .* getmask(RandomMask(p), x, inv(1 - p))
 dropout_score(p) = dropout_score $ p
 @inline dropout_score(p, score, args...) = collapseddims(Base.Fix2(dropout, p), score(args...))
+@inline dropout_score(::Nothing, score, args...) = score(args...)
 
 @inline attention_score(f, args...) = f(args...)
