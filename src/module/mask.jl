@@ -6,11 +6,12 @@ using ..NeuralAttentionlib: @imexport
     apply_mask, NaiveMaskOp, GenericMaskOp,
     CausalMask, LocalMask, RandomMask, BandPartMask,
     GenericAttenMask, SymLengthMask, BiLengthMask,
+    RevSymLengthMask, RevBiLengthMask,
     BatchedMask, RepeatMask, getmask,
-    GenericSequenceMask, LengthMask
+    GenericSequenceMask, LengthMask, RevLengthMask
 
 import ..NeuralAttentionlib: AbstractMask, AbstractSequenceMask, AbstractAttenMask,
-    AbstractDatalessMask, AbstractArrayMask, AttenMask
+    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint
 
 """
     AbstractDatalessMask <: AbstractAttenMask
@@ -25,6 +26,13 @@ AbstractDatalessMask
 Abstract type for mask with array data
 """
 AbstractArrayMask
+
+"""
+    AttenMask(m::AbstractMask)
+
+convert mask into corresponding attention mask
+"""
+AttenMask
 
 """
     CausalMask() <: AbstractDatalessMask
@@ -95,7 +103,7 @@ julia> trues(3,3, 2) .* m
 
 ```
 
-See also: [`BiLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
+See also: [`LengthMask`](@ref), [`BiLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
 """
 SymLengthMask
 
@@ -131,6 +139,134 @@ julia> trues(5,5, 2) .* bm
 See also: [`SymLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
 """
 BiLengthMask
+
+"""
+    LengthMask(len::AbstractArray{Int, N}) <: AbstractSequenceMask
+
+A Sequence Mask specified by an array of integer that indicate the length dimension size.
+ Can be convert to attention mask ([`SymLengthMask`](@ref), [`BiLengthMask`](@ref)) with [`AttenMask`](@ref).
+
+# Example
+
+```julia
+julia> ones(7, 7, 2) .* LengthMask([3, 5])
+7×7×2 Array{Float64, 3}:
+[:, :, 1] =
+ 1.0  1.0  1.0  0.0  0.0  0.0  0.0
+ 1.0  1.0  1.0  0.0  0.0  0.0  0.0
+ 1.0  1.0  1.0  0.0  0.0  0.0  0.0
+ 1.0  1.0  1.0  0.0  0.0  0.0  0.0
+ 1.0  1.0  1.0  0.0  0.0  0.0  0.0
+ 1.0  1.0  1.0  0.0  0.0  0.0  0.0
+ 1.0  1.0  1.0  0.0  0.0  0.0  0.0
+
+[:, :, 2] =
+ 1.0  1.0  1.0  1.0  1.0  0.0  0.0
+ 1.0  1.0  1.0  1.0  1.0  0.0  0.0
+ 1.0  1.0  1.0  1.0  1.0  0.0  0.0
+ 1.0  1.0  1.0  1.0  1.0  0.0  0.0
+ 1.0  1.0  1.0  1.0  1.0  0.0  0.0
+ 1.0  1.0  1.0  1.0  1.0  0.0  0.0
+ 1.0  1.0  1.0  1.0  1.0  0.0  0.0
+
+```
+"""
+LengthMask
+
+"""
+    RevSymLengthMask(len::AbstractArray{Int, N}) <: AbstractArrayMask
+
+[`SymLengthMask`](@ref) but counts from the end of array, used for left padding.
+
+# Example
+
+```julia
+julia> m = RevSymLengthMask([2,3])
+RevSymLengthMask{1, Vector{Int32}}(Int32[2, 3])
+
+julia> trues(3,3, 2) .* m
+3×3×2 BitArray{3}:
+[:, :, 1] =
+ 0  0  0
+ 0  1  1
+ 0  1  1
+
+[:, :, 2] =
+ 1  1  1
+ 1  1  1
+ 1  1  1
+
+```
+
+See also: [`BiLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
+"""
+RevSymLengthMask
+
+"""
+    RevBiLengthMask(q_len::A, k_len::A) where {A <: AbstractArray{Int, N}} <: AbstractArrayMask
+
+[`BiLengthMask`](@ref) but counts from the end of array, used for left padding.
+
+# Example
+
+```julia
+julia> bm = RevBiLengthMask([2,3], [3, 5])
+RevBiLengthMask{1, Vector{Int32}}(Int32[2, 3], Int32[3, 5])
+
+julia> trues(5,5, 2) .* bm
+5×5×2 BitArray{3}:
+[:, :, 1] =
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 0  0  0  1  1
+ 0  0  0  1  1
+ 0  0  0  1  1
+
+[:, :, 2] =
+ 0  0  1  1  1
+ 0  0  1  1  1
+ 0  0  1  1  1
+ 0  0  1  1  1
+ 0  0  1  1  1
+
+```
+
+See also: [`RevLengthMask`](@ref), [`RevSymLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
+"""
+RevBiLengthMask
+
+"""
+    RevLengthMask(len::AbstractArray{Int, N}) <: AbstractSequenceMask
+
+[`LengthMask`](@ref) but counts from the end of array, used for left padding.
+ Can be convert to attention mask ([`RevSymLengthMask`](@ref), [`RevBiLengthMask`](@ref)) with [`AttenMask`](@ref).
+
+# Example
+
+```julia
+julia> ones(7, 7, 2) .* RevLengthMask([3, 5])
+7×7×2 Array{Float64, 3}:
+[:, :, 1] =
+ 0.0  0.0  0.0  0.0  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  1.0  1.0  1.0
+ 0.0  0.0  0.0  0.0  1.0  1.0  1.0
+
+[:, :, 2] =
+ 0.0  0.0  1.0  1.0  1.0  1.0  1.0
+ 0.0  0.0  1.0  1.0  1.0  1.0  1.0
+ 0.0  0.0  1.0  1.0  1.0  1.0  1.0
+ 0.0  0.0  1.0  1.0  1.0  1.0  1.0
+ 0.0  0.0  1.0  1.0  1.0  1.0  1.0
+ 0.0  0.0  1.0  1.0  1.0  1.0  1.0
+ 0.0  0.0  1.0  1.0  1.0  1.0  1.0
+
+```
+"""
+RevLengthMask
 
 """
     !m::AbstractMask
