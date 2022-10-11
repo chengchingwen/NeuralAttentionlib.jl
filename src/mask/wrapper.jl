@@ -14,6 +14,7 @@ Adapt.adapt(to::CUDA.Adaptor, m::FlipMask) = Indexer{typeof(m)}((mask = adapt(to
 adapt_structure(to, x::FlipMask) = FlipMask(adapt(to, x.mask))
 GetIndexer(m::FlipMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size),), dest_size)
 
+Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Tuple) = !m.mask[I]
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Integer...) = !m.mask[I...]
 
 check_constraint(m::FlipMask, x) = check_constraint(m.mask, x)
@@ -51,12 +52,11 @@ adapt_structure(to, x::CombinedMask) = CombinedMask(x.f, adapt(to, x.masks))
 GetIndexer(m::CombinedMask, dest_size = nothing) = Indexer{typeof(m)}((m.f, masks = map(Base.Fix2(GetIndexer, dest_size), m.masks)))
 
 @inline function _combine_getmask(f, masks, I)
+    m1 = first(masks)[I]
     if length(masks) == 2
-        m1 = masks[1][I]
         m2 = masks[2][I]
         return f(m1, m2)
     else
-        m1 = masks[1][I]
         m2 = _combine_getmask(f, Base.tail(masks), I)
         return f(m1, m2)
     end
@@ -99,6 +99,7 @@ compute_batch_dim(cs::Tuple{NDimConstraint}) = 0
 compute_batch_dim(cs::Tuple{NDimConstraint, All1Constraint}) = 0
 compute_batch_dim(cs::Tuple{NDimConstraint, Vararg{DimConstraint}}) = count(c->!c.fixed, Base.tail(cs))
 
+BatchedMask(mask::BatchedMask) = mask
 function BatchedMask(mask)
     batch_dim = compute_batch_dim(AxesConstraint(mask))
     return BatchedMask(mask, static(batch_dim))
@@ -111,11 +112,12 @@ adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim
 GetIndexer(m::BatchedMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size), batch_dim = m.batch_dim))
 
 @inline function _tailtuples(I, dim)
-    offset = length(I) - dim
+    offset = static(length(I)) - dim
     return ntuple(i->I[i+offset], dim)
 end
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) where M <: BatchedMask
+Base.getindex(m::Indexer{M}, I::Integer...) where M <: BatchedMask = m[I]
+Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M <: BatchedMask
     i = I[1]
     j = I[2]
     J = _tailtuples(I, m.batch_dim)
@@ -151,7 +153,7 @@ GetIndexer(m::RepeatMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetI
 Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Integer...) where M <: RepeatMask
     dim = length(I)
     b = I[dim]
-    J = Base.setindex(I,  fld1(b, m.num), dim)
+    J = Base.setindex(I, fld1(b, m.num), dim)
     return m.mask[J]
 end
 
