@@ -185,6 +185,10 @@
         nested_mask = (BatchedMask(BatchedMask((LocalMask(1) | CausalMask() & !(BandPartMask(5,5)) & BatchedMask(RevBiLengthMask([2,3], [3, 5])) | RepeatMask(GenericAttenMask(rand(Bool, 10, 10, 1)), 2)))) | CausalMask() & LocalMask(3))
         @test collect(b .* device(nested_mask)) == collect(b) .* nested_mask
         @test collect(c .* device(nested_mask)) == collect(c) .* nested_mask
+
+        nested_mask2 = BatchedMask(!BatchedMask(!BatchedMask((RepeatMask((LocalMask(1) | CausalMask() & !(BandPartMask(5,5)) & BatchedMask(RevBiLengthMask([2,3], [3, 5])) | RepeatMask(GenericAttenMask(rand(Bool, 10, 10, 1)), 2)), 1))))) | RepeatMask(LocalMask(5),2) & CausalMask()
+        @test collect(b .* device(nested_mask2)) == collect(b) .* nested_mask2
+        @test collect(c .* device(nested_mask2)) == collect(c) .* nested_mask2
     end
 
     @testset "Sequence" begin
