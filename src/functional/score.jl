@@ -1,10 +1,7 @@
 @inline dot_product_score(q, k) = scaled_dot_product_score(q, k, true)
 
-@inline function scaled_dot_product_score(q, k::AbstractVecOrMat, s = sqrt(inv(size(k, 1))))
-    return matmul(k', q, s)
-end
 @inline function scaled_dot_product_score(q, k, s = sqrt(inv(size(k, 1))))
-    return matmul(batched_adjoint(k), q, s)
+    return matmul(collapsed_adjoint(k), q, s)
 end
 
 masked_score(mask::Union{AbstractMaskOp, AbstractMask, Nothing}) = masked_score $ mask

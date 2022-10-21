@@ -5,6 +5,8 @@ using Static
 using CUDA
 using Adapt
 import Adapt: adapt_structure, adapt
+import GPUArraysCore
+using ChainRulesCore
 
 using NNlib
 using NNlibCUDA
@@ -36,6 +38,7 @@ include("./functional/utils.jl")
 include("./functional/score.jl")
 include("./functional/mixing.jl")
 include("./functional/attention.jl")
+include("./functional/grad.jl")
 
 include("./types.jl")
 
