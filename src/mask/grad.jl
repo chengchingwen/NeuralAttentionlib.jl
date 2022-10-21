@@ -12,7 +12,7 @@ ChainRulesCore.@non_differentiable AttenMask(m1, m2)
 
 function ChainRulesCore.rrule(::typeof(apply_mask), op::NaiveMaskOp, mask, score)
     m = as_bool(randomness(mask)) ? getmask(mask, score) : mask
-    naive_apply_mask_pullback(Ȳ) = (NoTangent(), NoTangent(), NoTangent(), @thunk unthunk(Ȳ) .* m)
+    naive_apply_mask_pullback(Ȳ) = (NoTangent(), NoTangent(), NoTangent(), unthunk(Ȳ) .* m)
     return score .* m, naive_apply_mask_pullback
 end
 
@@ -60,10 +60,8 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask)
     m = getmask(mask, score, scale)
     function apply_broadcast_mask_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        thk = @thunk begin
-            m .*= Ȳ
-            return m
-        end
+        thk = @thunk m .* Ȳ
+        # thk = @thunk m .*= Ȳ; # TODO
         return (NoTangent(), NoTangent(), NoTangent(), thk, NoTangent())
     end
     return score .* m, apply_broadcast_mask_pullback
