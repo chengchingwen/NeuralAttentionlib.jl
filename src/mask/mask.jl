@@ -61,9 +61,7 @@ function getmask(m::AbstractMask, score, scale = one(eltype(score)))
     return tmp
 end
 
-function apply_broadcast_mask(f, mask::AbstractMask, score, scale)
-    @. f(score, mask * scale)
-end
+apply_broadcast_mask(f, mask::AbstractMask, score, scale) = @. f(score, mask * scale)
 
 """
     apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
@@ -86,7 +84,7 @@ true
 function apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
     scale = convert(eltype(score), op.scale)
     apply = op.apply
-    m = Bool(op.flip) ? !mask : mask
+    m = as_bool(op.flip) ? !mask : mask
 
     if apply isa Base.BroadcastFunction
         masked_score = apply_broadcast_mask(apply.f, m, score, scale)
