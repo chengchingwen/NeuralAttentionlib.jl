@@ -15,7 +15,8 @@ end
 
 @inline function _sumbatch(ca::CollapsedDimsArray)
     offset = static(ndims(parent(ca))) - ca.nj
-    y = sum(parent(ca); dims = ntuple(Base.Fix1(+, offset), ca.nj))
+    dims = ntuple(identity, ca.nj) .+ offset
+    y = sum(parent(ca); dims = dims)
     return CollapsedDimsArray(y, ca.ni, ca.nj)
 end
 
@@ -24,9 +25,10 @@ using ChainRulesCore: NoTangent, @thunk
 import ChainRulesCore: ProjectTo
 function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x, dims, ni, nj)
     s = size(x)
-    function CollapsedDimsArray_pullback(Ȳ)
+    function CollapsedDimsArray_pullback(Ybar)
+        Ȳ = unthunk(Ybar)
         ∂x = @thunk begin
-            tmp = unwrap_collapse(unthunk(Ȳ))
+            tmp = unwrap_collapse(Ȳ)
             size(tmp) == s ? tmp : reshape(tmp, s)
         end
         return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
@@ -34,10 +36,38 @@ function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x, dims, ni, nj)
     return CollapsedDimsArray(x, dims, ni, nj), CollapsedDimsArray_pullback
 end
 
+function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x::AbstractArray, ni, nj)
+    ni, nj = static(ni), static(nj)
+    y, pullback = rrule(CollapsedDimsArray, x, collapsed_size(x, ni, nj), ni, nj)
+    collapsed_array_pullback(Ȳ) = (NoTangent(), pullback(Ȳ)[2], NoTangent(), NoTangent())
+    return y, collapsed_array_pullback
+end
+
+function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x::AbstractVector)
+    ni = nj = static(0)
+    dims = collapsed_size(parent, ni, nj)
+    y, pullback = rrule(CollapsedDimsArray, x, dims, ni, nj)
+    collapsed_array_pullback(Ȳ) = (NoTangent(), pullback(Ȳ)[2])
+    return y, collapsed_array_pullback
+end
+
+function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x)
+    ni = static(1)
+    nj = static(ndims(x)) - static(2)
+    dims = collapsed_size(x, ni, nj)
+    y, pullback = rrule(CollapsedDimsArray, x, dims, ni, nj)
+    collapsed_array_pullback(Ȳ) = (NoTangent(), pullback(Ȳ)[2])
+    return y, collapsed_array_pullback
+end
+
+ChainRulesCore.rrule(config::RuleConfig, ::typeof(unwrap_collapse), x) = rrule(config, identity, x)
+ChainRulesCore.rrule(config::RuleConfig, ::typeof(unwrap_collapse), x::CollapsedDimsArray) = rrule(config, parent, x)
+
 function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimsArray)
     ni, nj = x.ni, x.nj
-    function collapsed_parent_pullback(Ȳ)
-        ∂x = @thunk CollapsedDimsArray(unthunk(Ȳ), ni, nj)
+    function collapsed_parent_pullback(Ybar)
+        Ȳ = unthunk(Ybar)
+        ∂x = @thunk CollapsedDimsArray(Ȳ, ni, nj)
         return (NoTangent(), ∂x)
     end
     return parent(x), collapsed_parent_pullback
@@ -97,4 +127,52 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArr
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
     return Y, matmul_pullback
+end
+
+ChainRulesCore.@non_differentiable noncollapsed_size(args...)
+ChainRulesCore.@non_differentiable collapsed_size(args...)
+
+_drop3(x) = Base.tail(Base.tail(Base.tail(x)))
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, func::Union{
+        typeof(collapseddims), typeof(collapseddims_nonbatch),
+        typeof(collapseddims_fdim1), typeof(collapseddims_nonbatch_fdim1)
+    },
+    f, ca::CollapsedDimsArray, args...; kwargs...
+)
+    y, back = rrule(config, _collapseddims, _collapseddims_f_config(func)..., f, ca, args...; kwargs...)
+    pullback(Ȳ) = (NoTangent(), _drop3(back(Ȳ))...)
+    return y, pullback
+end
+
+@inline function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_collapseddims), nonbatch, fdim1,
+                              f, ca::CollapsedDimsArray, args...; kwargs...)
+    ni, nj = ca.ni, ca.nj
+    input_size = size(ca)
+    parent_size = size(parent(ca))
+    x = as_bool(nonbatch) ? collapseddims_nonbatch(ca) : collapseddims(ca)
+    f_tape = rrule(config, f, x, args...; kwargs...)
+    isnothing(f_tape) && (f_tape = rrule_via_ad(config, f, x, args...; kwargs...))
+    _y, back = f_tape
+    output_size = size(_y)
+    @inline function collapseddims_pullback(Ybar)
+        Ȳ = reshape(unthunk(Ybar), output_size)
+        ∂f, ∂xbar, ∂args... = back(Ȳ)
+        ∂x = CollapsedDimsArray(reshape(unthunk(∂xbar), parent_size), input_size, ni, nj)
+        return (NoTangent(), NoTangent(), NoTangent(), ∂f, ∂x, ∂args...)
+    end
+
+    if !as_bool(fdim1)
+        @assert output_size[1] == input_size[1] "f cannot change the size of feature dimension; use func with \"_fdim1\" suffix"
+        y = reshape(_y, parent_size)
+        y′ = CollapsedDimsArray(y, size(ca), ni, nj)
+    else
+        n = ca.ni + ca.nj
+        offset = static(length(parent_size)) - ni - nj
+        tail_size = n == 0 ? () : ntuple(_getter(parent_size, offset), n)
+        y = reshape(_y, (:, tail_size...))
+        y′ = CollapsedDimsArray(y, ni, nj)
+    end
+    return y′, collapseddims_pullback
 end
