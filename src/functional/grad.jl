@@ -276,11 +276,3 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(mixing), f, v, g, arg
     end
     return y′, mixing_pullback
 end
-
-# function ChainRulesCore.rrule(config::RuleConfig, ::typeof(), ) end
-
-# function ChainRulesCore.rrule(::typeof(generic_qkv_attention), mixingf, scoref, q, k, v, args...)
-# end
-
-# function ChainRulesCore.rrule(::typeof(generic_qkv_attention), mixingf, scoref, q, k, v, args...)
-# end
