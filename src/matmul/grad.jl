@@ -75,8 +75,8 @@ end
 
 function ChainRulesCore.rrule(::typeof(matmul), A::AbstractVecOrMat, B::AbstractVecOrMat, s)
     Y = matmul(A, B, s)
-    function matmul_pullback(Ȳ)
-        Ȳ = unthunk(Ȳ)
+    function matmul_pullback(Ybar)
+        Ȳ = unthunk(Ybar)
         Athunk = @thunk matmul(Ȳ, B', s)
         Bthunk = @thunk matmul(A', Ȳ, s)
         sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
@@ -147,7 +147,7 @@ function ChainRulesCore.rrule(
 end
 
 @inline function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_collapseddims), nonbatch, fdim1,
-                              f, ca::CollapsedDimsArray, args...; kwargs...)
+                                      f, ca::CollapsedDimsArray, args...; kwargs...)
     ni, nj = ca.ni, ca.nj
     input_size = size(ca)
     parent_size = size(parent(ca))
