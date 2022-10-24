@@ -23,13 +23,10 @@ end
 ChainRulesCore.rrule(config::RuleConfig, ::typeof(as_collapsed), x::CollapsedDimsArray) = rrule(config, identity, x)
 
 function ChainRulesCore.rrule(::typeof(split_head), head, x::CollapsedDimsArray)
-    s = size(x)
-    parent_size = size(parent(x))
-    ni, nj = x.ni, x.nj
+    proj = ProjectTo(x)
     y = split_head(head, x)
-    function split_head_pullback(Ybar)
-        Ȳ = unthunk(Ybar)
-        return (NoTangent(), NoTangent(), CollapsedDimsArray(reshape(Ȳ, parent_size), s, ni, nj))
+    function split_head_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), proj(Ȳ))
     end
     return y, split_head_pullback
 end
@@ -41,12 +38,11 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(move_head_dim_out), x
     y, back = rrule(config, permutedims, parent(x), perm)
     output_size = size(y)
     ni, nj = x.ni, x.nj
-    parent_size = size(parent(x))
-    s = size(x)
+    proj = ProjectTo{CollapsedDimsArray}(; dims = size(parent(x)), ni = ni, nj = nj)
     function move_head_dim_out_pullback(Ybar)
         Ȳ = reshape(unthunk(Ybar), output_size)
-        ∂x = reshape(unthunk(back(Ȳ)[2]), parent_size)
-        return (NoTangent(), CollapsedDimsArray(∂x, s, ni, nj))
+        ∂x = proj(back(Ȳ)[2])
+        return (NoTangent(), ∂x)
     end
     return CollapsedDimsArray(y, x.ni, x.nj + static(1)), move_head_dim_out_pullback
 end

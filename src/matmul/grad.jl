@@ -64,10 +64,10 @@ ChainRulesCore.rrule(config::RuleConfig, ::typeof(unwrap_collapse), x) = rrule(c
 ChainRulesCore.rrule(config::RuleConfig, ::typeof(unwrap_collapse), x::CollapsedDimsArray) = rrule(config, parent, x)
 
 function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimsArray)
-    ni, nj = x.ni, x.nj
+    proj = ProjectTo(x)
     function collapsed_parent_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        ∂x = @thunk CollapsedDimsArray(Ȳ, ni, nj)
+        ∂x = @thunk proj(Ȳ)
         return (NoTangent(), ∂x)
     end
     return parent(x), collapsed_parent_pullback
@@ -110,8 +110,8 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArr
     b = CollapsedDimsArray(pB)
     Y = matmul_wrapper(transA, transB, s, a, b)
 
-    function matmul_pullback(Ȳ)
-        Ȳ = unthunk(Ȳ)
+    function matmul_pullback(Ybar)
+        Ȳ = unthunk(Ybar)
         Â = trans(transA, a)
         B̂ = trans(transB, b)
 
@@ -151,6 +151,7 @@ end
     ni, nj = ca.ni, ca.nj
     input_size = size(ca)
     parent_size = size(parent(ca))
+    proj = ProjectTo(ca)
     x = as_bool(nonbatch) ? collapseddims_nonbatch(ca) : collapseddims(ca)
     f_tape = rrule(config, f, x, args...; kwargs...)
     isnothing(f_tape) && (f_tape = rrule_via_ad(config, f, x, args...; kwargs...))
@@ -158,13 +159,13 @@ end
     output_size = size(_y)
     @inline function collapseddims_pullback(Ybar)
         Ȳ = reshape(unthunk(Ybar), output_size)
-        ∂f, ∂xbar, ∂args... = back(Ȳ)
-        ∂x = CollapsedDimsArray(reshape(unthunk(∂xbar), parent_size), input_size, ni, nj)
-        return (NoTangent(), NoTangent(), NoTangent(), ∂f, ∂x, ∂args...)
+        ∂f, ∂x, ∂args... = back(Ȳ)
+        ∂ca = proj(∂x)
+        return (NoTangent(), NoTangent(), NoTangent(), ∂f, ∂ca, ∂args...)
     end
 
     if !as_bool(fdim1)
-        @assert output_size[1] == input_size[1] "f cannot change the size of feature dimension; use func with \"_fdim1\" suffix"
+        @assert output_size[1] == input_size[1] "func cannot change the size of feature dimension; use func with \"_fdim1\" suffix"
         y = reshape(_y, parent_size)
         y′ = CollapsedDimsArray(y, size(ca), ni, nj)
     else
