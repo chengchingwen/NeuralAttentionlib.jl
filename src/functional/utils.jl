@@ -10,7 +10,7 @@ function split_head(head::Integer, x)
 end
 
 function split_head(head::Integer, x::CollapsedDimsArray)
-    s1 = collapsed_size(x, 1)
+    s1 = size(x, 1)
     hs, rem = divrem(s1, head)
     @assert iszero(rem)
     _, len_d, batch_d = noncollapsed_size(x)
@@ -22,7 +22,7 @@ function move_head_dim_out_perm(x::CollapsedDimsArray)
     return (1, ntuple(Base.Fix1(+, 2), x.ni)..., 2, ntuple(Base.Fix1(+, 2 + x.ni), x.nj)...)
 end
 
-move_head_dim_out_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_out_perm(ndims(x), nobatch)
+move_head_dim_out_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_out_perm(static(ndims(x)), nobatch)
 move_head_dim_out_perm(n::Integer, nobatch = static(false)) = move_head_dim_out_perm(static(n), nobatch)
 @inline function move_head_dim_out_perm(n::StaticInt, nobatch::Union{Bool, StaticBool} = static(false))
     if as_bool(nobatch)
@@ -33,7 +33,7 @@ move_head_dim_out_perm(n::Integer, nobatch = static(false)) = move_head_dim_out_
         perm = let N = Int(n - 2)
             (1, ntuple(i->mod(i,N)+2, N)..., N+2)
         end
-    end  
+    end
     return perm
 end
 
@@ -47,7 +47,7 @@ function move_head_dim_out(x, nobatch=static(false))
     return permutedims(x, perm)
 end
 
-move_head_dim_in_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_in_perm(ndims(x), nobatch)
+move_head_dim_in_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_in_perm(static(ndims(x)), nobatch)
 move_head_dim_in_perm(n::Integer, nobatch = static(false)) = move_head_dim_in_perm(static(n), nobatch)
 @inline function move_head_dim_in_perm(n::StaticInt, nobatch::Union{Bool, StaticBool} = static(false))
     if as_bool(nobatch)
@@ -58,7 +58,7 @@ move_head_dim_in_perm(n::Integer, nobatch = static(false)) = move_head_dim_in_pe
         perm = let N = n - 2
             (1, ntuple(i->mod(i-2,N)+2, N)..., N+2)
         end
-    end  
+    end
     return perm
 end
 
@@ -67,6 +67,13 @@ function move_head_dim_in(x, nobatch = static(false))
     return permutedims(x, perm)
 end
 
-function merge_head(x)
-    return reshape(x, Base.setindex(Base.tail(size(x)), :, 1))
+merge_head(x) = reshape(x, (:, Base.tail(Base.tail(size(x)))...))
+
+_split_and_move_head(head, x) = (move_head_dim_out ∘ split_head)(head, x)
+
+function _move_and_merge_head(t::NamedTuple)
+    a = t.hidden_state
+    y = _move_and_merge_head(a)
+    return merge(t, (hidden_state = y,))
 end
+_move_and_merge_head(a) = (merge_head ∘ move_head_dim_in)(a)

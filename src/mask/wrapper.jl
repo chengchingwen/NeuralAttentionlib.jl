@@ -99,6 +99,7 @@ compute_batch_dim(cs::Tuple{NDimConstraint}) = 0
 compute_batch_dim(cs::Tuple{NDimConstraint, All1Constraint}) = 0
 compute_batch_dim(cs::Tuple{NDimConstraint, Vararg{DimConstraint}}) = count(c->!c.fixed, Base.tail(cs))
 
+BatchedMask(::Nothing) = nothing
 BatchedMask(mask::BatchedMask) = mask
 function BatchedMask(mask)
     batch_dim = compute_batch_dim(AxesConstraint(mask))

@@ -87,7 +87,7 @@ end
 function (mh::MultiheadAttention)(query::A1,
                                   key::A2,
                                   value::A3;
-                                  mask=nothing) where {T,
+                                  mask=nothing, return_score=false) where {T,
                                                        A1 <: Abstract3DTensor{T},
                                                        A2 <: Abstract3DTensor{T},
                                                        A3 <: Abstract3DTensor{T}}
@@ -113,22 +113,23 @@ function (mh::MultiheadAttention)(query::A1,
   ipk = reshape(ipk, hs, ks[2], :)
   ipv = reshape(ipv, hs, vs[2], :)
 
-  atten = attention(ipq,ipk,ipv,
+  atten, score = attention(ipq,ipk,ipv,
                     mask,
                     mh.future,
-                    mh.drop)
+                    mh.drop,
+                    return_score)
 
   atten = permutedims(reshape(atten, hs, qs[2], mh.head, qs[3]), [1, 3, 2, 4]) #size(atten) == (hs, head, ql, b)
   atten = reshape(atten, h, qs[2], qs[3]) #size(atten) == (h, ql, b)
 
   out = @toNd mh.oproj(atten)
-  out #size(out) == (h, q_seq_len, batch)
+  return_score ? (out, score) : out #size(out) == (h, q_seq_len, batch)
 end
 
 function (mh::MultiheadAttention)(query::A1,
                                   key::A2,
                                   value::A3;
-                                  mask=nothing) where {T,
+                                  mask=nothing, return_score=false) where {T,
                                                        A1 <: AbstractMatrix{T},
                                                        A2 <: AbstractMatrix{T},
                                                        A3 <: AbstractMatrix{T}}
@@ -146,15 +147,16 @@ function (mh::MultiheadAttention)(query::A1,
   hk = permutedims(reshape(ipk, hs, mh.head, :), [1, 3, 2])
   hv = permutedims(reshape(ipv, hs, mh.head, :), [1, 3, 2])
 
-  atten = attention(hq, hk, hv,
+  atten, score = attention(hq, hk, hv,
                     mask,
                     mh.future,
-                    mh.drop)
+                    mh.drop, return_score)
 
   # size(atten) == (head*hs, seq_len)
   atten = reshape(permutedims(atten, [1, 3, 2]), h, :)
 
-  mh.oproj(atten)
+  result = mh.oproj(atten)
+  return_score ? (result, score) : result
 end
 
 function apply_mask(score, mask)
@@ -177,7 +179,7 @@ function attention(query::A1,
                    key::A2,
                    value::A3,
                    mask, future::Bool,
-                   dropout) where {T,
+                   dropout, return_score::Bool) where {T,
                                    A1 <: Abstract3DTensor{T},
                                    A2 <: Abstract3DTensor{T},
                                    A3 <: Abstract3DTensor{T}}
@@ -190,5 +192,6 @@ function attention(query::A1,
   score = apply_mask(score, mask, future)
   score = softmax(score; dims=1)
   dropout !== nothing && (score = dropout(score))
-  batchedmul(value, score) #size(return) == (dims, q_seq_len, batch)
+  result = batchedmul(value, score) #size(return) == (dims, q_seq_len, batch)
+  return return_score ? (result, score) : (result, nothing)
 end
