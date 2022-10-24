@@ -90,12 +90,12 @@ end
 
 function ProjectTo(ca::CollapsedDimsArray)
     dims = size(parent(ca))
-    return ProjectTo{CollapsedDimsArray}(; dims=dims, ni = ca.ni, nj = ca.nj)
+    return ProjectTo{CollapsedDimsArray}(; parent_size = dims, dims = size(ca), ni = ca.ni, nj = ca.nj)
 end
 
 function (project::ProjectTo{CollapsedDimsArray})(dx::AbstractArray)
     dx = unwrap_collapse(dx)
-    return CollapsedDimsArray(reshape(dx, project.dims), project.ni, project.nj)
+    return CollapsedDimsArray(reshape(dx, project.parent_size), project.dims, project.ni, project.nj)
 end
 
 function (project::ProjectTo{AbstractArray})(dx::CollapsedDimsArray)
@@ -152,10 +152,8 @@ end
 
 @inline function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_collapseddims), nonbatch, fdim1,
                                       f, ca::CollapsedDimsArray, args...; kwargs...)
-    ni, nj = ca.ni, ca.nj
-    input_size = size(ca)
-    parent_size = size(parent(ca))
     proj = ProjectTo(ca)
+    input_size = size(ca)
     x = as_bool(nonbatch) ? collapseddims_nonbatch(ca) : collapseddims(ca)
     f_tape = rrule(config, f, x, args...; kwargs...)
     isnothing(f_tape) && (f_tape = rrule_via_ad(config, f, x, args...; kwargs...))
@@ -170,14 +168,10 @@ end
 
     if !as_bool(fdim1)
         @assert output_size[1] == input_size[1] "func cannot change the size of feature dimension; use func with \"_fdim1\" suffix"
-        y = reshape(_y, parent_size)
-        y′ = CollapsedDimsArray(y, size(ca), ni, nj)
+        return proj(_y), collapseddims_pullback
     else
-        n = ca.ni + ca.nj
-        offset = static(length(parent_size)) - ni - nj
-        tail_size = n == 0 ? () : ntuple(_getter(parent_size, offset), n)
-        y = reshape(_y, (:, tail_size...))
-        y′ = CollapsedDimsArray(y, ni, nj)
+        tail_size = last_n(size(parent(ca)), ca.ni + ca.nj)
+        y = CollapsedDimsArray(reshape(_y, (:, tail_size...)), ca.ni, ca.nj)
+        return y, collapseddims_pullback
     end
-    return y′, collapseddims_pullback
 end

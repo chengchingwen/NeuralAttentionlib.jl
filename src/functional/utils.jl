@@ -22,7 +22,7 @@ function move_head_dim_out_perm(x::CollapsedDimsArray)
     return (1, ntuple(Base.Fix1(+, 2), x.ni)..., 2, ntuple(Base.Fix1(+, 2 + x.ni), x.nj)...)
 end
 
-move_head_dim_out_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_out_perm(ndims(x), nobatch)
+move_head_dim_out_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_out_perm(static(ndims(x)), nobatch)
 move_head_dim_out_perm(n::Integer, nobatch = static(false)) = move_head_dim_out_perm(static(n), nobatch)
 @inline function move_head_dim_out_perm(n::StaticInt, nobatch::Union{Bool, StaticBool} = static(false))
     if as_bool(nobatch)
@@ -47,7 +47,7 @@ function move_head_dim_out(x, nobatch=static(false))
     return permutedims(x, perm)
 end
 
-move_head_dim_in_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_in_perm(ndims(x), nobatch)
+move_head_dim_in_perm(x::AbstractArray, nobatch = static(false)) = move_head_dim_in_perm(static(ndims(x)), nobatch)
 move_head_dim_in_perm(n::Integer, nobatch = static(false)) = move_head_dim_in_perm(static(n), nobatch)
 @inline function move_head_dim_in_perm(n::StaticInt, nobatch::Union{Bool, StaticBool} = static(false))
     if as_bool(nobatch)

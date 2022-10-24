@@ -37,8 +37,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(move_head_dim_out), x
     perm = move_head_dim_out_perm(x)
     y, back = rrule(config, permutedims, parent(x), perm)
     output_size = size(y)
-    ni, nj = x.ni, x.nj
-    proj = ProjectTo{CollapsedDimsArray}(; dims = size(parent(x)), ni = ni, nj = nj)
+    proj = ProjectTo(x)
     function move_head_dim_out_pullback(Ybar)
         Ȳ = reshape(unthunk(Ybar), output_size)
         ∂x = proj(back(Ȳ)[2])

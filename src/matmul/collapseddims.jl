@@ -14,20 +14,14 @@ CollapsedDimsArray(ca::CollapsedDimsArray) = ca
 CollapsedDimsArray(parent::AbstractVector) = CollapsedDimsArray(parent, static(0), static(0))
 CollapsedDimsArray(parent) = CollapsedDimsArray(parent, static(1), static(ndims(parent)) - static(2))
 
-_getter(s, offset) = Base.Fix1(getindex, s)∘Base.Fix1(+, offset)
-
 @inline function noncollapsed_size(s::Tuple, ni, nj, n)
     if n == 1
-        N = static(length(s)) - static(ni) - static(nj)
-        return N == 0 ? (1,) : ntuple(_getter(s, 0), N)
+        N = static(length(s)) - ni - nj
+        return N == 0 ? (1,) : first_n(s, N)
     elseif n == 2
-        N = static(ni)
-        offset = static(length(s)) - static(ni) - static(nj)
-        return N == 0 ? (1,) : ntuple(_getter(s, offset), N)
+        return ni == 0 ? (1,) : first_n(last_n(s, ni + nj), ni)
     elseif n == 3
-        N = static(nj)
-        offset = static(length(s)) - static(nj)
-        return N == 0 ? (1,) : ntuple(_getter(s, offset), N)
+        return nj == 0 ? (1,) : last_n(s, nj)
     else
         return (1,)
     end
@@ -116,16 +110,13 @@ function _collapseddims(nonbatch, fdim1, f, ca::CollapsedDimsArray, args...; kwa
     x = as_bool(nonbatch) ? collapseddims_nonbatch(ca) : collapseddims(ca)
     _y = f(x, args...; kwargs...)
     if !as_bool(fdim1)
-        @assert size(_y, 1) == size(ca, 1) "f cannot change the size of feature dimension; use func with \"_fdim1\" suffix"
+        @assert size(_y, 1) == size(ca, 1) "func cannot change the size of feature dimension; use func with \"_fdim1\" suffix"
         y = reshape(_y, parent_size)
         return CollapsedDimsArray(y, size(ca), ca.ni, ca.nj)
     else
-        ni, nj = ca.ni, ca.nj
-        n = ca.ni + ca.nj
-        offset = static(length(parent_size)) - ni - nj
-        tail_size = n == 0 ? () : ntuple(_getter(parent_size, offset), n)
-        y = reshape(_y, (:, tail_size...))
-        return CollapsedDimsArray(y, ni, nj)
+        tail_size = last_n(parent_size, ca.ni + ca.nj)
+        y = CollapsedDimsArray(reshape(_y, (:, tail_size...)), ca.ni, ca.nj)
+        return y
     end
 end
 
