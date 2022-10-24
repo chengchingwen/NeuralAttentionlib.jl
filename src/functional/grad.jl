@@ -100,12 +100,14 @@ end
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_move_and_merge_head), t::NamedTuple)
     x = t.hidden_state
     y, back = rrule(config, _move_and_merge_head, x)
-    function pullback(Ȳ)
-        ∂x = back(Ȳ.hidden_state)
+    function pullback(Ybar)
+        Ȳ = ChainRulesCore.backing(unthunk(Ybar))
+        _, ∂x = back(Ȳ.hidden_state)
         ∂t = merge(Ȳ, (hidden_state = ∂x,))
         return (NoTangent(), ∂t)
     end
-    return y, pullback
+    y′ = merge(t, (hidden_state = y,))
+    return y′, pullback
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_move_and_merge_head), x)
@@ -232,29 +234,22 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(attention_score), f, 
     return score_val, pullback
 end
 
-_merge_grad(a::NoTangent, b::NoTangent) = NoTangent()
-_merge_grad(a, b::NoTangent) = a
-_merge_grad(a::NoTangent, b) = b
-function _merge_grad(a, b)
-    a′ = unthunk(a)
-    b′ = unthunk(b)
-    return @thunk a + b
-end
-
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(mixing), sr::ScoreReturning, v, g, args...)
     score_tape = rrule(config, attention_score, g, args...)
     isnothing(score_tape) && (score_tape = rrule_via_ad(config, attention_score, g, args...))
     score_val, score_pullback = score_tape
+    f = sr.f
     f_tape = rrule(config, f, score_val, v)
     isnothing(f_tape) && (f_tape = rrule_via_ad(config, f, score_val, v))
     y, f_pullback = f_tape
     y′, unwrap_pullback = rrule(config, unwrap_collapse, y)
     s, s_unwrap_pullback = rrule(config, unwrap_collapse, score_val)
-    function pullback(Ȳ)
+    function pullback(Ybar)
+        Ȳ = unthunk(Ybar)
         _, ∂y = unwrap_pullback(Ȳ.hidden_state)
         _, ∂s1 = s_unwrap_pullback(Ȳ.attention_score)
         ∂f, ∂s2, ∂v = f_pullback(∂y)
-        ∂s = _merge_grad(∂s1, ∂s2)
+        ∂s = unthunk(∂s1) + unthunk(∂s2)
         _, ∂g, ∂args... = score_pullback(∂s)
         ∂sr = ∂f isa NoTangent ? NoTangent() : (f = ∂f,)
         return (NoTangent(), ∂sr, ∂v, ∂g, ∂args...)
