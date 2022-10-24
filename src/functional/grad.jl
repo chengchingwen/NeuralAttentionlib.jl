@@ -317,7 +317,7 @@ function ChainRulesCore.rrule(
     y, back = rrule(config, _move_and_merge_head, t)
     @inline function generic_multihead_qkv_attention_pullback(Ȳ)
         _, ∂t = back(Ȳ)
-        _, ∂mixingf, ∂scoref, ∂hq, ∂hk, ∂hv, ∂args... = atten_back(t)
+        _, ∂mixingf, ∂scoref, ∂hq, ∂hk, ∂hv, ∂args... = atten_back(∂t)
         _, _, ∂v = hv_back(∂hv)
         _, _, ∂k = hk_back(∂hk)
         _, _, ∂q = hq_back(∂hq)
