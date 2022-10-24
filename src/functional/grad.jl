@@ -273,3 +273,56 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(mixing), f, v, g, arg
     end
     return y′, mixing_pullback
 end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(generic_qkv_attention), mixingf, scoref, q, k, v, args...)
+    v′, v_back = rrule(config, as_collapsed, v)
+    q′, q_back = rrule(config, as_collapsed, q)
+    k′, k_back = rrule(config, as_collapsed, k)
+    y, pullback = rrule(config, mixing, mixingf, v′, scoref, q′, k′, args...)
+    function generic_qkv_attention_pullback(Ȳ)
+        _, ∂mixingf, ∂v′, ∂scoref, ∂q′, ∂k′, ∂args... = pullback(Ȳ)
+        _, ∂k = k_back(∂k′)
+        _, ∂q = q_back(∂q′)
+        _, ∂v = v_back(∂v′)
+        return (NoTangent(), ∂mixingf, ∂scoref, ∂q, ∂k, ∂v, ∂args...)
+    end
+    return y, generic_qkv_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(generic_multihead_qkv_attention),
+    mixingf, scoref, head::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    q′, q_back = rrule(config, as_collapsed, q)
+    k′, k_back = rrule(config, as_collapsed, k)
+    v′, v_back = rrule(config, as_collapsed, v)
+    y, atten_back = rrule(config, generic_multihead_qkv_attention, mixingf, scoref, head, q′, k′, v′, args...)
+    function generic_multihead_qkv_attention_pullback(Ȳ)
+        _, ∂mixingf, ∂scoref, _, ∂q′, ∂k′, ∂v′, ∂args... = atten_back(Ȳ)
+        _, ∂v = v_back(∂v′)
+        _, ∂k = k_back(∂k′)
+        _, ∂q = q_back(∂q′)
+        return (NoTangent(), ∂mixingf, ∂scoref, NoTangent(), ∂q, ∂k, ∂v, ∂args...)
+    end
+    return y, generic_multihead_qkv_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(generic_multihead_qkv_attention),
+    mixingf, scoref, head::Integer, q::CollapsedDimsArray, k::CollapsedDimsArray, v::CollapsedDimsArray, args...
+)
+    hq, hq_back = rrule(config, _split_and_move_head, head, q)
+    hk, hk_back = rrule(config, _split_and_move_head, head, k)
+    hv, hv_back = rrule(config, _split_and_move_head, head, v)
+    t, atten_back = rrule(config, generic_qkv_attention, mixingf, scoref, hq, hk, hv, args...)
+    y, back = rrule(config, _move_and_merge_head, t)
+    @inline function generic_multihead_qkv_attention_pullback(Ȳ)
+        _, ∂t = back(Ȳ)
+        _, ∂mixingf, ∂scoref, ∂hq, ∂hk, ∂hv, ∂args... = atten_back(t)
+        _, _, ∂v = hv_back(∂hv)
+        _, _, ∂k = hk_back(∂hk)
+        _, _, ∂q = hq_back(∂hq)
+        return (NoTangent(), ∂mixingf, ∂scoref, NoTangent(), ∂q, ∂k, ∂v, ∂args...)
+    end
+    return y, generic_multihead_qkv_attention_pullback
+end
