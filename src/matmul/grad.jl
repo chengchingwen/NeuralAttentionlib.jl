@@ -33,6 +33,7 @@ function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x, dims, ni, nj)
         end
         return (NoTangent(), ∂x, NoTangent(), NoTangent(), NoTangent())
     end
+    CollapsedDimsArray_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), NoTangent(), NoTangent(), NoTangent())
     return CollapsedDimsArray(x, dims, ni, nj), CollapsedDimsArray_pullback
 end
 
@@ -70,6 +71,7 @@ function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimsArray)
         ∂x = @thunk proj(Ȳ)
         return (NoTangent(), ∂x)
     end
+    collapsed_parent_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent())
     return parent(x), collapsed_parent_pullback
 end
 
@@ -82,6 +84,7 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractVecOrMat, B::Abstract
         sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
+    matmul_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
     return Y, matmul_pullback
 end
 
@@ -126,6 +129,7 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArr
         sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
+    matmul_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
     return Y, matmul_pullback
 end
 

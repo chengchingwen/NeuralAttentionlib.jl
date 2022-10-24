@@ -44,6 +44,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(move_head_dim_out), x
         ∂x = proj(back(Ȳ)[2])
         return (NoTangent(), ∂x)
     end
+    move_head_dim_out_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent())
     return CollapsedDimsArray(y, x.ni, x.nj + static(1)), move_head_dim_out_pullback
 end
 
@@ -51,6 +52,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(move_head_dim_out), x
     perm = move_head_dim_out_perm(x, static(false))
     y, back = rrule(config, permutedims, x, perm)
     pullback(Ȳ) = (NoTangent(), back(Ȳ)[2])
+    pullback(::ZeroTangent) = (NoTangent(), ZeroTangent())
     return y, pullback
 end
 
@@ -58,6 +60,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(move_head_dim_out), x
     perm = move_head_dim_out_perm(x, nobatch)
     y, back = rrule(config, permutedims, x, perm)
     pullback(Ȳ) = (NoTangent(), back(Ȳ)[2], NoTangent())
+    pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), NoTangent())
     return y, pullback
 end
 
@@ -67,6 +70,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(move_head_dim_in), x)
     perm = move_head_dim_in_perm(x, static(false))
     y, back = rrule(config, permutedims, x, perm)
     pullback(Ȳ) = (NoTangent(), back(Ȳ)[2])
+    pullback(::ZeroTangent) = (NoTangent(), ZeroTangent())
     return y, pullback
 end
 
@@ -74,6 +78,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(move_head_dim_in), x,
     perm = move_head_dim_in_perm(x, nobatch)
     y, back = rrule(config, permutedims, x, perm)
     pullback(Ȳ) = (NoTangent(), back(Ȳ)[2], NoTangent())
+    pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), NoTangent())
     return y, pullback
 end
 
@@ -88,6 +93,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_split_and_move_head)
     s, split_back = rrule(config, split_head, head, x)
     y, move_back = rrule(config, move_head_dim_out, s)
     @inline pullback(Ȳ) = (NoTangent(), NoTangent(), split_back(move_back(Ȳ)[2])[3])
+    @inline pullback(::ZeroTangent) = (NoTangent(), NoTangent(), ZeroTangent())
     return y, pullback
 end
 
