@@ -40,6 +40,7 @@ struct NaiveMaskOp <: AbstractMaskOp end
 Directly broadcast multiply mask to attention score, i.e. `score .* mask`.
 """
 apply_mask(op::NaiveMaskOp, mask::AbstractMask, score) = score .* mask
+apply_mask!(op::NaiveMaskOp, mask::AbstractMask, score) = score .=* mask
 
 struct GenericMaskOp{F, B<:StaticBool, T} <: AbstractMaskOp
     apply::F
@@ -55,13 +56,11 @@ GenericMaskOp(::typeof(.-), flip::StaticBool, scale) = GenericMaskOp(.+, flip, -
 # softmax norm default value
 GenericMaskOp() = GenericMaskOp(.+, static(true), -1e9)
 
-function getmask(m::AbstractMask, score, scale = one(eltype(score)))
-    tmp = similar(score)
-    @. tmp = m * scale
-    return tmp
-end
+getmask(m::AbstractMask, score, scale = one(eltype(score))) = getmask!(similar(score), m, score scale)
+getmask!(tmp, m::AbstractMask, score, scale = one(eltype(score))) = @. tmp = m * scale
 
-apply_broadcast_mask(f, mask::AbstractMask, score, scale) = @. f(score, mask * scale)
+apply_broadcast_mask!(f, mask::AbstractMask, score, scale) = @. f(score, mask * scale)
+apply_broadcast_mask!(f, mask::AbstractMask, score, scale) = @. score = f(score, mask * scale)
 
 """
     apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
@@ -93,6 +92,20 @@ function apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
         masked_score = apply(tmp, score)
     end
     return masked_score
+end
+
+function apply_mask!(op::GenericMaskOp, mask::AbstractMask, score)
+    scale = convert(eltype(score), op.scale)
+    apply = op.apply
+    m = as_bool(op.flip) ? !mask : mask
+
+    if apply isa Base.BroadcastFunction
+        return apply_broadcast_mask!(apply.f, m, score, scale)
+    else
+        tmp = getmask(m, score, scale)
+        tmp .= apply(tmp, score)
+        return tmp
+    end
 end
 
 abstract type AbstractWrapperMask <: AbstractMask end
