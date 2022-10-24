@@ -47,6 +47,8 @@ include("./module/mask.jl")
 include("./module/matmul.jl")
 include("./module/functional.jl")
 
+include("./functional/optimized.jl")
+
 using .Masks
 using .Matmul
 using .Functional
