@@ -88,10 +88,13 @@ if !USE_CUDA
         @testset "AD" begin
             x = randn(7,6,5,4,3,2)
 
+            a = CollapsedDimsArray(x, 2, 2)
+            b = CollapsedDimsArray(x, 1, 4)
+            c = CollapsedDimsArray(x, 3, 0)
             test_rrule(parent, CollapsedDimsArray(randn(6)))
-            test_rrule(parent, CollapsedDimsArray(x, 2, 2))
-            test_rrule(parent, CollapsedDimsArray(x, 1, 4))
-            test_rrule(parent, CollapsedDimsArray(x, 3, 0))
+            test_rrule(parent, a)
+            test_rrule(parent, b)
+            test_rrule(parent, c)
 
             test_rrule(CollapsedDimsArray, randn(6), (6, 1, 1),
                        static(0) ⊢ NoTangent(), static(0) ⊢ NoTangent())
@@ -101,6 +104,31 @@ if !USE_CUDA
                        static(1) ⊢ NoTangent(), static(4) ⊢ NoTangent())
             test_rrule(CollapsedDimsArray, x, (210, 24, 1),
                        static(3) ⊢ NoTangent(), static(0) ⊢ NoTangent())
+
+            test_rrule(collapseddims, Base.BroadcastFunction(sin), a; check_inferred = false)
+            test_rrule(collapseddims, Base.BroadcastFunction(sin), b; check_inferred = false)
+            test_rrule(collapseddims, Base.BroadcastFunction(sin), c; check_inferred = false)
+            test_rrule(collapseddims_fdim1, Base.BroadcastFunction(sin), a; check_inferred = false)
+            test_rrule(collapseddims_fdim1, Base.BroadcastFunction(sin), b; check_inferred = false)
+            test_rrule(collapseddims_fdim1, Base.BroadcastFunction(sin), c; check_inferred = false)
+            test_rrule(collapseddims_nonbatch, Base.BroadcastFunction(sin), a; check_inferred = false)
+            test_rrule(collapseddims_nonbatch, Base.BroadcastFunction(sin), b; check_inferred = false)
+            test_rrule(collapseddims_nonbatch, Base.BroadcastFunction(sin), c; check_inferred = false)
+            test_rrule(collapseddims_nonbatch_fdim1, Base.BroadcastFunction(sin), a; check_inferred = false)
+            test_rrule(collapseddims_nonbatch_fdim1, Base.BroadcastFunction(sin), b; check_inferred = false)
+            test_rrule(collapseddims_nonbatch_fdim1, Base.BroadcastFunction(sin), c; check_inferred = false)
+            test_rrule(collapseddims, Base.BroadcastFunction(*), a, 0.5; check_inferred = false)
+            test_rrule(collapseddims, Base.BroadcastFunction(*), b, 0.5; check_inferred = false)
+            test_rrule(collapseddims, Base.BroadcastFunction(*), c, 0.5; check_inferred = false)
+            test_rrule(collapseddims_fdim1, Base.BroadcastFunction(*), a, 0.5; check_inferred = false)
+            test_rrule(collapseddims_fdim1, Base.BroadcastFunction(*), b, 0.5; check_inferred = false)
+            test_rrule(collapseddims_fdim1, Base.BroadcastFunction(*), c, 0.5; check_inferred = false)
+            test_rrule(collapseddims_nonbatch, Base.BroadcastFunction(*), a, 0.5; check_inferred = false)
+            test_rrule(collapseddims_nonbatch, Base.BroadcastFunction(*), b, 0.5; check_inferred = false)
+            test_rrule(collapseddims_nonbatch, Base.BroadcastFunction(*), c, 0.5; check_inferred = false)
+            test_rrule(collapseddims_nonbatch_fdim1, Base.BroadcastFunction(*), a, 0.5; check_inferred = false)
+            test_rrule(collapseddims_nonbatch_fdim1, Base.BroadcastFunction(*), b, 0.5; check_inferred = false)
+            test_rrule(collapseddims_nonbatch_fdim1, Base.BroadcastFunction(*), c, 0.5; check_inferred = false)
 
         end
 
