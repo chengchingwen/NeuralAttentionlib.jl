@@ -35,10 +35,6 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             ptrB::Ptr{$elty}, ldb::Int, strideB::Int, beta::($elty),
             ptrC::Ptr{$elty}, ldc::Int, strideC::Int, batchCount::Int)
 
-            strA = strideA * sizeof($elty)
-            strB = strideB * sizeof($elty)
-            strC = strideC * sizeof($elty)
-
             # https://github.com/FluxML/NNlib.jl/blob/cd3851d31e95020e77e67f80fb6402b5b87db1e6/src/gemm.jl#L91-L139
             n_threads = min(Threads.nthreads(), 1 + max(m * k * batchCount, n * k * batchCount) ÷ 8000)
             if n_threads > 1
@@ -46,10 +42,9 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
                 set_num_threads(1)
                 Threads.@sync for bs in Iterators.partition(1:batchCount, cld(batchCount, n_threads))
                     Threads.@spawn for b in bs
-                        i = b - 1
-                        ptrAi = ptrA + i * strA
-                        ptrBi = ptrB + i * strB
-                        ptrCi = ptrC + i * strC
+                        ptrAi = ptrA + (b - 1) * strideA * sizeof($elty)
+                        ptrBi = ptrB + (b - 1) * strideB * sizeof($elty)
+                        ptrCi = ptrC + (b - 1) * strideC * sizeof($elty)
 
                         unsafe_gemm!(transA, transB, m, n, k,
                                      alpha, ptrAi, lda,
@@ -61,14 +56,14 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
                 set_num_threads(old_threads)
             else
                 for i = 1:batchCount
-                    unsafe_gemm!(transA, transB, m, n, k,
-                                 alpha, ptrA, lda,
-                                 ptrB, ldb, beta,
-                                 ptrC, ldc)
+                    ptrAi = ptrA + (i - 1) * strideA * sizeof($elty)
+                    ptrBi = ptrB + (i - 1) * strideB * sizeof($elty)
+                    ptrCi = ptrC + (i - 1) * strideC * sizeof($elty)
 
-                    ptrA += strA
-                    ptrB += strB
-                    ptrC += strC
+                    unsafe_gemm!(transA, transB, m, n, k,
+                                 alpha, ptrAi, lda,
+                                 ptrBi, ldb, beta,
+                                 ptrCi, ldc)
 
                 end
             end
