@@ -2,6 +2,7 @@ using NNlib
 
 import LinearAlgebra
 import LinearAlgebra.BLAS
+using LinearAlgebra.BLAS: get_num_threads, set_num_threads
 
 const libblas = Base.libblas_name
 
@@ -34,20 +35,37 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             ptrB::Ptr{$elty}, ldb::Int, strideB::Int, beta::($elty),
             ptrC::Ptr{$elty}, ldc::Int, strideC::Int, batchCount::Int)
 
-            strA = strideA * sizeof($elty)
-            strB = strideB * sizeof($elty)
-            strC = strideC * sizeof($elty)
+            # https://github.com/FluxML/NNlib.jl/blob/cd3851d31e95020e77e67f80fb6402b5b87db1e6/src/gemm.jl#L91-L139
+            n_threads = min(Threads.nthreads(), 1 + max(m * k * batchCount, n * k * batchCount) ÷ 8000)
+            if n_threads > 1
+                old_threads = get_num_threads()
+                set_num_threads(1)
+                Threads.@sync for bs in Iterators.partition(1:batchCount, cld(batchCount, n_threads))
+                    Threads.@spawn for b in bs
+                        ptrAi = ptrA + (b - 1) * strideA * sizeof($elty)
+                        ptrBi = ptrB + (b - 1) * strideB * sizeof($elty)
+                        ptrCi = ptrC + (b - 1) * strideC * sizeof($elty)
 
-            for i = 1:batchCount
-                unsafe_gemm!(transA, transB, m, n, k,
-                             alpha, ptrA, lda,
-                             ptrB, ldb, beta,
-                             ptrC, ldc)
+                        unsafe_gemm!(transA, transB, m, n, k,
+                                     alpha, ptrAi, lda,
+                                     ptrBi, ldb, beta,
+                                     ptrCi, ldc)
 
-                ptrA += strA
-                ptrB += strB
-                ptrC += strC
+                    end
+                end
+                set_num_threads(old_threads)
+            else
+                for i = 1:batchCount
+                    ptrAi = ptrA + (i - 1) * strideA * sizeof($elty)
+                    ptrBi = ptrB + (i - 1) * strideB * sizeof($elty)
+                    ptrCi = ptrC + (i - 1) * strideC * sizeof($elty)
 
+                    unsafe_gemm!(transA, transB, m, n, k,
+                                 alpha, ptrAi, lda,
+                                 ptrBi, ldb, beta,
+                                 ptrCi, ldc)
+
+                end
             end
             return nothing
         end
@@ -87,7 +105,7 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             m = size(A, transA == 'N' ? 1 : 2)
             ka = size(A, transA == 'N' ? 2 : 1)
             kb = size(B, transB == 'N' ? 1 : 2)
-            n = size(B, transB == 'N' ? 2 : 1)        
+            n = size(B, transB == 'N' ? 2 : 1)
 
             if m != size(C,1) || n != size(C,2) || ka != kb
                 throw(DimensionMismatch("A has size ($m,$ka,$(size(A, 3))), B has size ($kb,$n,$(size(B, 3))), C has size $(size(C))"))
@@ -182,7 +200,7 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
             alpha::($elty), A::AbstractArray{$elty, N1},
             B::AbstractArray{$elty, N2},
             Ai, Aj, Bi, Bj) where {N1, N2}
-            
+
             m = noncollapsed_size(A, Ai, Aj, transA == 'N' ? 1 : 2)
             n = noncollapsed_size(B, Bi, Bj, transB == 'N' ? 2 : 1)
             sc3 = collapsed_size(A, Ai, Aj, 3) > collapsed_size(B, Bi, Bj, 3) ?
