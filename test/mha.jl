@@ -275,6 +275,30 @@
         @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-4)
         @test gradN[2] ≈ gradT[2]
         @test gradN[3] == gradT[3]
+
+        x0 = randn(input_dims, 6)
+        @test mha(x0,x0,x0; return_score=true)[1] ≈ atten(mha, x0, CausalMask(), true)[1]
+        @test reshape(mha(x0,x0,x0; return_score=true)[2],6,6,head,1) ≈ atten(mha, x0, CausalMask(), true)[2]
+
+        gradN = Flux.gradient(mha, x0, CausalMask()) do mha, x, m
+            a, s = atten(mha, x, BatchedMask(m), true)
+            sum(sin.(a)) + sum(cos.(s))
+        end
+        gradT = Flux.gradient(mha, x0, nothing) do mha, x, m
+            a, s = mha(x,x,x, mask=m, return_score=true)
+            sum(sin.(a)) + sum(cos.(s))
+        end
+
+        @test isapprox(gradN[1].iqproj.weight, gradT[1].iqproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.weight, gradT[1].ikproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.weight, gradT[1].ivproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.weight, gradT[1].oproj.weight; atol = 1e-4)
+        @test isapprox(gradN[1].iqproj.bias, gradT[1].iqproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ikproj.bias, gradT[1].ikproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].ivproj.bias, gradT[1].ivproj.bias; atol = 1e-4)
+        @test isapprox(gradN[1].oproj.bias, gradT[1].oproj.bias; atol = 1e-4)
+        @test gradN[2] ≈ gradT[2]
+        @test gradN[3] == gradT[3]
     end
 
 end
