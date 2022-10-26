@@ -21,3 +21,4 @@ dropout_score(p) = dropout_score $ p
 @inline dropout_score(::Nothing, score, args...) = score(args...)
 
 @inline attention_score(f, args...) = f(args...)
+@inline attention_score(pf::PrefixedFunction, args...) = attention_score(pf.f, pf.arg..., args...)

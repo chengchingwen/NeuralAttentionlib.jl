@@ -233,6 +233,17 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(attention_score), f, 
     return score_val, pullback
 end
 
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(attention_score), pf::PrefixedFunction, args...)
+    score_val, score_pullback = rrule(config, attention_score, pf.f, pf.arg..., args...)
+    n_pf = static(length(pf.arg)) + static(1)
+    n_iargs = static(length(args))
+    function attention_score_pullback(Ȳ)
+        ∂Ys = Base.tail(score_pullback(Ȳ))
+        return (NoTangent(), _pf_pullback(first_n(∂Ys, n_pf)), last_n(∂Ys, n_iargs)...)
+    end
+    return score_val, attention_score_pullback
+end
+
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(mixing), sr::ScoreReturning, v, g, args...)
     score_tape = rrule(config, attention_score, g, args...)
     isnothing(score_tape) && (score_tape = rrule_via_ad(config, attention_score, g, args...))
