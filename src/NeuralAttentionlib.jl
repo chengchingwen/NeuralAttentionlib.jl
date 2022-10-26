@@ -38,6 +38,7 @@ include("./functional/utils.jl")
 include("./functional/score.jl")
 include("./functional/mixing.jl")
 include("./functional/attention.jl")
+include("./functional/relative_position_embedding.jl")
 include("./functional/grad.jl")
 
 include("./types.jl")

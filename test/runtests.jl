@@ -13,6 +13,7 @@ const tests = [
     "collapseddims",
     "matmul",
     "mask",
+    "functional",
     "mha",
 ]
 

@@ -29,9 +29,11 @@ julia = "1.6"
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+Pickle = "fbb45041-c46e-462f-888f-7c521cafbc2c"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 ZygoteRules = "700de1a5-db45-46bc-99cf-38207098b444"
 
 [targets]
-test = ["Test", "Flux", "MacroTools", "ZygoteRules", "ChainRulesTestUtils", "Random"]
+test = ["Test", "Flux", "MacroTools", "ZygoteRules", "ChainRulesTestUtils", "Random", "Pickle", "ZipFile"]
