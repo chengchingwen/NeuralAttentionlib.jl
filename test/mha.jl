@@ -276,7 +276,7 @@
         @test gradN[2] ≈ gradT[2]
         @test gradN[3] == gradT[3]
 
-        x0 = randn(input_dims, 6)
+        x0 = device(randn(input_dims, 6))
         @test mha(x0,x0,x0; return_score=true)[1] ≈ atten(mha, x0, CausalMask(), true)[1]
         @test reshape(mha(x0,x0,x0; return_score=true)[2],6,6,head,1) ≈ atten(mha, x0, CausalMask(), true)[2]
 
