@@ -25,10 +25,22 @@ function get_scalar_relative_position_embeddings(relative_position_id_func, embe
     return embeddings
 end
 
+struct T5_bucketed_position_id_func <: Function
+    n_buckets::Int
+    max_distance::Int
+end
+(f::T5_bucketed_position_id_func)(score) = t5_bucketed_position_id(f.n_buckets, f.max_distance, score)
+
+struct T5_causal_bucketed_position_id_func <: Function
+    n_buckets::Int
+    max_distance::Int
+end
+(f::T5_causal_bucketed_position_id_func)(score) = t5_causal_bucketed_position_id(f.n_buckets, f.max_distance, score)
+
 t5_bucketed_position_id(n_buckets::Int, max_distance::Int) =
-    t5_bucketed_position_id $ n_buckets $ max_distance
+    T5_bucketed_position_id_func(n_buckets, max_distance)
 t5_causal_bucketed_position_id(n_buckets::Int, max_distance::Int) =
-    t5_causal_bucketed_position_id $ n_buckets $ max_distance
+    T5_causal_bucketed_position_id_func(n_buckets, max_distance)
 
 t5_bucketed_position_id(n_buckets, max_distance, score) =
     _t5_bucketed_position_id(Val(false), n_buckets, max_distance, score)
