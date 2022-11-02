@@ -1,10 +1,13 @@
 @testset "functional" begin
+    using Statistics
+    using Flux
     using ZipFile
     using Pickle: npyload
     using NeuralAttentionlib.Matmul
     using NeuralAttentionlib: as_collapsed, dot_product_score, normalized_score,
       scalar_relative_position_embedding, get_scalar_relative_position_embeddings,
-      t5_bucketed_position_id, t5_causal_bucketed_position_id
+      t5_bucketed_position_id, t5_causal_bucketed_position_id,
+      layer_norm, rms_layer_norm
 
     @testset "score" begin
         if !USE_CUDA
@@ -82,6 +85,51 @@
                     get_scalar_relative_position_embeddings, t5_causal_bucketed_position_id(8, 20), randn(3, 8),
                     CollapsedDimsArray(randn(6, 6, 3, 2), 1, 2),
                 )
+            end
+        end
+    end
+
+    @testset "layer_norm" begin
+        LN = device(LayerNorm(10))
+        LN0 = device(LayerNorm(10; ϵ=0))
+        LN.diag.scale .= drandn(10)
+        LN.diag.bias .= drandn(10)
+        LN0.diag.scale .= drandn(10)
+        LN0.diag.bias .= drandn(10)
+        x = drandn(10, 7)
+        rms_layer_norm_naive(g, x) = g .* x ./ sqrt.(mean(x .^ 2; dims=1))
+
+        @test isapprox(LN(x), layer_norm(LN.ϵ, LN.diag.scale, LN.diag.bias, x); atol=1e-2)
+        @test rms_layer_norm_naive(LN.diag.scale, x) ≈ rms_layer_norm(LN.ϵ, LN.diag.scale, x)
+        @test LN0(x) ≈ layer_norm(0, LN0.diag.scale, LN0.diag.bias, x)
+        @test rms_layer_norm_naive(LN0.diag.scale, x) ≈ rms_layer_norm(0, LN0.diag.scale, x)
+
+        if !USE_CUDA
+            @testset "AD" begin
+                g = randn(10)
+                b = randn(10)
+                x = randn(10, 7)
+                test_rrule(layer_norm, 1e-5, g, b, x; atol = 1e-2)
+                test_rrule(rms_layer_norm, 1e-5, g, x; atol = 1e-2, check_inferred = false)
+                test_rrule(layer_norm, g, b, x; atol = 1e-2)
+                test_rrule(rms_layer_norm, g, x; atol = 1e-2, check_inferred = false)
+                test_rrule(layer_norm, 0, g, b, x)
+                test_rrule(rms_layer_norm, 0, g, x; check_inferred = false)
+
+                test_rrule(layer_norm, 1e-5, 0.5, 0.3, x; atol = 1e-2)
+                test_rrule(rms_layer_norm, 1e-5, 0.5, x; atol = 1e-2, check_inferred = false)
+                test_rrule(layer_norm, 0.5, 0.3, x; atol = 1e-2)
+                test_rrule(rms_layer_norm, 0.5, x; atol = 1e-2, check_inferred = false)
+                test_rrule(layer_norm, 0, 0.5, 0.3, x)
+                test_rrule(rms_layer_norm, 0, 0.5, x; check_inferred = false)
+
+                test_rrule(layer_norm, 1e-5, 0.5, b, x; atol = 1e-2)
+                test_rrule(layer_norm, 0.5, b, x; atol = 1e-2)
+                test_rrule(layer_norm, 0, 0.5, b, x)
+                test_rrule(layer_norm, 1e-5, g, 0.3, x; atol = 1e-2)
+                test_rrule(layer_norm, g, 0.3, x; atol = 1e-2)
+                test_rrule(layer_norm, 0, g, 0.3, x)
+
             end
         end
     end

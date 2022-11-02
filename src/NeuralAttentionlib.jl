@@ -41,8 +41,12 @@ include("./functional/attention.jl")
 include("./functional/relative_position_embedding.jl")
 include("./functional/grad.jl")
 
+# extra helper functions
+include("./functional/layernorm.jl")
+
 include("./types.jl")
 
+# docs
 include("./module/utils.jl")
 include("./module/mask.jl")
 include("./module/matmul.jl")
