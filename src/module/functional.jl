@@ -7,13 +7,15 @@ using ..NeuralAttentionlib: @imexport
     naive_qkv_attention, multihead_qkv_attention,
     mixing, weighted_sum_mixing, attention_score,
     scaled_dot_product_score, dot_product_score,
-    masked_score, normalized_score
+    masked_score, normalized_score, scalar_relative_position_embedding
 
 import ..NeuralAttentionlib:
     split_head, move_head_dim_out_perm, move_head_dim_out,
-    move_head_dim_in_perm, move_head_dim_in, merge_head
+    move_head_dim_in_perm, move_head_dim_in, merge_head,
+    t5_bucketed_position_id, t5_causal_bucketed_position_id,
+    layer_norm, rms_layer_norm
 
-using ..NeuralAttentionlib: SymLengthMask, BiLengthMask
+using ..NeuralAttentionlib: SymLengthMask, BiLengthMask, CausalMask
 
 """
     generic_qkv_attention(mixingf, scoref, q, k, v, args...)
@@ -137,6 +139,39 @@ See also: [`scaled_dot_product_score`](@ref)
 dot_product_score
 
 """
+    scalar_relative_position_embedding(relative_position_id_func, embedding_table, score, args...)
+
+A relative position embedding that produce a trainable scalar bias for each value in the attention score.
+ `relative_position_id_func` is a function that take the attention score and return a `relative_position_id`
+ matrix with the same size of the attention score with batches (normally `(key length, query length)`). This
+ `relative_position_id` would be used to index (or `gather`) the `embedding_table`. `embedding_table` is an
+ array with multiple dimensions, where the first dimension is the number of possible `"id"`s and the remaining
+ dimensions are for giving different value to each heads. By default we treat the last dimension of attention
+ score as the batch dimension and the dimension between last dimension and the "length" dimension as the head
+ dimensions.
+"""
+scalar_relative_position_embedding
+
+"""
+    t5_bucketed_position_id(n_buckets::Int, max_distance::Int)
+
+A `relative_position_id_func` used in the T5 Transformer model. The relative distances is assigned to a
+ logarithmical buecket and the distance beyond `max_distance` would be assigned to the same bucket.
+
+See also: [`scalar_relative_position_embedding`](@ref), [`t5_causal_bucketed_position_id`](@ref)
+"""
+t5_bucketed_position_id
+
+"""
+    t5_causal_bucketed_position_id(n_buckets::Int, max_distance::Int)
+
+Same as `t5_bucketed_position_id` but only attent to past. Should be used with [`CausalMask`](@ref)
+
+See also: [`scalar_relative_position_embedding`](@ref), [`t5_bucketed_position_id`](@ref)
+"""
+t5_causal_bucketed_position_id
+
+"""
     split_head(head::Int, x)
 
 Split the first dimension into `head` piece of small vector. Equivalent to
@@ -213,5 +248,29 @@ move_head_dim_in
 merge the `head` dimension split by [`split_head`](@ref).
 """
 merge_head
+
+@doc raw"""
+    layer_norm([epsilon = 1e-5,] alpha, beta, x)
+
+Function which perform layer normalization on `x`. `alpha` and `beta` can a `Vector`, `Number` or `Nothing`.
+
+``layer_norm(α, β, x) = α\frac{(x - μ)}{σ} + β``
+
+If both `alpha` and `beta` is `Nothing`, this is just a standardize function applied on the first dimension.
+"""
+layer_norm
+
+@doc raw"""
+    rms_layer_norm([epsilon = 1e-5,] alpha, x)
+
+Function which perform root-mean-square layer normalization on `x`. `alpha` and `beta` can a `Vector`, `Number`
+ or `Nothing`.
+
+``rms_layer_norm(α, x) = α\frac{x}{\sqrt{\sum_{i=1}^{N} x^2 / N}}``
+
+If both `alpha` is `Nothing`, this is just a normalization with root-mean-square function applied on the first
+ dimension.
+"""
+rms_layer_norm
 
 end
