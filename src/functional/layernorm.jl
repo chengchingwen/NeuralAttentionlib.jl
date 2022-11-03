@@ -77,14 +77,15 @@ function _rms_norm(iN, x, sum2e)
     return x / rms
 end
 
+__max2(ϵ²N, x) = max(x * x, ϵ²N)
+
 rms_layer_norm(alpha, x) = rms_layer_norm(1e-5, alpha, x)
 function rms_layer_norm(epsilon, alpha, x)
     T = eltype(x)
     N = size(x, 1)
     ϵ²N = convert(T, epsilon * N * epsilon)
     α = isnothing(alpha) ? one(T) : alpha
-    sum2e = sum(Broadcast.instantiate(Broadcast.broadcasted(max, Broadcast.broadcasted(abs2, x), ϵ²N));
-                dims=1, init = zero(T))
+    sum2e = mapreduce(Base.Fix1(__max2, ϵ²N), +, x; dims = 1, init = zero(T))
     return α .* _rms_norm.(convert(T, 1//N), x, sum2e)
 end
 
@@ -92,9 +93,9 @@ _fma1(dy, da, x, sum2e, irms) = fma(-da / sum2e, x, dy) * irms
 function Δrms_layer_norm_dx(Ȳ, α, x, sum2e)
     T = eltype(x)
     N = size(x, 1)
-    dy = Broadcast.broadcasted(*, Ȳ, α)
-    irms = Broadcast.broadcasted(_rrms, convert(T, 1//N), sum2e)
-    da = sum(Broadcast.instantiate(Broadcast.broadcasted(*, x, dy)); dims=1, init = zero(T))
+    dy = Broadcast.instantiate(Broadcast.broadcasted(*, Ȳ, α))
+    irms = Broadcast.instantiate(Broadcast.broadcasted(_rrms, convert(T, 1//N), sum2e))
+    da = mapreduce(*, +, x, dy; dims = 1, init = zero(T))
     ∂x = _fma1.(dy, da, x, sum2e, irms)
     return ∂x
 end
@@ -111,8 +112,7 @@ function ChainRulesCore.rrule(::typeof(rms_layer_norm), epsilon, alpha, x)
     cα = static(isnothing(alpha))
     aα = static(alpha isa AbstractArray)
     α = as_bool(cα) ? one(T) : alpha
-    sum2e = sum(Broadcast.instantiate(Broadcast.broadcasted(max, Broadcast.broadcasted(abs2, x), ϵ²N));
-                dims=1, init = zero(T))
+    sum2e = mapreduce(Base.Fix1(__max2, ϵ²N), +, x; dims = 1, init = zero(T))
     y = α .* _rms_norm.(convert(T, 1//N), x, sum2e)
     function rms_layer_norm_pullback(Ybar)
         Ȳ = unthunk(Ybar)

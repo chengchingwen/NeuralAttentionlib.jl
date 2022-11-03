@@ -90,13 +90,13 @@
     end
 
     @testset "layer_norm" begin
-        LN = device(LayerNorm(10))
-        LN0 = device(LayerNorm(10; ϵ=0))
-        LN.diag.scale .= drandn(10)
-        LN.diag.bias .= drandn(10)
-        LN0.diag.scale .= drandn(10)
-        LN0.diag.bias .= drandn(10)
-        x = drandn(10, 7)
+        LN = device(LayerNorm(20))
+        LN0 = device(LayerNorm(20; ϵ=0))
+        LN.diag.scale .= drandn(20)
+        LN.diag.bias .= drandn(20)
+        LN0.diag.scale .= drandn(20)
+        LN0.diag.bias .= drandn(20)
+        x = drandn(20, 7)
         rms_layer_norm_naive(g, x) = g .* x ./ sqrt.(mean(x .^ 2; dims=1))
 
         @test isapprox(LN(x), layer_norm(LN.ϵ, LN.diag.scale, LN.diag.bias, x); atol=1e-2)
@@ -106,9 +106,9 @@
 
         if !USE_CUDA
             @testset "AD" begin
-                g = randn(10)
-                b = randn(10)
-                x = randn(10, 7)
+                g = randn(20)
+                b = randn(20)
+                x = randn(20, 7)
                 test_rrule(layer_norm, 1e-5, g, b, x; atol = 1e-2)
                 test_rrule(rms_layer_norm, 1e-5, g, x; atol = 1e-2, check_inferred = false)
                 test_rrule(layer_norm, g, b, x; atol = 1e-2)
