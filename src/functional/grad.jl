@@ -100,10 +100,10 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_move_and_merge_head)
     x = t.hidden_state
     y, back = rrule(config, _move_and_merge_head, x)
     function pullback(Ybar)
-        Ȳ = ChainRulesCore.backing(unthunk(Ybar))
+        Ȳ = unthunk(Ybar)
         _, ∂x = back(Ȳ.hidden_state)
-        ∂t = merge(Ȳ, (hidden_state = ∂x,))
-        return (NoTangent(), ∂t)
+        ∂t = merge(ChainRulesCore.backing(Ȳ), (hidden_state = ∂x,))
+        return (NoTangent(), Tangent{Any, typeof(∂t)}(∂t))
     end
     y′ = merge(t, (hidden_state = y,))
     return y′, pullback
