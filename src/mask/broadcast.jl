@@ -1,5 +1,7 @@
 import Base.Broadcast: BroadcastStyle
 
+Base.has_fast_linear_indexing(::AbstractMask) = false
+
 BroadcastStyle(::Type{<:AbstractMask}) = Broadcast.DefaultArrayStyle{0}()
 
 Base.size(m::AbstractMask) = ()
