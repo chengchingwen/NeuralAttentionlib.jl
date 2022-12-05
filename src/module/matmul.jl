@@ -2,7 +2,7 @@ module Matmul
 
 using ..NeuralAttentionlib: @imexport
 
-@imexport import ..NeuralAttentionlib: matmul,
+@imexport import ..NeuralAttentionlib: matmul, scaled_matmul,
     collapsed_size, noncollapsed_size,
     CollapsedDimsArray, collapseddims, unwrap_collapse
 
@@ -140,5 +140,11 @@ See also: [`CollapsedDimsArray`](@ref), [`unwrap_collapse`](@ref), [`collapseddi
 """
 matmul
 
+"""
+    scaled_matmul(a::AbstractArray, b::AbstractArray, s::Number = 1)
+
+Basically equivalent to `unwrap_collapse(matmul(a, b, s))`, but not differentiable w.r.t. to `s`.
+"""
+scaled_matmul
 
 end
