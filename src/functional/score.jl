@@ -20,5 +20,13 @@ dropout_score(p) = dropout_score $ p
 @inline dropout_score(p, score, args...) = collapseddims(Base.Fix2(dropout, p), score(args...))
 @inline dropout_score(::Nothing, score, args...) = score(args...)
 
+bias_add(b) = bias_add $ b
+function bias_add(b, s)
+    @assert size(s, 1) == size(b, 1) && size(s, 2) == size(b, 2) && ndims(s) >= ndims(b)
+    return s .+ b
+end
+biased_score(b) = biased_score $ b
+biased_score(b, score, args...) = collapseddims_nonbatch(bias_add(b), score(args...))
+
 @inline attention_score(f, args...) = f(args...)
 @inline attention_score(pf::PrefixedFunction, args...) = attention_score(pf.f, pf.arg..., args...)

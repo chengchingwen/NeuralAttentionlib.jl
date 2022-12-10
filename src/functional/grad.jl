@@ -234,6 +234,42 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dropout_score), p, sc
     end
 end
 
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(bias_add), b, s)
+    proj = ProjectTo(b)
+    @assert size(s, 1) == size(b, 1) && size(s, 2) == size(b, 2) && ndims(s) >= ndims(b)
+    i = 0
+    for j = 3:ndims(s)
+        if size(s, j) != size(b, j)
+            i = j
+            break
+        end
+    end
+    y = s .+ b
+    function bias_add_pullback(Ybar)
+        Ȳ = unthunk(Ybar)
+        if !iszero(i)
+            ∂b = proj(sum(Ȳ; dims = ntuple(j -> i + j - 1, static(ndims(Ȳ)) - static(i - 1))))
+        else
+            ∂b = proj(Ȳ)
+        end
+        return (NoTangent(), ∂b, Ȳ)
+    end
+    return y, bias_add_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(biased_score), b, f, args...)
+    score_tape = rrule(config, f, args...)
+    isnothing(score_tape) && (score_tape = rrule_via_ad(config, f, args...))
+    score_val, score_pullback = score_tape
+    y, pullback = rrule(config, collapseddims_nonbatch, bias_add(b), score_val)
+    function biased_score_pullback(Ȳ)
+        _, ∂bias, ∂score = pullback(Ȳ)
+        ∂b = ∂bias.arg[1]
+        return (NoTangent(), ∂b, score_pullback(∂score)...)
+    end
+    return y, biased_score_pullback
+end
+
 ChainRulesCore.@non_differentiable naive_attention_score(x...)
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(attention_score), f, args...)

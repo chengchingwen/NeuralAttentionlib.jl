@@ -7,7 +7,8 @@ using ..NeuralAttentionlib: @imexport
     naive_qkv_attention, multihead_qkv_attention,
     mixing, weighted_sum_mixing, attention_score,
     scaled_dot_product_score, dot_product_score,
-    masked_score, normalized_score, scalar_relative_position_embedding
+    masked_score, normalized_score, scalar_relative_position_embedding,
+    biased_score
 
 import ..NeuralAttentionlib:
     split_head, move_head_dim_out_perm, move_head_dim_out,
@@ -137,6 +138,15 @@ Dot-product attention score function. Equivalent to `scaled_dot_product_score(q,
 See also: [`scaled_dot_product_score`](@ref)
 """
 dot_product_score
+
+"""
+    biased_score(bias, score, args...)
+
+Adding a precomputed `bias` to the attention score. `bias` should be in shape `(key length, query length, ...)` and
+ `size(bias, 1) == size(s, 1) == size(bias, 2) == size(s, 2) && ndims(bias) <= ndims(s)` where `s = score(args...)`
+ must hold.
+"""
+biased_score
 
 """
     scalar_relative_position_embedding(relative_position_id_func, embedding_table, score, args...)

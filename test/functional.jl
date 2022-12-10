@@ -4,7 +4,7 @@
     using ZipFile
     using Pickle: npyload
     using NeuralAttentionlib.Matmul
-    using NeuralAttentionlib: as_collapsed, dot_product_score, normalized_score,
+    using NeuralAttentionlib: as_collapsed, dot_product_score, normalized_score, biased_score,
       scalar_relative_position_embedding, get_scalar_relative_position_embeddings,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
       layer_norm, rms_layer_norm
@@ -12,6 +12,14 @@
     @testset "score" begin
         if !USE_CUDA
             @testset "AD" begin
+                test_rrule(dot_product_score, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(dot_product_score, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(biased_score, randn(4, 3), dot_product_score, randn(5, 3, 2), randn(5, 4, 2);
+                           check_inferred = false)
+                test_rrule(biased_score, randn(4, 3, 2), dot_product_score, randn(5, 3, 2), randn(5, 4, 2);
+                           check_inferred = false)
+                test_rrule(biased_score, randn(4, 3), dot_product_score, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(biased_score, randn(4, 3, 2), dot_product_score, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
                 test_rrule(
                     normalized_score, NNlib.softmax,
                     dot_product_score,
