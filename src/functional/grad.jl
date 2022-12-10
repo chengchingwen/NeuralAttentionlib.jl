@@ -135,7 +135,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_sc
     return y, scaled_dot_product_score_pullback
 end
 
-function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), q, k, s)
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), q, k::CollapsedDimsArray, s)
     y, matmul_pullback = rrule(config, matmul, collapsed_adjoint(k), q, s)
     function scaled_dot_product_score_pullback(Ȳ)
         ∂f, ∂kt, ∂q, ∂s = matmul_pullback(Ȳ)
@@ -144,6 +144,17 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_sc
             collapsed_adjoint(tmp)
         end
         return ∂f, ∂q, ∂k, ∂s
+    end
+    return y, scaled_dot_product_score_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), q, k, s)
+    ck, collapse_pullback = rrule(CollapsedDimsArray, k)
+    y, score_pullback = rrule(config, scaled_dot_product_score, q, ck, s)
+    function scaled_dot_product_score_pullback(Ȳ)
+        _f, ∂q, ∂ck, ∂s = score_pullback(Ȳ)
+        ∂k = collapse_pullback(∂ck)[2]
+        return (NoTangent(), ∂q, ∂k, ∂s)
     end
     return y, scaled_dot_product_score_pullback
 end
