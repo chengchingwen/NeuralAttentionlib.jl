@@ -1,13 +1,8 @@
-@inline weighted_sum_mixing(s, v) = matmul(v, s)
+@inline weighted_sum_mixing(s, v) = scaled_matmul(v, s)
 
-@inline mixing(f, v, g, args...) = unwrap_collapse(f(attention_score(g, args...), v))
+@inline mixing(f, v, g, args...) = f(attention_score(g, args...), v)
 
-struct ScoreReturning{F}; f::F; end
+struct ScoreReturning{F} <: Function; f::F; end
+(sr::ScoreReturning)(s, v) = (hidden_state = sr.f(s, v), attention_score = unwrap_collapse(s))
 
 score_returning(f) = ScoreReturning(f)
-
-@inline function mixing(sr::ScoreReturning, v, g, args...)
-    s = attention_score(g, args...)
-    y = unwrap_collapse(sr.f(s, v))
-    return (hidden_state = y, attention_score = unwrap_collapse(s))
-end

@@ -196,12 +196,27 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(normalized_score), no
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(weighted_sum_mixing), s, v)
-    y, pullback = rrule(config, matmul, v, s, true)
+    y, pullback = rrule(config, scaled_matmul, v, s)
     function weighted_sum_mixing_pullback(Ȳ)
-        _, ∂v, ∂s, _ = pullback(Ȳ)
+        _, ∂v, ∂s = pullback(Ȳ)
         return (NoTangent(), ∂s, ∂v)
     end
     return y, weighted_sum_mixing_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, sr::ScoreReturning, s, v)
+    mixing_tape = rrule(config, sr.f, s, v)
+    isnothing(mixing_tape) && (mixing_tape = rrule_via_ad(config, sr.f, s, v))
+    y, mixing_pullback = mixing_tape
+    s′, s_unwrap_pullback = rrule(config, unwrap_collapse, s)
+    function score_returning_pullback(Ȳ)
+        _, ∂s1 = s_unwrap_pullback(Ȳ.attention_score)
+        ∂f, ∂s2, ∂v = mixing_pullback(Ȳ.hidden_state)
+        ∂s = unthunk(∂s1) + unthunk(∂s2)
+        ∂sr = ∂f isa NoTangent ? NoTangent() : (f = ∂f,)
+        return (∂sr, ∂s, ∂v)
+    end
+    return (hidden_state = y, attention_score = s′), score_returning_pullback
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dropout), x, p)
@@ -289,29 +304,6 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(attention_score), pf:
         return (NoTangent(), _pf_pullback(first_n(∂Ys, n_pf)), last_n(∂Ys, n_iargs)...)
     end
     return score_val, attention_score_pullback
-end
-
-function ChainRulesCore.rrule(config::RuleConfig, ::typeof(mixing), sr::ScoreReturning, v, g, args...)
-    score_tape = rrule(config, attention_score, g, args...)
-    isnothing(score_tape) && (score_tape = rrule_via_ad(config, attention_score, g, args...))
-    score_val, score_pullback = score_tape
-    f = sr.f
-    f_tape = rrule(config, f, score_val, v)
-    isnothing(f_tape) && (f_tape = rrule_via_ad(config, f, score_val, v))
-    y, f_pullback = f_tape
-    y′, unwrap_pullback = rrule(config, unwrap_collapse, y)
-    s, s_unwrap_pullback = rrule(config, unwrap_collapse, score_val)
-    function pullback(Ybar)
-        Ȳ = unthunk(Ybar)
-        _, ∂y = unwrap_pullback(Ȳ.hidden_state)
-        _, ∂s1 = s_unwrap_pullback(Ȳ.attention_score)
-        ∂f, ∂s2, ∂v = f_pullback(∂y)
-        ∂s = unthunk(∂s1) + unthunk(∂s2)
-        _, ∂g, ∂args... = score_pullback(∂s)
-        ∂sr = ∂f isa NoTangent ? NoTangent() : (f = ∂f,)
-        return (NoTangent(), ∂sr, ∂v, ∂g, ∂args...)
-    end
-    return (hidden_state = y′, attention_score = s), pullback
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(mixing), f, v, g, args...)
