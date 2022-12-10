@@ -23,7 +23,7 @@ Collapse the dimensionality of `x` into 3 according to `ni` and `nj`.
 
 But take the size before collapse. e.g. `noncollapsed_size(x, ni, nj, 2)` will be `(Xi, Xi+1, ..., Xj-1)`.
 
-#Example
+# Example
 
 ```julia
 julia> x = randn(7,6,5,4,3,2);
@@ -55,7 +55,7 @@ Collapse the dimensionality of `x` into 3 according to `ni` and `nj` where `ni`,
     (X1, X2, ..., Xk, Xk+1, Xk+2, ..., Xk+ni, Xk+ni+1, ..., Xn)
      |______dim1___|  |_________ni_________|  |______nj______|
 
-#Example
+# Example
 
 ```julia
 julia> x = randn(7,6,5,4,3,2);
@@ -76,7 +76,7 @@ julia> collapsed_size(x, 2, 2)
 
 See also: [`noncollapsed_size`](@ref)
 """
-collasped_size
+collapsed_size
 
 """
     collapseddims(x::AbstractArray, xi, xj)
