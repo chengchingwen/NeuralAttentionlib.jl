@@ -313,14 +313,12 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(mixing), f, v, g, arg
     f_tape = rrule(config, f, score_val, v)
     isnothing(f_tape) && (f_tape = rrule_via_ad(config, f, score_val, v))
     y, f_pullback = f_tape
-    y′, unwrap_pullback = rrule(config, unwrap_collapse, y)
     function mixing_pullback(Ȳ)
-        _, ∂y = unwrap_pullback(Ȳ)
-        ∂f, ∂s, ∂v = f_pullback(∂y)
+        ∂f, ∂s, ∂v = f_pullback(Ȳ)
         _, ∂g, ∂args... = score_pullback(∂s)
         return (NoTangent(), ∂f, ∂v, ∂g, ∂args...)
     end
-    return y′, mixing_pullback
+    return y, mixing_pullback
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(generic_qkv_attention), mixingf, scoref, q, k, v, args...)
