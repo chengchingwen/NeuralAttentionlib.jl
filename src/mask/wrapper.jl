@@ -41,8 +41,8 @@ Base.:&(m1::CombinedMask{typeof(&)}, m2::AbstractMask) = CombinedMask(&, (m1.mas
 Base.:&(m1::AbstractMask, m2::CombinedMask{typeof(&)}) = CombinedMask(&, (m1, m2.masks...))
 Base.:&(m1::CombinedMask{typeof(&)}, m2::CombinedMask{typeof(&)}) = CombinedMask(&, (m1.masks..., m2.masks...))
 
-Base.:|(m::AbstractMask, ::Nothing) = m
-Base.:|(::Nothing, m::AbstractMask) = m
+Base.:|(m::AbstractMask, ::Nothing) = nothing
+Base.:|(::Nothing, m::AbstractMask) = nothing
 Base.:&(m::AbstractMask, ::Nothing) = m
 Base.:&(::Nothing, m::AbstractMask) = m
 
