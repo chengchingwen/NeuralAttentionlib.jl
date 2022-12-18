@@ -42,6 +42,9 @@ include("./functional/attention.jl")
 include("./functional/relative_position_embedding.jl")
 include("./functional/grad.jl")
 
+# position embedding
+include("./functional/position_embedding/sincos.jl")
+
 # extra helper functions
 include("./functional/layernorm.jl")
 

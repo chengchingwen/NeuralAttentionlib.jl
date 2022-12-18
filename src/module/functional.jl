@@ -14,7 +14,7 @@ import ..NeuralAttentionlib:
     split_head, move_head_dim_out_perm, move_head_dim_out,
     move_head_dim_in_perm, move_head_dim_in, merge_head,
     t5_bucketed_position_id, t5_causal_bucketed_position_id,
-    layer_norm, rms_layer_norm
+    layer_norm, rms_layer_norm, get_sincos_position_embeddings
 
 using ..NeuralAttentionlib: SymLengthMask, BiLengthMask, CausalMask
 
@@ -180,6 +180,13 @@ Same as `t5_bucketed_position_id` but only attent to past. Should be used with [
 See also: [`scalar_relative_position_embedding`](@ref), [`t5_bucketed_position_id`](@ref)
 """
 t5_causal_bucketed_position_id
+
+"""
+    get_sincos_position_embeddings(hidden_size::Integer, normalized::Bool, x)
+
+sincos position embeddings. `x` can be either a integer specifying the length or an array of position indices.
+"""
+get_sincos_position_embeddings
 
 """
     split_head(head::Int, x)

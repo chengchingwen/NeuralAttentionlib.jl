@@ -7,7 +7,7 @@
     using NeuralAttentionlib: as_collapsed, dot_product_score, normalized_score, biased_score,
       scalar_relative_position_embedding, get_scalar_relative_position_embeddings,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
-      layer_norm, rms_layer_norm
+      layer_norm, rms_layer_norm, get_sincos_position_embeddings
 
     @testset "score" begin
         if !USE_CUDA
@@ -95,6 +95,38 @@
                 )
             end
         end
+    end
+
+    @testset "sincos_position_embeddings" begin
+        function PE(size, pos, i::Int)
+            if rem(i, 2) == 1
+                sin((pos-1)/1e4^((i-1)/size))
+            else
+                cos((pos-1)/1e4^((i-2)/size))
+            end
+        end
+        function sincos_pe(size, max_len)
+            embedding = Matrix{Float32}(undef, size, max_len)
+            for l = 1:max_len
+                map!(i->PE(size, l, i), selectdim(embedding, 2, l), 1:size)
+            end
+            return embedding
+        end
+        l2norm(x) = x ./ sqrt.(sum(x .^ 2; dims=1))
+        @test get_sincos_position_embeddings(512, false, 1024) ≈ sincos_pe(512, 1024)
+        @test get_sincos_position_embeddings(513, false, 1024) ≈ sincos_pe(513, 1024)
+        @test get_sincos_position_embeddings(512, true, 1024) ≈ l2norm(sincos_pe(512, 1024))
+        @test get_sincos_position_embeddings(513, true, 1024) ≈ l2norm(sincos_pe(513, 1024))
+        x1 = drandn(512, 10, 2)
+        x2 = drandn(513, 10, 2)
+        @test get_sincos_position_embeddings(512, false, x1) ≈ device(sincos_pe(512, 10))
+        @test get_sincos_position_embeddings(513, false, x2) ≈ device(sincos_pe(513, 10))
+        @test get_sincos_position_embeddings(512, true, x1) ≈ device(l2norm(sincos_pe(512, 10)))
+        @test get_sincos_position_embeddings(513, true, x2) ≈ device(l2norm(sincos_pe(513, 10)))
+        i1 = drand(1:1024, 10, 2)
+        i2 = drand(1:1024, 10, 2)
+        @test get_sincos_position_embeddings(512, false, i1) ≈ device(sincos_pe(512, 1024))[:, i1]
+        @test get_sincos_position_embeddings(513, false, i2) ≈ device(sincos_pe(513, 1024))[:, i2]
     end
 
     @testset "layer_norm" begin
