@@ -2,10 +2,11 @@
     using Statistics
     using Flux
     using ZipFile
+    using ChainRulesCore
     using Pickle: npyload
     using NeuralAttentionlib.Matmul
-    using NeuralAttentionlib: as_collapsed, dot_product_score, normalized_score, biased_score,
-      scalar_relative_position_embedding, get_scalar_relative_position_embeddings,
+    using NeuralAttentionlib: as_collapsed, scaled_dot_product_score, dot_product_score, normalized_score,
+      biased_score, scalar_relative_position_embedding, get_scalar_relative_position_embeddings,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
       layer_norm, rms_layer_norm, get_sincos_position_embeddings
 
@@ -14,6 +15,36 @@
             @testset "AD" begin
                 test_rrule(dot_product_score, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
                 test_rrule(dot_product_score, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(scaled_dot_product_score, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(scaled_dot_product_score, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(scaled_dot_product_score, randn(5, 3, 2), randn(5, 4, 2), 0.5; check_inferred = false)
+                test_rrule(scaled_dot_product_score, randn(5, 3, 2, 2), randn(5, 4, 2, 2), 0.5)
+
+                f2(x) = 2 .* x
+                f3(x) = 3 .* x
+                function ChainRulesCore.rrule(::typeof(f2), x)
+                    y = f2(x)
+                    pullback(Ȳ) = (NoTangent(), 2 .* unthunk(Ȳ))
+                    return y, pullback
+                end
+                function ChainRulesCore.rrule(::typeof(f3), x)
+                    y = f3(x)
+                    pullback(Ȳ) = (NoTangent(), 3 .* unthunk(Ȳ))
+                    return y, pullback
+                end
+                test_rrule(dot_product_score, f2, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(dot_product_score, f2, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(dot_product_score, f2, f3, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(dot_product_score, f2, f3, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(scaled_dot_product_score, f2, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(scaled_dot_product_score, f2, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(scaled_dot_product_score, f2, f3, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(scaled_dot_product_score, f2, f3, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(scaled_dot_product_score, 0.5, f2, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(scaled_dot_product_score, 0.5, f2, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+                test_rrule(scaled_dot_product_score, 0.5, f2, f3, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
+                test_rrule(scaled_dot_product_score, 0.5, f2, f3, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
+
                 test_rrule(biased_score, randn(4, 3), dot_product_score, randn(5, 3, 2), randn(5, 4, 2);
                            check_inferred = false)
                 test_rrule(biased_score, randn(4, 3, 2), dot_product_score, randn(5, 3, 2), randn(5, 4, 2);

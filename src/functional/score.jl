@@ -1,8 +1,17 @@
 @inline dot_product_score(q, k) = scaled_dot_product_score(q, k, true)
 
-@inline function scaled_dot_product_score(q, k, s = sqrt(inv(size(k, 1))))
+@inline dot_product_score(f, q, k) = dot_product_score(f, f, q, k)
+@inline dot_product_score(qf, kf, q, k) = dot_product_score(qf(q), kf(k))
+
+@inline function scaled_dot_product_score(q, k, s::Number = sqrt(inv(size(k, 1))))
     return matmul(collapsed_adjoint(k), q, s)
 end
+
+@inline scaled_dot_product_score(s::Number, q, k) = scaled_dot_product_score(q, k, s)
+@inline scaled_dot_product_score(f, q, k) = scaled_dot_product_score(f, f, q, k)
+@inline scaled_dot_product_score(qf, kf, q, k) = scaled_dot_product_score(qf(q), kf(k))
+@inline scaled_dot_product_score(s::Number, f, q, k) = scaled_dot_product_score(s, f, f, q, k)
+@inline scaled_dot_product_score(s::Number, qf, kf, q, k) = scaled_dot_product_score(qf(q), kf(k),  s)
 
 masked_score(mask::Union{AbstractMaskOp, AbstractMask, Nothing}) = masked_score $ mask
 masked_score(maskop::AbstractMaskOp, mask::Union{AbstractMask, Nothing}) = masked_score $ maskop $ mask

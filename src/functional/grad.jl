@@ -125,6 +125,32 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dot_product_score), q
     return y, dot_product_score_pullback
 end
 
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dot_product_score), f, q, k)
+    score, pullback = rrule(config, dot_product_score, f, f, q, k)
+    function dot_product_score_pullback(Ȳ)
+        _, _, _, ∂q, ∂k = pullback(Ȳ)
+        return (NoTangent(), NoTangent(), ∂q, ∂k)
+    end
+    return score, dot_product_score_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dot_product_score), qf, kf, q, k)
+    nq_tape = rrule(config, qf, q)
+    isnothing(nq_tape) && (nq_tape = rrule_via_ad(config, qf, q))
+    nq, qf_pullback = nq_tape
+    nk_tape = rrule(config, kf, k)
+    isnothing(nk_tape) && (nk_tape = rrule_via_ad(config, kf, k))
+    nk, kf_pullback = nk_tape
+    score, score_pullback = rrule(config, dot_product_score, nq, nk)
+    function dot_product_score_pullback(Ȳ)
+        _, ∂nq, ∂nk = score_pullback(Ȳ)
+        _, ∂k = kf_pullback(∂nk)
+        _, ∂q = qf_pullback(∂nq)
+        return (NoTangent(), NoTangent(), NoTangent(), ∂q, ∂k)
+    end
+    return score, dot_product_score_pullback
+end
+
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), q, k)
     s = sqrt(inv(size(k, 1)))
     y, pullback = rrule(config, scaled_dot_product_score, q, k, s)
@@ -135,7 +161,10 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_sc
     return y, scaled_dot_product_score_pullback
 end
 
-function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), q, k::CollapsedDimsArray, s)
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(scaled_dot_product_score),
+    q, k::CollapsedDimsArray, s::Number
+)
     y, matmul_pullback = rrule(config, matmul, collapsed_adjoint(k), q, s)
     function scaled_dot_product_score_pullback(Ȳ)
         ∂f, ∂kt, ∂q, ∂s = matmul_pullback(Ȳ)
@@ -148,7 +177,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_sc
     return y, scaled_dot_product_score_pullback
 end
 
-function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), q, k, s)
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), q, k, s::Number)
     ck, collapse_pullback = rrule(CollapsedDimsArray, k)
     y, score_pullback = rrule(config, scaled_dot_product_score, q, ck, s)
     function scaled_dot_product_score_pullback(Ȳ)
@@ -157,6 +186,67 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_sc
         return (NoTangent(), ∂q, ∂k, ∂s)
     end
     return y, scaled_dot_product_score_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), s::Number, q, k)
+    score, score_pullback = rrule(config, scaled_dot_product_score, q, k, s)
+    function scaled_dot_product_score_pullback(Ȳ)
+        _, ∂q, ∂k, ∂s = score_pullback(Ȳ)
+        return (NoTangent(), ∂s, ∂q, ∂k)
+    end
+    return score, scaled_dot_product_score_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), f, q, k)
+    score, score_pullback = rrule(config, scaled_dot_product_score, f, f, q, k)
+    function scaled_dot_product_score_pullback(Ȳ)
+        _, _, _, ∂q, ∂k = score_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), ∂q, ∂k)
+    end
+    return score, scaled_dot_product_score_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), qf, kf, q, k)
+    nq_tape = rrule(config, qf, q)
+    isnothing(nq_tape) && (nq_tape = rrule_via_ad(config, qf, q))
+    nq, qf_pullback = nq_tape
+    nk_tape = rrule(config, kf, k)
+    isnothing(nk_tape) && (nk_tape = rrule_via_ad(config, kf, k))
+    nk, kf_pullback = nk_tape
+    score, score_pullback = rrule(config, scaled_dot_product_score, nq, nk)
+    function scaled_dot_product_score_pullback(Ȳ)
+        _, ∂nq, ∂nk = score_pullback(Ȳ)
+        _, ∂k = kf_pullback(∂nk)
+        _, ∂q = qf_pullback(∂nq)
+        return (NoTangent(), NoTangent(), NoTangent(), ∂q, ∂k)
+    end
+    return score, scaled_dot_product_score_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), s::Number, f, q, k)
+    score, score_pullback = rrule(config, scaled_dot_product_score, s, f, f, q, k)
+    function scaled_dot_product_score_pullback(Ȳ)
+        _, ∂s, _, _, ∂q, ∂k = score_pullback(Ȳ)
+        return (NoTangent(), ∂s, NoTangent(), ∂q, ∂k)
+    end
+    return score, scaled_dot_product_score_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(scaled_dot_product_score), s::Number, qf, kf, q, k)
+    nq_tape = rrule(config, qf, q)
+    isnothing(nq_tape) && (nq_tape = rrule_via_ad(config, qf, q))
+    nq, qf_pullback = nq_tape
+    nk_tape = rrule(config, kf, k)
+    isnothing(nk_tape) && (nk_tape = rrule_via_ad(config, kf, k))
+    nk, kf_pullback = nk_tape
+    score, score_pullback = rrule(config, scaled_dot_product_score, nq, nk, s)
+    function scaled_dot_product_score_pullback(Ȳ)
+        _, ∂nq, ∂nk, ∂s = score_pullback(Ȳ)
+        _, ∂k = kf_pullback(∂nk)
+        _, ∂q = qf_pullback(∂nq)
+        return (NoTangent(), ∂s, NoTangent(), NoTangent(), ∂q, ∂k)
+    end
+    return score, scaled_dot_product_score_pullback
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(masked_score), maskop::AbstractMaskOp, mask, score, args...)
