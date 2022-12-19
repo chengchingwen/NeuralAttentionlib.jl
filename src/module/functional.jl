@@ -8,7 +8,7 @@ using ..NeuralAttentionlib: @imexport
     mixing, weighted_sum_mixing, attention_score,
     scaled_dot_product_score, dot_product_score,
     masked_score, normalized_score, scalar_relative_position_embedding,
-    biased_score
+    biased_score, rotary_position_embedding
 
 import ..NeuralAttentionlib:
     split_head, move_head_dim_out_perm, move_head_dim_out,
@@ -126,6 +126,10 @@ The scaled dot-product attention score function of a regular transformer layer.
 
 ``Score(Q, K) = \frac{QK^T}{\sqrt{d_k}}``
 
+    scaled_dot_product_score(f, q, k)
+
+Apply a transform function `f` on `q`/`k` before dot-product.
+
 See also: [`naive_qkv_attention`](@ref)
 """
 scaled_dot_product_score
@@ -180,6 +184,14 @@ Same as `t5_bucketed_position_id` but only attent to past. Should be used with [
 See also: [`scalar_relative_position_embedding`](@ref), [`t5_bucketed_position_id`](@ref)
 """
 t5_causal_bucketed_position_id
+
+"""
+    rotary_position_embedding([size,] x)
+
+Apply rotary position embedding to `x`. Can take an `size` argument and the rotary position embedding will only apply
+ to `x[1:size, :, ...]`. Should be used with `scaled_dot_product_score`/`dot_product_score`.
+"""
+rotary_position_embedding
 
 """
     get_sincos_position_embeddings(hidden_size::Integer, normalized::Bool, x)
