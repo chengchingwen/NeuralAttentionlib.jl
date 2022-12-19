@@ -172,16 +172,28 @@
             y = reshape(vcat(-x2, x1), size(x))
             return x .* cosθ .+ y .* sinθ
         end
+        function naive_rotary_pe_w_dim(dim, x)
+            x1 = x[begin:dim, :, :, :]
+            x2 = x[dim+1:end, :, :, :]
+            y = naive_rotary_pe(x1)
+            return vcat(y, x2)
+        end
         x = drandn(512, 5, 3, 2)
         @test with_rotary_position_embedding(x) ≈ naive_rotary_pe(x)
-
+        @test with_rotary_position_embedding(256, x) ≈ naive_rotary_pe_w_dim(256, x)
+        @test with_rotary_position_embedding(256)(x) ≈ naive_rotary_pe_w_dim(256, x)
         if !USE_CUDA
             @testset "AD" begin
                 x = randn(512, 5, 3, 2)
                 @test Zygote.gradient(x->sum(sin.(with_rotary_position_embedding(x))), x)[1] ≈
                     Zygote.gradient(x->sum(sin.(naive_rotary_pe(x))), x)[1]
+                @test Zygote.gradient(x->sum(sin.(with_rotary_position_embedding(256, x))), x)[1] ≈
+                    Zygote.gradient(x->sum(sin.(naive_rotary_pe_w_dim(256, x))), x)[1]
+                @test Zygote.gradient(x->sum(sin.(with_rotary_position_embedding(256)(x))), x)[1] ≈
+                    Zygote.gradient(x->sum(sin.(naive_rotary_pe_w_dim(256, x))), x)[1]
                 test_rrule(
-                    scaled_dot_product_score, with_rotary_position_embedding, randn(512, 5, 2), randn(512, 5, 2))
+                    scaled_dot_product_score, with_rotary_position_embedding, randn(512, 5, 2), randn(512, 5, 2);
+                    check_inferred = false)
             end
         end
     end
