@@ -1,6 +1,7 @@
 @testset "functional" begin
     using Statistics
     using Flux
+    using Flux.Zygote
     using ZipFile
     using ChainRulesCore
     using Pickle: npyload
@@ -8,7 +9,8 @@
     using NeuralAttentionlib: as_collapsed, scaled_dot_product_score, dot_product_score, normalized_score,
       biased_score, scalar_relative_position_embedding, get_scalar_relative_position_embeddings,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
-      layer_norm, rms_layer_norm, get_sincos_position_embeddings
+      layer_norm, rms_layer_norm, get_sincos_position_embeddings,
+      with_rotary_position_embedding
 
     @testset "score" begin
         if !USE_CUDA
@@ -158,6 +160,30 @@
         i2 = drand(1:1024, 10, 2)
         @test get_sincos_position_embeddings(512, false, i1) ≈ device(sincos_pe(512, 1024))[:, i1]
         @test get_sincos_position_embeddings(513, false, i2) ≈ device(sincos_pe(513, 1024))[:, i2]
+    end
+
+    @testset "rotary position embedding" begin
+        function naive_rotary_pe(x)
+            sincos = get_sincos_position_embeddings(size(x, 1), false, x)
+            sinθ = repeat(sincos[1:2:end, :], inner = (2, 1))
+            cosθ = repeat(sincos[2:2:end, :], inner = (2, 1))
+            x1 = reshape(x[1:2:end, :, :, :], 1, size(x, 1) >> 1, Base.tail(size(x))...)
+            x2 = reshape(x[2:2:end, :, :, :], 1, size(x, 1) >> 1, Base.tail(size(x))...)
+            y = reshape(vcat(-x2, x1), size(x))
+            return x .* cosθ .+ y .* sinθ
+        end
+        x = drandn(512, 5, 3, 2)
+        @test with_rotary_position_embedding(x) ≈ naive_rotary_pe(x)
+
+        if !USE_CUDA
+            @testset "AD" begin
+                x = randn(512, 5, 3, 2)
+                @test Zygote.gradient(x->sum(sin.(with_rotary_position_embedding(x))), x)[1] ≈
+                    Zygote.gradient(x->sum(sin.(naive_rotary_pe(x))), x)[1]
+                test_rrule(
+                    scaled_dot_product_score, with_rotary_position_embedding, randn(512, 5, 2), randn(512, 5, 2))
+            end
+        end
     end
 
     @testset "layer_norm" begin

@@ -44,6 +44,7 @@ include("./functional/grad.jl")
 
 # position embedding
 include("./functional/position_embedding/sincos.jl")
+include("./functional/position_embedding/rotary.jl")
 
 # extra helper functions
 include("./functional/layernorm.jl")
