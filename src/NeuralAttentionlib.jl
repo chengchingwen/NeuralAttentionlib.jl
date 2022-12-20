@@ -39,10 +39,10 @@ include("./functional/utils.jl")
 include("./functional/score.jl")
 include("./functional/mixing.jl")
 include("./functional/attention.jl")
-include("./functional/relative_position_embedding.jl")
 include("./functional/grad.jl")
 
 # position embedding
+include("./functional/position_embedding/relative.jl")
 include("./functional/position_embedding/sincos.jl")
 include("./functional/position_embedding/rotary.jl")
 
