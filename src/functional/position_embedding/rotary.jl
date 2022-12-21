@@ -1,8 +1,10 @@
 using Static
 using ChainRulesCore
 
+with_rotary_position_embedding(::Nothing) = with_rotary_position_embedding
+with_rotary_position_embedding(dim::Integer) = Base.Fix1(with_rotary_position_embedding, dim)
+with_rotary_position_embedding(::Nothing, x) = with_rotary_position_embedding(x)
 with_rotary_position_embedding(x) = with_rotary_position_embedding!(copy(x))
-with_rotary_position_embedding(dim::Integer) = with_rotary_position_embedding $ dim
 function with_rotary_position_embedding(dim::Integer, x)
     y = copy(x)
     y′ = @view y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...]
@@ -61,6 +63,12 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(with_rotary_position_
         return (NoTangent(), ∂x)
     end
     return y, with_rotary_position_embedding_pullback
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(with_rotary_position_embedding), ::Nothing, x)
+    y, pullback = rrule(config, with_rotary_position_embedding, x)
+    _pullback(Ȳ) = (NoTangent(), NoTangent(), pullback(Ȳ)[2])
+    return y, _pullback
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(with_rotary_position_embedding), dim::Integer, x)

@@ -191,6 +191,11 @@
                     Zygote.gradient(x->sum(sin.(naive_rotary_pe_w_dim(256, x))), x)[1]
                 @test Zygote.gradient(x->sum(sin.(with_rotary_position_embedding(256)(x))), x)[1] ≈
                     Zygote.gradient(x->sum(sin.(naive_rotary_pe_w_dim(256, x))), x)[1]
+                x = randn(512, 5, 2)
+                @test Zygote.gradient(
+                    x->sum(sin.(scaled_dot_product_score(with_rotary_position_embedding(256), x, x))), x)[1] ≈
+                Zygote.gradient(
+                    x->sum(sin.(scaled_dot_product_score(Base.Fix1(naive_rotary_pe_w_dim, 256), x, x))), x)[1]
                 test_rrule(
                     scaled_dot_product_score, with_rotary_position_embedding, randn(512, 5, 2), randn(512, 5, 2);
                     check_inferred = false)

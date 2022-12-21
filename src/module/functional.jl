@@ -8,7 +8,7 @@ using ..NeuralAttentionlib: @imexport
     mixing, weighted_sum_mixing, attention_score,
     scaled_dot_product_score, dot_product_score,
     masked_score, normalized_score, scalar_relative_position_embedding,
-    biased_score, rotary_position_embedding
+    biased_score, with_rotary_position_embedding
 
 import ..NeuralAttentionlib:
     split_head, move_head_dim_out_perm, move_head_dim_out,
@@ -186,12 +186,12 @@ See also: [`scalar_relative_position_embedding`](@ref), [`t5_bucketed_position_i
 t5_causal_bucketed_position_id
 
 """
-    rotary_position_embedding([size,] x)
+    with_rotary_position_embedding([size,] x)
 
 Apply rotary position embedding to `x`. Can take an `size` argument and the rotary position embedding will only apply
  to `x[1:size, :, ...]`. Should be used with `scaled_dot_product_score`/`dot_product_score`.
 """
-rotary_position_embedding
+with_rotary_position_embedding
 
 """
     get_sincos_position_embeddings(hidden_size::Integer, normalized::Bool, x)
