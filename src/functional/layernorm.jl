@@ -1,16 +1,32 @@
-_x_x2(x) = (x, x * x)
+_n_m_s(x) = (one(x), x, zero(x))
+
+function _chan_update(a, b)
+    n1, m1, s1 = a
+    n2, m2, s2 = b
+    iszero(n1) && return b
+    iszero(n2) && return a
+    n = n1 + n2
+    delta = m1 - m2
+    n2′ = n2 / n
+    m = fma(m1, n1 / n, m2 * n2′) #(m1 * n1 + m2 * n2) / n
+    s = fma(delta^2, n1 * n2′, s1 + s2) #s1 + s2 + delta^2 * n1 * n2′
+    return (n, m, s)
+end
+
 _x_y2(x, y) = (x, x * y)
 
-function _normalize(inN::T, ϵ::T, x::T, sum_sum2::NTuple{2, T}) where T
-    μ, s = sum_sum2 .* inN
-    σ₀ = sqrt(fma(μ, -μ, s))
+function _normalize(inN::T, ϵ::T, x::T, mean_M2_::NTuple{3, T}) where T
+    _, μ, M2 = mean_M2_
+    v = M2 * inN
+    σ₀ = sqrt(v)
     σ = max(σ₀, ϵ)
     return (x - μ) / σ
 end
 
-function _rstd(inN::T, ϵ::T, sum_sum2::NTuple{2, T}) where T
-    μ, s = sum_sum2 .* inN
-    σ₀ = sqrt(fma(μ, -μ, s))
+function _rstd(inN::T, ϵ::T, mean_M2_::NTuple{3, T}) where T
+    _, μ, M2 = mean_M2_
+    v = M2 * inN
+    σ₀ = sqrt(v)
     σ = max(σ₀, ϵ)
     return inv(σ)
 end
@@ -22,15 +38,15 @@ function layer_norm(epsilon, alpha, beta, x)
     ϵ = convert(T, epsilon)
     α = isnothing(alpha) ? one(T) : alpha
     β = isnothing(beta) ? zero(T) : beta
-    sum_sum2 = mapreduce(_x_x2, .+, x; dims=1, init = (zero(T), zero(T)))
-    return fma.(α, _normalize.(convert(T, 1//N), ϵ, x, sum_sum2), β)
+    mean_M2_ = mapreduce(_n_m_s, _chan_update, x; dims=1, init = (zero(T), zero(T), zero(T)))
+    return fma.(α, _normalize.(convert(T, 1//N), ϵ, x, mean_M2_), β)
 end
 
 _fma2(dy::T, dya::NTuple{2, T}, n::T, inN::T, is::T) where T = fma(fma(n, last(dya), first(dya)), inN, dy) * is
-function Δlayer_norm_dx(Ȳ, ϵ, α, n, x, sum_sum2)
+function Δlayer_norm_dx(Ȳ, ϵ, α, n, x, mean_M2_)
     T = eltype(x)
     N = size(x, 1)
-    is = Broadcast.instantiate(Broadcast.broadcasted(_rstd, convert(T, 1//N), ϵ, sum_sum2))
+    is = Broadcast.instantiate(Broadcast.broadcasted(_rstd, convert(T, 1//N), ϵ, mean_M2_))
     dy = Broadcast.instantiate(Broadcast.broadcasted(*, Ȳ, α))
     dya = mapreduce(_x_y2, .+, dy, n; dims=1, init=(zero(T), zero(T)))
     ∂x = _fma2.(dy, dya, n, -convert(T, 1//N), is)
@@ -54,8 +70,8 @@ function ChainRulesCore.rrule(::typeof(layer_norm), epsilon, alpha, beta, x)
     aβ = static(beta isa AbstractArray)
     α = as_bool(cα) ? one(T) : alpha
     β = as_bool(cβ) ? zero(T) : beta
-    sum_sum2 = mapreduce(_x_x2, .+, x; dims=1, init = (zero(T), zero(T)))
-    n = _normalize.(convert(T, 1//N), ϵ, x, sum_sum2)
+    mean_M2_ = mapreduce(_n_m_s, _chan_update, x; dims=1, init = (zero(T), zero(T), zero(T)))
+    n = _normalize.(convert(T, 1//N), ϵ, x, mean_M2_)
     y = fma.(α, n, β)
     function layer_norm_pullback(Ybar)
         Ȳ = unthunk(Ybar)
@@ -64,7 +80,7 @@ function ChainRulesCore.rrule(::typeof(layer_norm), epsilon, alpha, beta, x)
             dims = as_bool(aα) ? _taildims(Ȳ) : :, init = zero(eltype(Ȳ))
         )
         ∂β = as_bool(cβ) ? NoTangent() : @thunk sum(Ȳ; dims = as_bool(aβ) ? _taildims(Ȳ) : :)
-        ∂x = @thunk Δlayer_norm_dx(Ȳ, ϵ, α, n, x, sum_sum2)
+        ∂x = @thunk Δlayer_norm_dx(Ȳ, ϵ, α, n, x, mean_M2_)
         return (NoTangent(), NoTangent(), ∂α, ∂β, ∂x)
     end
     return y, layer_norm_pullback

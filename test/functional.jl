@@ -218,6 +218,14 @@
         @test LN0(x) ≈ layer_norm(0, LN0.diag.scale, LN0.diag.bias, x)
         @test rms_layer_norm_naive(LN0.diag.scale, x) ≈ rms_layer_norm(0, LN0.diag.scale, x)
 
+        x32 = drand(Float32, 100, 2) .+ 1f4
+        @test isapprox(Flux.normalise(x32; dims=1, ϵ = 1f-10), layer_norm(1f-10, nothing, nothing, x32); atol = 1e-1)
+        @test isapprox(
+            Flux.gradient(x->sum(sin.(Flux.normalise(x; dims=1, ϵ = 1f-10))), x32)[1],
+            Flux.gradient(x->sum(sin.(layer_norm(1f-10, nothing, nothing, x))), x32)[1];
+            atol = 1e-1
+        )
+
         if !USE_CUDA
             @testset "AD" begin
                 g = randn(20)
