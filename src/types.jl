@@ -104,4 +104,3 @@ get_attention_func_args(op::CausalMultiheadQKVAttenOp, q, k, v, mask = nothing) 
 
 "Same as [`CausalMultiheadQKVAttenOp`](@ref) but also return the attention score"
 const CausalMultiheadQKVAttenOpWithScore{F} = WithScore{CausalMultiheadQKVAttenOp{F}}
-
