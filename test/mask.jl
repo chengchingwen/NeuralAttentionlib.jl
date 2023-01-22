@@ -1,7 +1,7 @@
 @testset "mask" begin
     using LinearAlgebra
     using NeuralAttentionlib.Masks
-    using NeuralAttentionlib: getmask
+    using NeuralAttentionlib: getmask, lengths
 
     causal(x) = batched_triu!(copy(x), 0) |> device
     trilu(x, d) = batched_tril!(batched_triu!(copy(x), -d), d) |> device
@@ -201,6 +201,10 @@
         a2 = device(repeat(reshape(a0, (1, 5, 1, 2)); inner=(1,1,2,1)))
         ra2 = device(repeat(reshape(ra0, (1, 5, 1, 2)); inner=(1,1,2,1)))
         x2 = drandn(10, 5, 2,2)
+
+        @test lengths(LengthMask(b)) == b
+        @test lengths(RevLengthMask(b)) == b
+        @test lengths(GenericSequenceMask(a)) == b
 
         @test x .* a == x .* LengthMask(b)
         @test x .* ra == x .* RevLengthMask(b)

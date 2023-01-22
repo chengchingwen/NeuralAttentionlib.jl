@@ -11,7 +11,7 @@ using ..NeuralAttentionlib: @imexport
     GenericSequenceMask, LengthMask, RevLengthMask
 
 import ..NeuralAttentionlib: AbstractMask, AbstractSequenceMask, AbstractAttenMask,
-    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint
+    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint, lengths
 
 """
     AbstractDatalessMask <: AbstractAttenMask
@@ -466,5 +466,12 @@ julia> getmask(CausalMask(), randn(7,7), 2)
 ```
 """
 getmask
+
+"""
+    lengths(::AbstractSequenceMask)
+
+Get the number of `true`s of each batch in the sequence mask.
+"""
+lengths
 
 end

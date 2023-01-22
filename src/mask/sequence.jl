@@ -21,6 +21,11 @@ AxesConstraint(m::GenericSequenceMask) = (NDimConstraint(ndims(m)), ntuple(i->Di
 
 AttenMask(m::GenericSequenceMask) = GenericAttenMask(PermutedDimsArray(m.mask, ntuple(i-> i == 1 ? 2 : i == 2 ? 1 : i, Val(ndims(m)))) .* m.mask)
 
+_tn(m, s) = ntuple(identity, static(ndims(m)) - s)
+lengths(m::GenericSequenceMask) = reshape(sum(m.mask; dims = _tn(m, static(1))), :)
+lengths(m::GenericSequenceMask{2}) = m.mask
+
+
 struct LengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSequenceMask
     len::L
 end
@@ -49,6 +54,10 @@ Base.:(*)(m::LengthMask, l::Integer) = LengthMask(m.len .* l)
 Base.:(-)(m::LengthMask, l::Integer) = LengthMask(m.len .- l)
 Base.:(+)(l::Integer, m::LengthMask) = m + l
 Base.:(*)(l::Integer, m::LengthMask) = m * l
+
+lengths(m::LengthMask) = reshape(sum(m.len; dims = _tn(m, static(3))), :)
+lengths(m::LengthMask{1}) = m.len
+
 
 struct RevLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSequenceMask
     len::L
@@ -81,3 +90,6 @@ Base.:(*)(m::RevLengthMask, l::Integer) = RevLengthMask(m.len .* l)
 Base.:(-)(m::RevLengthMask, l::Integer) = RevLengthMask(m.len .- l)
 Base.:(+)(l::Integer, m::RevLengthMask) = m + l
 Base.:(*)(l::Integer, m::RevLengthMask) = m * l
+
+lengths(m::RevLengthMask) = reshape(sum(m.len; dims = _tn(m, static(3))), :)
+lengths(m::RevLengthMask{1}) = m.len
