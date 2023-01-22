@@ -10,14 +10,11 @@ Base.:!(m::AbstractMask) = FlipMask(m)
 Base.:!(m::FlipMask) = m.mask
 
 Adapt.adapt(to::CUDA.Adaptor, m::FlipMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask),))
-
 adapt_structure(to, x::FlipMask) = FlipMask(adapt(to, x.mask))
 GetIndexer(m::FlipMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size),), dest_size)
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Tuple) = !m.mask[I]
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:FlipMask}, I::Integer...) = !m.mask[I...]
-
-check_constraint(m::FlipMask, x) = check_constraint(m.mask, x)
 
 AxesConstraint(m::FlipMask) = AxesConstraint(m.mask)
 randomness(m::FlipMask) = randomness(m.mask)
@@ -67,8 +64,6 @@ Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, I::Tuple) where M
     return _combine_getmask(m.f, m.masks, I)
 end
 
-check_constraint(m::CombinedMask, x) = check_constraint(m.masks, x)
-
 function AxesConstraint(m::CombinedMask)
     merge_constraint(map(AxesConstraint, m.masks)...)
 end
@@ -107,9 +102,7 @@ function BatchedMask(mask)
 end
 
 Adapt.adapt(to::CUDA.Adaptor, m::BatchedMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = static(m.batch_dim)))
-
 adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim)
-
 GetIndexer(m::BatchedMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size), batch_dim = static(m.batch_dim)))
 
 @inline function _tailtuples(I, dim)
@@ -146,9 +139,7 @@ end
 AttenMask(r::RepeatMask) = RepeatMask(AttenMask(r.mask), r.num)
 
 Adapt.adapt(to::CUDA.Adaptor, m::RepeatMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), num = m.num))
-
 adapt_structure(to, x::RepeatMask) = RepeatMask(adapt(to, x.mask), x.num)
-
 GetIndexer(m::RepeatMask, dest_size = nothing) = Indexer{typeof(m)}((mask = GetIndexer(m.mask, dest_size), num = m.num))
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{M}, I::Integer...) where M <: RepeatMask = m[I]

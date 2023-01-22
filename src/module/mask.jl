@@ -30,7 +30,11 @@ AbstractArrayMask
 """
     AttenMask(m::AbstractMask)
 
-convert mask into corresponding attention mask
+Convert mask into corresponding attention mask.
+
+    AttenMask(q_mask::AbstractSequenceMask, k_mask::AbstractSequenceMask)
+
+Create a attention mask from 2 sequence masks specific the sequence mask for "query" and "key".
 """
 AttenMask
 
@@ -85,7 +89,7 @@ Attention mask specified by an array of integer that indicate the length dimensi
 
 # Example
 
-```julia
+```julia-repl
 julia> m = SymLengthMask([2,3])
 SymLengthMask{1, Vector{Int32}}(Int32[2, 3])
 
@@ -114,7 +118,7 @@ Attention mask specified by two arrays of integer that indicate the length dimen
 
 # Example
 
-```julia
+```julia-repl
 julia> bm = BiLengthMask([2,3], [3, 5])
 BiLengthMask{1, Vector{Int32}}(Int32[2, 3], Int32[3, 5])
 
@@ -148,7 +152,7 @@ A Sequence Mask specified by an array of integer that indicate the length dimens
 
 # Example
 
-```julia
+```julia-repl
 julia> ones(7, 7, 2) .* LengthMask([3, 5])
 7×7×2 Array{Float64, 3}:
 [:, :, 1] =
@@ -180,7 +184,7 @@ LengthMask
 
 # Example
 
-```julia
+```julia-repl
 julia> m = RevSymLengthMask([2,3])
 RevSymLengthMask{1, Vector{Int32}}(Int32[2, 3])
 
@@ -209,7 +213,7 @@ RevSymLengthMask
 
 # Example
 
-```julia
+```julia-repl
 julia> bm = RevBiLengthMask([2,3], [3, 5])
 RevBiLengthMask{1, Vector{Int32}}(Int32[2, 3], Int32[3, 5])
 
@@ -243,7 +247,7 @@ RevBiLengthMask
 
 # Example
 
-```julia
+```julia-repl
 julia> ones(7, 7, 2) .* RevLengthMask([3, 5])
 7×7×2 Array{Float64, 3}:
 [:, :, 1] =
@@ -267,6 +271,49 @@ julia> ones(7, 7, 2) .* RevLengthMask([3, 5])
 ```
 """
 RevLengthMask
+
+"""
+    GenericSequenceMask(mask::AbstractArray{Bool}) <: AbstractSequenceMask
+
+Create a sequence mask from an array of `Bool`.
+
+# Example
+
+```julia-repl
+julia> m = GenericSequenceMask(rand(Bool, 10, 2))
+GenericSequenceMask{3, Array{Bool, 3}}([0 1 … 0 0;;; 1 0 … 1 0])
+
+julia> trues(7, 10, 2) .* m
+7×10×2 BitArray{3}:
+[:, :, 1] =
+ 0  1  0  0  1  0  0  0  0  0
+ 0  1  0  0  1  0  0  0  0  0
+ 0  1  0  0  1  0  0  0  0  0
+ 0  1  0  0  1  0  0  0  0  0
+ 0  1  0  0  1  0  0  0  0  0
+ 0  1  0  0  1  0  0  0  0  0
+ 0  1  0  0  1  0  0  0  0  0
+
+[:, :, 2] =
+ 1  0  1  1  0  1  1  1  1  0
+ 1  0  1  1  0  1  1  1  1  0
+ 1  0  1  1  0  1  1  1  1  0
+ 1  0  1  1  0  1  1  1  1  0
+ 1  0  1  1  0  1  1  1  1  0
+ 1  0  1  1  0  1  1  1  1  0
+ 1  0  1  1  0  1  1  1  1  0
+
+julia> m.mask
+1×10×2 Array{Bool, 3}:
+[:, :, 1] =
+ 0  1  0  0  1  0  0  0  0  0
+
+[:, :, 2] =
+ 1  0  1  1  0  1  1  1  1  0
+
+```
+"""
+GenericSequenceMask
 
 """
     !m::AbstractMask
@@ -297,7 +344,7 @@ Attention mask wrapper over array mask for applying the same mask within the sam
 
 # Example
 
-```julia
+```julia-repl
 julia> m = SymLengthMask([2,3])
 SymLengthMask{1, Vector{Int32}}(Int32[2, 3])
 
@@ -351,7 +398,7 @@ Attention mask wrapper over array mask for doing inner repeat on the last dimens
 
 # Example
 
-```julia
+```julia-repl
 julia> m = SymLengthMask([2,3])
 SymLengthMask{1, Vector{Int32}}(Int32[2, 3])
 
@@ -404,7 +451,8 @@ RepeatMask
 Convert `m` into mask array of `AbstractArray` for `score` with `scale`.
 
 # Example
-```julia
+
+```julia-repl
 julia> getmask(CausalMask(), randn(7,7), 2)
 7×7 Matrix{Float64}:
  2.0  2.0  2.0  2.0  2.0  2.0  2.0
