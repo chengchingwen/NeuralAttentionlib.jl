@@ -11,7 +11,7 @@ using ..NeuralAttentionlib: @imexport
     GenericSequenceMask, LengthMask, RevLengthMask
 
 import ..NeuralAttentionlib: AbstractMask, AbstractSequenceMask, AbstractAttenMask,
-    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint, lengths
+    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint, lengths, BiSequenceMask
 
 """
     AbstractDatalessMask <: AbstractAttenMask

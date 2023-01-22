@@ -1,7 +1,7 @@
 @testset "mask" begin
     using LinearAlgebra
     using NeuralAttentionlib.Masks
-    using NeuralAttentionlib: getmask, lengths
+    using NeuralAttentionlib: getmask, lengths, AttenMask
 
     causal(x) = batched_triu!(copy(x), 0) |> device
     trilu(x, d) = batched_tril!(batched_triu!(copy(x), -d), d) |> device
@@ -191,7 +191,7 @@
         @test collect(c .* device(nested_mask2)) == collect(c) .* nested_mask2
     end
 
-    @testset "Sequence" begin
+    @testset "sequence mask" begin
         a0 = hcat([1, 1, 1, 1, 0], [1,1,1,0,0])
         ra0 = hcat([0, 1, 1, 1, 1], [0,0,1,1,1])
         a = device(reshape(a0, (1, 5, 2)))
@@ -212,6 +212,18 @@
         @test x2 .* a2 == x2 .* BatchedMask(LengthMask(b))
         @test x2 .* ra2 == x2 .* BatchedMask(RevLengthMask(b))
         @test x2 .* a2 == x2 .* BatchedMask(GenericSequenceMask(a))
+
+        m = reshape(a, 1, 5, 2) .* reshape(ra, 5, 1,  2)
+        x3 = drandn(5, 5, 2)
+        x4 = drandn(7, 7, 2)
+        @test x3 .* m == x3 .* AttenMask(GenericSequenceMask(a), GenericSequenceMask(ra))
+        @test x3 .* m == x3 .* AttenMask(LengthMask(b), RevLengthMask(b))
+        @test x3 .* m == x3 .* AttenMask(LengthMask(b), GenericSequenceMask(ra))
+        @test x3 .* m == x3 .* AttenMask(GenericSequenceMask(a), RevLengthMask(b))
+        @test x4 .* AttenMask(RevLengthMask(b), RevLengthMask(b)) ==
+            x4 .* Masks.BiSequenceMask(RevLengthMask(b), RevLengthMask(b))
+        @test x4 .* AttenMask(LengthMask(b), LengthMask(b)) ==
+            x4 .* Masks.BiSequenceMask(LengthMask(b), LengthMask(b))
 
         len = [5]
         l = 2

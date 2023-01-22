@@ -1,5 +1,7 @@
 ####################  Sequence Mask  ####################
 
+AttenMask(q::AbstractSequenceMask, k::AbstractSequenceMask) = BiSequenceMask(q, k)
+
 struct GenericSequenceMask{N, M <: AbstractArray{Bool, N}} <: AbstractSequenceMask
     mask::M
     function GenericSequenceMask(mask::AbstractArray{Bool})

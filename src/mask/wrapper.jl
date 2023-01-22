@@ -170,3 +170,55 @@ end
 
 randomness(m::RepeatMask) = randomness(m.mask)
 require_dest(m::RepeatMask) = require_dest(m.mask)
+
+struct BiSequenceMask{QM<:AbstractMask, KM<:AbstractMask} <: AbstractWrapperMask
+    q_mask::QM
+    k_mask::KM
+end
+
+Adapt.adapt(to::CUDA.Adaptor, m::BiSequenceMask) = Indexer{typeof(m)}((q_mask = adapt(to, m.q_mask), k_mask = adapt(to, m.k_mask)))
+adapt_structure(to, x::BiSequenceMask) = BiSequenceMask(adapt(to, x.q_mask), adapt(to, x.k_mask))
+
+bi_dest_size(::Nothing, is_q) = nothing
+function bi_dest_size(dest_size, is_q)
+    if length(dest_size) > 2
+        i, j = dest_size
+        J = ()
+    else
+        i, j, J... = dest_size
+    end
+    return is_q ? (1, j, J...) : (1, i, J...)
+end
+GetIndexer(m::BiSequenceMask, dest_size = nothing) = Indexer{typeof(m)}((
+    q_mask = GetIndexer(m.q_mask, bi_dest_size(dest_size, true)),
+    k_mask = GetIndexer(m.k_mask, bi_dest_size(dest_size, false))))
+
+Base.@propagate_inbounds function Base.getindex(m::Indexer{M}, i, j, J::Integer...) where M <: BiSequenceMask
+    q = m.q_mask[1, j, J...]
+    k = m.k_mask[1, i, J...]
+    return q & k
+end
+
+seq_cs_transpose(c) = c
+seq_cs_transpose(c::DimConstraint) = c.dim == 2 ? DimConstraint(1, c.val, c.fixed) : c
+function seq_cs_transpose(cs::Tuple{NDimConstraint, All1Constraint})
+    c, c1 = cs
+    c1.from == 2 && return (c, DimConstraint(1, 1), All1Constraint(3, c1.n-1))
+    return cs
+end
+function seq_cs_transpose(cs::Tuple{NDimConstraint, Vararg{DimConstraint}})
+    c = first(cs)
+    dcs = Base.tail(cs)
+    dc2 = findfirst(dc->dc.dim == 2, dcs)
+    !isnothing(dc2) && return (c, map(dc->dc.dim == 2 ? DimConstraint(1, dc.val, dc.fixed) : dc, dcs)...)
+    return cs
+end
+
+function AxesConstraint(m::BiSequenceMask)
+    qc = AxesConstraint(m.q_mask)
+    kc = seq_cs_transpose(AxesConstraint(m.k_mask))
+    return merge_constraint(qc, kc)
+end
+
+randomness(m::BiSequenceMask) = randomness(m.q_mask) | randomness(m.k_mask)
+require_dest(m::BiSequenceMask) = require_dest(m.q_mask) | require_dest(m.k_mask)
