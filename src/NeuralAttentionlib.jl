@@ -13,6 +13,8 @@ using NNlibCUDA
 
 using Requires
 
+export multihead_qkv_attention, Functional, Masks
+
 include("./utils.jl")
 
 # matrix multiplication
