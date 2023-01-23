@@ -113,7 +113,6 @@ abstract type AbstractWrapperMask <: AbstractMask end
 abstract type AbstractDatalessMask <: AbstractAttenMask end
 abstract type AbstractArrayMask <: AbstractAttenMask end
 
-Broadcast.broadcastable(m::AbstractMask) = m
 Base.eltype(::AbstractMask) = Bool
 Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::CartesianIndex) = I
 Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::Integer) = I
