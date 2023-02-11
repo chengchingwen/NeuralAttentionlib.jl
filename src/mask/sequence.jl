@@ -4,12 +4,18 @@ AttenMask(q::AbstractSequenceMask, k::AbstractSequenceMask) = BiSequenceMask(q, 
 
 struct GenericSequenceMask{N, M <: AbstractArray{Bool, N}} <: AbstractSequenceMask
     mask::M
-    function GenericSequenceMask(mask::AbstractArray{Bool})
-        if size(mask, 1) != 1
-            mask = reshape(mask, (1, size(mask)...))
-        end
-        return new{ndims(mask), typeof(mask)}(mask)
+    function GenericSequenceMask{N, M}(mask::M) where {N, M <: AbstractArray{Bool, N}}
+        @assert size(mask, 1) == 1
+        return new{N, M}(mask)
     end
+end
+
+GenericSequenceMask{N}(mask::AbstractArray{Bool}) where N = GenericSequenceMask{N, typeof(mask)}(mask)
+function GenericSequenceMask(mask::AbstractArray{Bool})
+    if size(mask, 1) != 1
+        mask = reshape(mask, (1, size(mask)...))
+    end
+    return GenericSequenceMask{ndims(mask), typeof(mask)}(mask)
 end
 GenericSequenceMask(mask) = GenericSequenceMask(convert(AbstractArray{Bool}, mask))
 
