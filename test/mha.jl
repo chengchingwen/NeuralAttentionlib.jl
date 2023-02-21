@@ -20,7 +20,7 @@
     end
 
     @testset "w/o mask" begin
-        x = randn(input_dims, 3, 2)
+        x = randn(Float32, input_dims, 3, 2)
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = true, pdrop = 0) # disable dropout
 
@@ -48,7 +48,7 @@
     end
 
     @testset "w/ future mask" begin
-        x = randn(input_dims, 3, 2)
+        x = randn(Float32, input_dims, 3, 2)
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = false, pdrop = 0) # disable dropout
 
@@ -76,7 +76,7 @@
     end
 
     @testset "w/ future + length mask" begin
-        x = randn(input_dims, 6, 2)
+        x = randn(Float32, input_dims, 6, 2)
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = false, pdrop = 0) # disable dropout
 
@@ -90,7 +90,7 @@
 
         old_q_len = Old_Impl.getmask(map(l->ones(l), q_len))
         old_k_len = Old_Impl.getmask(map(l->ones(l), k_len))
-        old_mask = zeros(6, 6, 2)
+        old_mask = zeros(Float32, 6, 6, 2)
         old_mask[1:4, 1:5, :] .= Old_Impl.getmask(old_k_len, old_q_len)
 
         mha = device(mha)
@@ -121,7 +121,7 @@
     end
 
     @testset "w/ future + reverse length mask" begin
-        x = randn(input_dims, 6, 2)
+        x = randn(Float32, input_dims, 6, 2)
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = false, pdrop = 0) # disable dropout
 
@@ -135,7 +135,7 @@
 
         old_q_len = reverse!(reverse!(Old_Impl.getmask(map(l->ones(l), q_len)); dims=1); dims=2)
         old_k_len = reverse!(reverse!(Old_Impl.getmask(map(l->ones(l), k_len)); dims=1); dims=2)
-        old_mask = zeros(6, 6, 2)
+        old_mask = zeros(Float32, 6, 6, 2)
         old_mask[3:6, 2:6, :] .= Old_Impl.getmask(old_k_len, old_q_len)
 
         mha = device(mha)
@@ -166,7 +166,7 @@
     end
 
     @testset "w/ batched mask" begin
-        x = randn(input_dims, 6, 2)
+        x = randn(Float32, input_dims, 6, 2)
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = false, pdrop = 0) # disable dropout
 
@@ -180,7 +180,7 @@
 
         old_q_len = reverse!(reverse!(Old_Impl.getmask(map(l->ones(l), q_len)); dims=1); dims=2)
         old_k_len = reverse!(reverse!(Old_Impl.getmask(map(l->ones(l), k_len)); dims=1); dims=2)
-        old_mask = zeros(6, 6, 2)
+        old_mask = zeros(Float32, 6, 6, 2)
         old_mask[3:6, 2:6, :] .= Old_Impl.getmask(old_k_len, old_q_len)
 
         mha = device(mha)
@@ -211,7 +211,7 @@
     end
 
     @testset "w/ score" begin
-        x = randn(input_dims, 6, 2)
+        x = randn(Float32, input_dims, 6, 2)
         mha = MultiheadAttention(head, input_dims, head_dims, output_dims;
                                  future = false, pdrop = 0) # disable dropout
 
@@ -225,7 +225,7 @@
 
         old_q_len = reverse!(reverse!(Old_Impl.getmask(map(l->ones(l), q_len)); dims=1); dims=2)
         old_k_len = reverse!(reverse!(Old_Impl.getmask(map(l->ones(l), k_len)); dims=1); dims=2)
-        old_mask = zeros(6, 6, 2)
+        old_mask = zeros(Float32, 6, 6, 2)
         old_mask[3:6, 2:6, :] .= Old_Impl.getmask(old_k_len, old_q_len)
 
         mha = device(mha)
@@ -276,7 +276,7 @@
         @test gradN[2] ≈ gradT[2]
         @test gradN[3] == gradT[3]
 
-        x0 = device(randn(input_dims, 6))
+        x0 = device(randn(Float32, input_dims, 6))
         @test mha(x0,x0,x0; return_score=true)[1] ≈ atten(mha, x0, CausalMask(), true)[1]
         @test reshape(mha(x0,x0,x0; return_score=true)[2],6,6,head,1) ≈ atten(mha, x0, CausalMask(), true)[2]
 
