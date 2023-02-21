@@ -18,7 +18,13 @@
     end
     uwcs(x) = size(unwrap_collapse(x))
 
-    for elt in (Float64, Float32, ComplexF64, ComplexF32)
+    if USE_CUDA
+        eltype_list = (Float64, Float32, Float16, ComplexF64, ComplexF32)
+    else
+        eltype_list = (Float64, Float32, ComplexF64, ComplexF32)
+    end
+
+    for elt in eltype_list
         @testset "API $elt" begin
             a = drandn(elt, 10)
             b = drandn(elt, 1, 10)
@@ -120,7 +126,7 @@
         end
     end
 
-    for elt in (Float64, Float32, ComplexF64, ComplexF32)
+    for elt in eltype_list
         for N in (2, 5, 10)
             @testset "gemm_strided $elt" begin
                 a = drandn(elt, 7, 6, 5, 4, 3, N)

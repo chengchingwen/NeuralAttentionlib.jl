@@ -27,7 +27,15 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
                   ptrC, ldc)
             return nothing
         end
+    end
+end
 
+for (elty, array) in (
+    (:ComplexF64, :AbstractArray), (:ComplexF32, :AbstractArray),
+    (:Float64, :AbstractArray), (:Float32, :AbstractArray),
+    (:Float16, :CuArray),
+)
+    @eval begin
         @inline function unsafe_gemm_strided_batched!(
             transA::Char, transB::Char,
             m::Int, n::Int, k::Int,
@@ -73,9 +81,9 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
         @inline function gemm_strided_batched_impl!(
             transA::Char, transB::Char,
             m::Int, n::Int, k::Int,
-            alpha::($elty), A::AbstractArray{$elty}, lda::Int, strideA::Int,
-            B::AbstractArray{$elty}, ldb::Int, strideB::Int, beta::($elty),
-            C::AbstractArray{$elty}, ldc::Int, strideC::Int, batchCount::Int)
+            alpha::($elty), A::$array{$elty}, lda::Int, strideA::Int,
+            B::$array{$elty}, ldb::Int, strideB::Int, beta::($elty),
+            C::$array{$elty}, ldc::Int, strideC::Int, batchCount::Int)
 
             ptrA = pointer(A)
             ptrB = pointer(B)
@@ -93,9 +101,9 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
 
         @inline function gemm_strided_batched!(
             transA::Char, transB::Char,
-            alpha::($elty), A::AbstractArray{$elty, 3},
-            B::AbstractArray{$elty, 3}, beta::($elty),
-            C::AbstractArray{$elty, 3})
+            alpha::($elty), A::$array{$elty, 3},
+            B::$array{$elty, 3}, beta::($elty),
+            C::$array{$elty, 3})
 
             Base.require_one_based_indexing(A, B, C)
             BLAS.chkstride1(A, B, C)
@@ -131,24 +139,24 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
 
         function gemm_strided_batched(
             transA::Char, transB::Char,
-            alpha::($elty), A::AbstractArray{$elty, 3},
-            B::AbstractArray{$elty, 3})
+            alpha::($elty), A::$array{$elty, 3},
+            B::$array{$elty, 3})
             C = similar(B, (size(A, transA == 'N' ? 1 : 2), size(B, transB == 'N' ? 2 : 1), max(size(A, 3), size(B, 3))))
             return gemm_strided_batched!(transA, transB, alpha, A, B, zero($elty), C)
         end
 
         function gemm_strided_batched(
             transA::Char, transB::Char,
-            A::AbstractArray{$elty, 3},
-            B::AbstractArray{$elty, 3})
+            A::$array{$elty, 3},
+            B::$array{$elty, 3})
             return gemm_strided_batched(transA, transB, one($elty), A, B)
         end
 
         function gemm_strided_batched!(
             transA::Char, transB::Char,
-            alpha::($elty), A::AbstractArray{$elty, N1},
-            B::AbstractArray{$elty, N2}, beta::($elty),
-            C::AbstractArray{$elty, N3},
+            alpha::($elty), A::$array{$elty, N1},
+            B::$array{$elty, N2}, beta::($elty),
+            C::$array{$elty, N3},
             Ai, Aj, Bi, Bj, Ci, Cj) where {N1, N2, N3}
 
             # (a1, a2, ..., ai-1, ai, ai+1, ..., aj-1, aj, ..., an)
@@ -197,8 +205,8 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
 
         function gemm_strided_batched(
             transA::Char, transB::Char,
-            alpha::($elty), A::AbstractArray{$elty, N1},
-            B::AbstractArray{$elty, N2},
+            alpha::($elty), A::$array{$elty, N1},
+            B::$array{$elty, N2},
             Ai, Aj, Bi, Bj) where {N1, N2}
 
             m = noncollapsed_size(A, Ai, Aj, transA == 'N' ? 1 : 2)
@@ -215,8 +223,8 @@ for (gemm, elty) in NNlib.gemm_datatype_mappings
 
         function gemm_strided_batched(
             transA::Char, transB::Char,
-            A::AbstractArray{$elty, N1},
-            B::AbstractArray{$elty, N2},
+            A::$array{$elty, N1},
+            B::$array{$elty, N2},
             Ai, Aj, Bi, Bj) where {N1, N2}
             return gemm_strided_batched(transA, transB, one($elty), A, B, Ai, Aj, Bi, Bj)
         end

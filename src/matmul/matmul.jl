@@ -97,6 +97,18 @@ end
 
 NNlib.is_strided(ca::CollapsedDimsArray) = NNlib.is_strided(parent(ca))
 
+check_strided_gemm_type(ca::CollapsedDimsArray) = check_strided_gemm_type(parent(ca))
+check_strided_gemm_type(A::AbstractArray) = eltype(A) <: BLAS.BlasFloat
+check_strided_gemm_type(A::AbstractArray{Float16}) = false
+check_strided_gemm_type(A::CuArray{Float16}) = true
+
+function use_gemm_strided_batched(A::AbstractArray{TA}, B::AbstractArray{TB}) where {TA, TB}
+    if NNlib.is_strided(A) && NNlib.is_strided(B)
+        return check_strided_gemm_type(A) && check_strided_gemm_type(B)
+    end
+    return false
+end
+
 @inline function matmul_wrapper(transA::Union{AbstractChar, StaticInt}, transB::Union{AbstractChar, StaticInt}, alpha::Number, A::AbstractArray{TA, 3}, B::AbstractArray{TB, 3}) where {TA, TB}
     mA = size(A, Int(transA) == static(Int('N')) ? 1 : 2)
     kA = size(A, Int(transA) == static(Int('N')) ? 2 : 1)
@@ -109,7 +121,7 @@ NNlib.is_strided(ca::CollapsedDimsArray) = NNlib.is_strided(parent(ca))
         throw(DimensionMismatch("A has dimensions ($mA,$kA,$bA) but B has dimensions ($kB,$nB,$bB)"))
     end
 
-    if TA <: BLAS.BlasFloat && TB <: BLAS.BlasFloat && NNlib.is_strided(A) && NNlib.is_strided(B)
+    if use_gemm_strided_batched(A, B)
         return gemm_strided_batched_wrapper(transA, transB, alpha, A, B)
     else
         return generic_matmul(transA, transB, alpha, A, B)
