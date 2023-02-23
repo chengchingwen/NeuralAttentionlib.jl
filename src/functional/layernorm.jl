@@ -1,4 +1,5 @@
-_n_m_s(x) = (one(x), x, zero(x))
+_n_m_s(x) = (one(Int32), x, zero(x))
+_n_m_s(x::Float16) = (one(Int32), Float32(x), zero(Float32))
 
 function _chan_update(a, b)
     n1, m1, s1 = a
@@ -15,7 +16,7 @@ end
 
 _x_y2(x, y) = (x, x * y)
 
-function _normalize(inN::T, ϵ::T, x::T, mean_M2_::NTuple{3, T}) where T
+function _normalize(inN::T, ϵ::T, x::T, mean_M2_::Tuple{Int32, T, T}) where T
     _, μ, M2 = mean_M2_
     v = M2 * inN
     σ₀ = sqrt(v)
@@ -23,13 +24,32 @@ function _normalize(inN::T, ϵ::T, x::T, mean_M2_::NTuple{3, T}) where T
     return (x - μ) / σ
 end
 
-function _rstd(inN::T, ϵ::T, mean_M2_::NTuple{3, T}) where T
+function _normalize(inN::Float16, ϵ::Float16, x::Float16, mean_M2_::Tuple{Int32, Float32, Float32})
+    _, μ, M2 = mean_M2_
+    v = Float16(M2) * inN
+    σ₀ = sqrt(v)
+    σ = max(σ₀, ϵ)
+    return Float16(Float32(x) - μ) / σ
+end
+
+function _rstd(inN::T, ϵ::T, mean_M2_::Tuple{Int32, T, T}) where T
     _, μ, M2 = mean_M2_
     v = M2 * inN
     σ₀ = sqrt(v)
     σ = max(σ₀, ϵ)
     return inv(σ)
 end
+
+function _rstd(inN::Float16, ϵ::Float16, mean_M2_::Tuple{Int32, Float32, Float32})
+    _, μ, M2 = mean_M2_
+    v = Float16(M2) * inN
+    σ₀ = sqrt(v)
+    σ = max(σ₀, ϵ)
+    return inv(σ)
+end
+
+_mean_M2_init(::Type{T}) where T = (zero(Int32), zero(T), zero(T))
+_mean_M2_init(::Type{Float16}) = _mean_M2_init(Float32)
 
 layer_norm(alpha, beta, x) = layer_norm(1e-5, alpha, beta, x)
 function layer_norm(epsilon, alpha, beta, x)
@@ -38,17 +58,22 @@ function layer_norm(epsilon, alpha, beta, x)
     ϵ = convert(T, epsilon)
     α = isnothing(alpha) ? one(T) : alpha
     β = isnothing(beta) ? zero(T) : beta
-    mean_M2_ = mapreduce(_n_m_s, _chan_update, x; dims=1, init = (zero(T), zero(T), zero(T)))
+    mean_M2_ = mapreduce(_n_m_s, _chan_update, x; dims=1, init = _mean_M2_init(T))
     return fma.(α, _normalize.(convert(T, 1//N), ϵ, x, mean_M2_), β)
 end
 
+_dya_init(::Type{T}) where T = (zero(T), zero(T))
+_dya_init(::Type{Float16}) = _dya_init(Float32)
+
 _fma2(dy::T, dya::NTuple{2, T}, n::T, inN::T, is::T) where T = fma(fma(n, last(dya), first(dya)), inN, dy) * is
+_fma2(dy::Float16, dya::NTuple{2, Float32}, n::Float16, inN::Float16, is::Float16) =
+    fma(fma(n, Float16(last(dya)), Float16(first(dya))), inN, dy) * is
 function Δlayer_norm_dx(Ȳ, ϵ, α, n, x, mean_M2_)
     T = eltype(x)
     N = size(x, 1)
     is = Broadcast.instantiate(Broadcast.broadcasted(_rstd, convert(T, 1//N), ϵ, mean_M2_))
     dy = Broadcast.instantiate(Broadcast.broadcasted(*, Ȳ, α))
-    dya = mapreduce(_x_y2, .+, dy, n; dims=1, init=(zero(T), zero(T)))
+    dya = mapreduce(_x_y2, .+, dy, n; dims = 1, init = _dya_init(T))
     ∂x = _fma2.(dy, dya, n, -convert(T, 1//N), is)
     return ∂x
 end
@@ -70,7 +95,7 @@ function ChainRulesCore.rrule(::typeof(layer_norm), epsilon, alpha, beta, x)
     aβ = static(beta isa AbstractArray)
     α = as_bool(cα) ? one(T) : alpha
     β = as_bool(cβ) ? zero(T) : beta
-    mean_M2_ = mapreduce(_n_m_s, _chan_update, x; dims=1, init = (zero(T), zero(T), zero(T)))
+    mean_M2_ = mapreduce(_n_m_s, _chan_update, x; dims=1, init = _mean_M2_init(T))
     n = _normalize.(convert(T, 1//N), ϵ, x, mean_M2_)
     y = fma.(α, n, β)
     function layer_norm_pullback(Ybar)
