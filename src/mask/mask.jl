@@ -82,6 +82,10 @@ true
 """
 function apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
     scale = convert(eltype(score), op.scale)
+    if isinf(scale)
+        scale = scale > 0 ? prevfloat(scale) :  nextfloat(scale)
+        @assert !isinf(scale)
+    end
     apply = op.apply
     m = as_bool(op.flip) ? !mask : mask
 
@@ -96,6 +100,10 @@ end
 
 function apply_mask!(op::GenericMaskOp, mask::AbstractMask, score)
     scale = convert(eltype(score), op.scale)
+    if isinf(scale)
+        scale = scale > 0 ? prevfloat(scale) :  nextfloat(scale)
+        @assert !isinf(scale)
+    end
     apply = op.apply
     m = as_bool(op.flip) ? !mask : mask
 
