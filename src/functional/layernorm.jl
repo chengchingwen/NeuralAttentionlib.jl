@@ -8,8 +8,8 @@ function _chan_update(a, b)
     iszero(n2) && return a
     n = n1 + n2
     delta = m1 - m2
-    n2′ = n2 / n
-    m = fma(m1, n1 / n, m2 * n2′) #(m1 * n1 + m2 * n2) / n
+    n2′ = oftype(delta, n2) / n
+    m = fma(m1, oftype(delta, n1) / n, m2 * n2′) #(m1 * n1 + m2 * n2) / n
     s = fma(delta^2, n1 * n2′, s1 + s2) #s1 + s2 + delta^2 * n1 * n2′
     return (n, m, s)
 end
