@@ -79,9 +79,13 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractVecOrMat, B::Abstract
     Y = matmul(A, B, s)
     function matmul_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        Athunk = @thunk matmul(Ȳ, B', s)
-        Bthunk = @thunk matmul(A', Ȳ, s)
-        sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
+        if Ȳ isa ChainRulesCore.AbstractZero
+            Athunk = Bthunk = sthunk = NoTangent()
+        else
+            Athunk = @thunk matmul(Ȳ, B', s)
+            Bthunk = @thunk matmul(A', Ȳ, s)
+            sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
+        end
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
     matmul_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())
