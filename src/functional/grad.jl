@@ -465,3 +465,61 @@ function ChainRulesCore.rrule(
     end
     return y, generic_multihead_qkv_attention_pullback
 end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(naive_qkv_attention),
+    q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    y, attention_pullback = rrule(config, generic_qkv_attention, weighted_sum_mixing, naive_attention_score(args...),
+                                  q, k, v)
+    N = static(length(args))
+    function naive_attention_pullback(Ȳ)
+        _, _, _, ∂q, ∂k, ∂v = attention_pullback(Ȳ)
+        return (NoTangent(), ∂q, ∂k, ∂v, ntuple(i->NoTangent(), N)...)
+    end
+    return y, naive_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(naive_qkv_attention),
+    ::typeof(score_returning),
+    q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    y, attention_pullback = rrule(config, generic_qkv_attention,
+                                  score_returning(weighted_sum_mixing), naive_attention_score(args...), q, k, v)
+    N = static(length(args))
+    function naive_attention_pullback(Ȳ)
+        _, _, _, ∂q, ∂k, ∂v = attention_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ntuple(i->NoTangent(), N)...)
+    end
+    return y, naive_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(multihead_qkv_attention),
+    head::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    y, attention_pullback = rrule(config, generic_multihead_qkv_attention,
+                                  weighted_sum_mixing, naive_attention_score(args...), head, q, k, v)
+    N = static(length(args))
+    function multihead_attention_pullback(Ȳ)
+        _, _, _, _, ∂q, ∂k, ∂v = attention_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ntuple(i->NoTangent(), N)...)
+    end
+    return y, multihead_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(multihead_qkv_attention),
+    ::typeof(score_returning),
+    head::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    y, attention_pullback = rrule(config, generic_multihead_qkv_attention,
+                                  score_returning(weighted_sum_mixing), naive_attention_score(args...), head, q, k, v)
+    N = static(length(args))
+    function multihead_attention_pullback(Ȳ)
+        _, _, _, _, ∂q, ∂k, ∂v = attention_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ntuple(i->NoTangent(), N)...)
+    end
+    return y, multihead_attention_pullback
+end
