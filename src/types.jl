@@ -1,3 +1,5 @@
+using ChainRulesCore
+
 abstract type AbstractAttenOp end
 abstract type AbstractAttenScoreOp end
 abstract type AbstractMixingOp end
@@ -5,6 +7,32 @@ abstract type AbstractMixingOp end
 get_attention_func(::AbstractAttenOp) = error("`get_attention_func` must be overloaded.")
 get_attention_func_args(::AbstractAttenOp, args...) = error("`get_attention_func_args` must be overloaded.")
 (op::AbstractAttenOp)(args...) = get_attention_func(op)(get_attention_func_args(op, args...)...)
+
+struct AttenOpPullback{B, F, A}
+    f_pullback::B
+    get_func_pullback::F
+    get_arg_pullback::A
+end
+function (pb::AttenOpPullback)(Ȳ)
+    ∂f, ∂op_args... = pb.f_pullback(Ȳ)
+    _, ∂op1, ∂args... = pb.get_arg_pullback(∂op_args)
+    _, ∂op2 = pb.get_func_pullback(∂f)
+    ∂op = ∂op1 + ∂op2
+    return (∂op, ∂args...)
+end
+
+function ChainRulesCore.rrule(config::RuleConfig, op::AbstractAttenOp, args...)
+    get_func_tape = rrule(config, get_attention_func, op)
+    isnothing(get_func_tape) && (get_func_tape = rrule_via_ad(config, get_attention_func, op))
+    func, get_func_pullback = get_func_tape
+    get_arg_tape = rrule(config, get_attention_func_args, op, args...)
+    isnothing(get_arg_tape) && (get_arg_tape = rrule_via_ad(config, get_attention_func_args, op, args...))
+    op_args, get_arg_pullback = get_arg_tape
+    f_tape = rrule(config, func, op_args...)
+    isnothing(f_tape) && (f_tape = rrule_via_ad(config, func, op_args...))
+    y, f_pullback = f_tape
+    return y, AttenOpPullback(f_pullback, get_func_pullback, get_arg_pullback)
+end
 
 function Base.show(io::IO, op::AbstractAttenOp)
     T = typeof(op)
