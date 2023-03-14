@@ -30,14 +30,17 @@ function last_n(s::Tuple, n)
     ntuple(i->s[offset + i], n)
 end
 
-_pf_arg_pullback(::Tuple{Vararg{NoTangent}}) = NoTangent()
-_pf_arg_pullback(∂args) = ∂args
-_pf_pullback(∂f::NoTangent, ∂args::NoTangent) = NoTangent()
-_pf_pullback(∂f, ∂args) = (f = ∂f, arg = ∂args)
-function _pf_pullback(∂pf::Tuple)
+struct PrefixedFunctionPullback{B, I, A}
+    back::B
+    num_input::I
+    num_f_args::A
+end
+function (pb::PrefixedFunctionPullback)(Ȳ)
+    ∂args = pb.back(Ȳ)
+    ∂pf = first_n(∂args, pb.num_f_args)
     ∂f = first(∂pf)
-    ∂args = _pf_arg_pullback(Base.tail(∂pf))
-    return _pf_pullback(∂f, ∂args)
+    ∂arg = Base.tail(∂pf)
+    return (Tangent{PrefixedFunction}(; f = ∂f, arg = ∂arg), last_n(∂args, pb.num_input)...)
 end
 
 function ChainRulesCore.rrule(config::RuleConfig, pf::PrefixedFunction, args...)
@@ -46,9 +49,5 @@ function ChainRulesCore.rrule(config::RuleConfig, pf::PrefixedFunction, args...)
     y, back = f_tape
     num_input = static(length(args))
     num_f_args = static(length(pf.arg)) + static(1)
-    function pf_pullback(Ȳ)
-        ∂args = back(Ȳ)
-        return (_pf_pullback(first_n(∂args, num_f_args)), last_n(∂args, num_input)...)
-    end
-    return y, pf_pullback
+    return y, PrefixedFunctionPullback(back, num_input, num_f_args)
 end

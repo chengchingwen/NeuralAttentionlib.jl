@@ -391,7 +391,9 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(attention_score), pf:
     n_iargs = static(length(args))
     function attention_score_pullback(Ȳ)
         ∂Ys = Base.tail(score_pullback(Ȳ))
-        return (NoTangent(), _pf_pullback(first_n(∂Ys, n_pf)), last_n(∂Ys, n_iargs)...)
+        ∂pf_arg = first_n(∂Ys, n_pf)
+        ∂pf = Tangent{PrefixedFunction}(; f = first(∂pf_arg), arg = Base.tail(∂pf_arg))
+        return (NoTangent(), ∂pf, last_n(∂Ys, n_iargs)...)
     end
     return score_val, attention_score_pullback
 end
