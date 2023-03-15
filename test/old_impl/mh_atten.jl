@@ -1,3 +1,4 @@
+using ChainRulesCore
 using Flux
 using Flux: @functor
 using MacroTools: @forward, @capture
@@ -29,8 +30,7 @@ function create_atten_mask(T::Type, score::AbstractArray, _mask::AbstractArray, 
   mask .= (1 .- mask) .* maskval
   return mask
 end
-
-Flux.@nograd create_atten_mask
+ChainRulesCore.@non_differentiable create_atten_mask(T, score, _mask, future)
 
 struct MultiheadAttention{Q<:Dense, K<:Dense, V<:Dense, O<:Dense, DP<:Dropout} <: AbstractAttention
     head::Int
@@ -48,9 +48,9 @@ Flux.functor(mh::MultiheadAttention) = (mh.iqproj, mh.ikproj, mh.ivproj, mh.opro
     MultiheadAttention(head::Int, is::Int, hs::Int, os::Int;
                        future::Bool=true, pdrop = 0.1)
 
-Multihead dot product Attention Layer, `head` is the number of head, 
-`is` is the input size, `hs` is the hidden size of input projection layer of each head, 
-`os` is the output size. When `future` is `false`, the k-th token can't see tokens at > k. 
+Multihead dot product Attention Layer, `head` is the number of head,
+`is` is the input size, `hs` is the hidden size of input projection layer of each head,
+`os` is the output size. When `future` is `false`, the k-th token can't see tokens at > k.
 `pdrop` is the dropout rate.
 """
 MultiheadAttention(head::Int,
