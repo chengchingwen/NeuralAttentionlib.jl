@@ -50,6 +50,7 @@ Base.parent(ca::CollapsedDimsArray) = ca.parent
 
 Base.similar(ca::CollapsedDimsArray, eltype::Type, dims::Dims) = similar(parent(ca), eltype, dims)
 Base.similar(ca::CollapsedDimsArray, eltype::Type) = CollapsedDimsArray(similar(parent(ca), eltype), ca.dims, ca.ni, ca.nj)
+Base.copy(ca::CollapsedDimsArray) = CollapsedDimsArray(copy(parent(ca)), ca.dims, ca.ni, ca.nj)
 
 Base.eltype(::CollapsedDimsArray{T}) where T = T
 Base.length(ca::CollapsedDimsArray) = length(parent(ca))
@@ -68,9 +69,11 @@ Base.collect(ca::CollapsedDimsArray) = reshape(collect(parent(ca)), ca.dims)
 
 Base.getindex(ca::CollapsedDimsArray, i::Integer) = parent(ca)[i]
 Base.getindex(ca::CollapsedDimsArray, i::Integer...) = getindex(ca, Base._sub2ind(axes(ca), i...))
+Base.getindex(ca::CollapsedDimsArray, is...) = getindex(collapseddims(ca), is...)
 
 Base.setindex!(ca::CollapsedDimsArray, v, i::Integer) = setindex!(parent(ca), v, i)
 Base.setindex!(ca::CollapsedDimsArray, v, i::Integer...) = setindex!(ca, v, Base._sub2ind(axes(ca), i...))
+Base.setindex!(ca::CollapsedDimsArray, v, is...) = setindex!(collapseddims(ca), v, is...)
 
 Base.view(ca::CollapsedDimsArray, I::Vararg{Any, N}) where N = view(collapseddims(ca), I...)
 
