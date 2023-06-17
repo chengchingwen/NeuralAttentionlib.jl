@@ -7,8 +7,14 @@ with_rotary_position_embedding(::Nothing, x) = with_rotary_position_embedding(x)
 with_rotary_position_embedding(x) = with_rotary_position_embedding!(copy(x))
 function with_rotary_position_embedding(dim::Integer, x)
     y = copy(x)
-    y′ = @view y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...]
-    with_rotary_position_embedding!(y′)
+    @static if VERSION < v"1.9"
+        y′ = @view y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...]
+        with_rotary_position_embedding!(y′)
+    else
+        y′ = y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...]
+        with_rotary_position_embedding!(y′)
+        y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...] .= y′
+    end
     return y
 end
 
@@ -35,12 +41,23 @@ function with_rotary_position_embedding!(x)
     @assert iseven(hidden_size) "rotary position embedding require the feature dim is even."
     len = size(x, 2)
     half = hidden_size >> 1
-    sincos = Broadcast.broadcasted(rotary_sincos_position_embed, default_position_func(hidden_size),
-                                   Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
-                                   reinterpret(NTuple{2, CartesianIndex{2}}, CartesianIndices((hidden_size, len))),
-                                   Val(false))
-    x′ = reinterpret(NTuple{2, eltype(x)}, x)
-    x′ .= _rotary.(x′, sincos)
+    @static if VERSION < v"1.9"
+        sincos = Broadcast.broadcasted(rotary_sincos_position_embed, default_position_func(hidden_size),
+                                       Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
+                                       reinterpret(NTuple{2, CartesianIndex{2}}, CartesianIndices((hidden_size, len))),
+                                       Val(false))
+        x′ = reinterpret(NTuple{2, eltype(x)}, x)
+        x′ .= _rotary.(x′, sincos)
+    else
+        sincos = Broadcast.broadcasted(sincos_position_embed, default_position_func(hidden_size),
+                                       Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
+                                       CartesianIndices((hidden_size, len)),
+                                       Val(false))
+        x′ = reinterpret(NTuple{2, eltype(x)}, x)
+        _sincos = similar(x, (hidden_size, len))
+        _sincos .= sincos
+        x′ .= _rotary.(x′, reinterpret(NTuple{2, eltype(_sincos)}, _sincos))
+    end
     return x
 end
 
@@ -49,16 +66,31 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(with_rotary_position_
     @assert iseven(hidden_size) "rotary position embedding require the feature dim is even."
     len = size(x, 2)
     half = hidden_size >> 1
-    sincos = Broadcast.broadcasted(rotary_sincos_position_embed, default_position_func(hidden_size),
-                                   Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
-                                   reinterpret(NTuple{2, CartesianIndex{2}}, CartesianIndices((hidden_size, len))),
-                                   Val(false))
-    x′ = reinterpret(NTuple{2, eltype(x)}, x)
-    y = reshape(reinterpret(eltype(x), _rotary.(x′, sincos)), size(x))
+    @static if VERSION < v"1.9"
+        sincos = Broadcast.broadcasted(rotary_sincos_position_embed, default_position_func(hidden_size),
+                                       Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
+                                       reinterpret(NTuple{2, CartesianIndex{2}}, CartesianIndices((hidden_size, len))),
+                                       Val(false))
+        x′ = reinterpret(NTuple{2, eltype(x)}, x)
+        y = reshape(reinterpret(eltype(x), _rotary.(x′, sincos)), size(x))
+    else
+        sincos = Broadcast.broadcasted(sincos_position_embed, default_position_func(hidden_size),
+                                       Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
+                                       CartesianIndices((hidden_size, len)),
+                                       Val(false))
+        x′ = reinterpret(NTuple{2, eltype(x)}, x)
+        _sincos = similar(x, (hidden_size, len))
+        _sincos .= sincos
+        y = reshape(reinterpret(eltype(x), _rotary.(x′, reinterpret(NTuple{2, eltype(_sincos)}, _sincos))), size(x))
+    end
     function with_rotary_position_embedding_pullback(Ybar)
         Ȳ = unthunk(Ybar)
         ∂y = reinterpret(NTuple{2, eltype(Ȳ)}, Ȳ)
-        ∂x′ = ∇_rotary.(∂y, sincos)
+        @static if VERSION < v"1.9"
+            ∂x′ = ∇_rotary.(∂y, sincos)
+        else
+            ∂x′ = ∇_rotary.(∂y, reinterpret(NTuple{2, eltype(_sincos)}, _sincos))
+        end
         ∂x = reshape(reinterpret(eltype(Ȳ), ∂x′), size(Ȳ))
         return (NoTangent(), ∂x)
     end
@@ -73,23 +105,46 @@ end
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(with_rotary_position_embedding), dim::Integer, x)
     y = copy(x)
-    x = @view y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...]
+    @static if VERSION < v"1.9"
+        x = @view y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...]
+    else
+        x = y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...]
+    end
     hidden_size = size(x, 1)
     @assert iseven(hidden_size) "rotary position embedding require the feature dim is even."
     len = size(x, 2)
     half = hidden_size >> 1
-    sincos = Broadcast.broadcasted(rotary_sincos_position_embed, default_position_func(hidden_size),
-                                   Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
-                                   reinterpret(NTuple{2, CartesianIndex{2}}, CartesianIndices((hidden_size, len))),
-                                   Val(false))
-    x′ = reinterpret(NTuple{2, eltype(x)}, x)
-    x′ .= _rotary.(x′, sincos)
+    @static if VERSION < v"1.9"
+        sincos = Broadcast.broadcasted(rotary_sincos_position_embed, default_position_func(hidden_size),
+                                       Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
+                                       reinterpret(NTuple{2, CartesianIndex{2}}, CartesianIndices((hidden_size, len))),
+                                       Val(false))
+        x′ = reinterpret(NTuple{2, eltype(x)}, x)
+        x′ .= _rotary.(x′, sincos)
+    else
+        sincos = Broadcast.broadcasted(sincos_position_embed, default_position_func(hidden_size),
+                                       Val(Int32(hidden_size)), Base.OneTo{Int32}(len)',
+                                       CartesianIndices((hidden_size, len)),
+                                       Val(false))
+        x′ = reinterpret(NTuple{2, eltype(x)}, x)
+        _sincos = similar(x, (hidden_size, len))
+        _sincos .= sincos
+        x′ .= _rotary.(x′, reinterpret(NTuple{2, eltype(_sincos)}, _sincos))
+        y[begin:dim, ntuple(i->Colon(), static(ndims(x)) - static(1))...] .= x
+    end
     function with_rotary_position_embedding_pullback(Ybar)
         Ȳ = unthunk(Ybar)
         ∂x = copy(Ȳ)
-        Ȳ′ = @view ∂x[begin:dim, ntuple(i->Colon(), static(ndims(∂x)) - static(1))...]
-        ∂y = reinterpret(NTuple{2, eltype(Ȳ′)}, Ȳ′)
-        ∂y .= ∇_rotary.(∂y, sincos)
+        @static if VERSION < v"1.9"
+            Ȳ′ = @view ∂x[begin:dim, ntuple(i->Colon(), static(ndims(∂x)) - static(1))...]
+            ∂y = reinterpret(NTuple{2, eltype(Ȳ′)}, Ȳ′)
+            ∂y .= ∇_rotary.(∂y, sincos)
+        else
+            Ȳ′ = ∂x[begin:dim, ntuple(i->Colon(), static(ndims(∂x)) - static(1))...]
+            ∂y = reinterpret(NTuple{2, eltype(Ȳ′)}, Ȳ′)
+            ∂y .= ∇_rotary.(∂y, reinterpret(NTuple{2, eltype(_sincos)}, _sincos))
+            ∂x[begin:dim, ntuple(i->Colon(), static(ndims(∂x)) - static(1))...] .= Ȳ′
+        end
         return (NoTangent(), NoTangent(), ∂x)
     end
     return y, with_rotary_position_embedding_pullback
