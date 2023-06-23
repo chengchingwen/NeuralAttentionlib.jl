@@ -128,6 +128,7 @@
 
     for elt in eltype_list
         for N in (2, 5, 10)
+            GC.gc()
             @testset "gemm_strided $elt" begin
                 a = drandn(elt, 7, 6, 5, 4, 3, N)
                 b = drandn(elt, 42, 20, 3N)
