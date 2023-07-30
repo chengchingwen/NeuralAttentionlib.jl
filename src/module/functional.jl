@@ -5,6 +5,7 @@ using ..NeuralAttentionlib: @imexport
 @imexport import ..NeuralAttentionlib:
     generic_qkv_attention, generic_multihead_qkv_attention,
     naive_qkv_attention, multihead_qkv_attention,
+    generic_grouped_query_attention, grouped_query_attention,
     mixing, weighted_sum_mixing, attention_score,
     scaled_dot_product_score, dot_product_score,
     masked_score, normalized_score, scalar_relative_position_embedding,
@@ -38,6 +39,20 @@ generic_multihead_qkv_attention
 Multihead version of [`naive_qkv_attention`](@ref). The core operation for implement a regular transformer layer.
 """
 multihead_qkv_attention
+
+"""
+    generic_grouped_query_attention(mixingf, scoref, head, group, q, k, v, args...)
+
+Generic version [`grouped_query_attention`](@ref). Need to specify mixing and score functon.
+"""
+generic_grouped_query_attention
+
+"""
+    grouped_query_attention(head, group, q, k, v, mask=nothing)
+
+Similar to [`multihead_qkv_attention`](@ref), but multiple queries are using the same group of keys/values.
+"""
+grouped_query_attention
 
 @doc raw"""
     naive_qkv_attention(q, k, v, mask=nothing)

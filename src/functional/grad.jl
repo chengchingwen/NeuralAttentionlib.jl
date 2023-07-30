@@ -88,6 +88,28 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(merge_head), x)
     return y, pullback
 end
 
+function ChainRulesCore.rrule(config::RuleConfig, ::typeof(repeat_head_group), n::Integer, x::CollapsedDimsArray)
+    p = parent(x)
+    ps = size(p)
+    s1, s2, s3 = size(x)
+    f_d, len_d, batch_d = noncollapsed_size(x)
+    n_len = static(length(len_d))
+    n_batch = static(length(batch_d))
+    n_mat = static(ndims(p)) - n_batch
+    rs1 = (f_d..., len_d..., 1, batch_d...)
+    rp = (ntuple(one, n_mat)..., n, ntuple(one, n_batch)...)
+    rs2 = (f_d..., len_d..., n * first(batch_d), Base.tail(batch_d)...)
+    y = reshape(repeat(reshape(p, rs1), rp...), rs2)
+    z = CollapsedDimsArray(y, (s1, s2, s3 * n), n_len, n_batch)
+    function repeat_head_group_pullback(Ybar)
+        Ȳ = unwrap_collapse(unthunk(Ybar))
+        ∂y = sum(reshape(Ȳ, (f_d..., len_d..., n, batch_d...)); dims = n_mat + 1)
+        ∂x = CollapsedDimsArray(reshape(∂y, ps), (s1, s2, s3), n_len, n_batch)
+        return (NoTangent(), NoTangent(), ∂x)
+    end
+    return z, repeat_head_group_pullback
+end
+
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(_split_and_move_head), head, x)
     s, split_back = rrule(config, split_head, head, x)
     y, move_back = rrule(config, move_head_dim_out, s)
@@ -522,4 +544,82 @@ function ChainRulesCore.rrule(
         return (NoTangent(), NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ntuple(i->NoTangent(), N)...)
     end
     return y, multihead_attention_pullback
+end
+
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(generic_grouped_query_attention),
+    mixingf, scoref, head::Integer, group::Integer,
+    q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    q′, q_back = rrule(config, as_collapsed, q)
+    k′, k_back = rrule(config, as_collapsed, k)
+    v′, v_back = rrule(config, as_collapsed, v)
+    y, atten_back = rrule(config, generic_grouped_query_attention, mixingf, scoref, head, group, q′, k′, v′, args...)
+    function generic_grouped_query_attention_pullback(Ȳ)
+        _, ∂mixingf, ∂scoref, _, _, ∂q′, ∂k′, ∂v′, ∂args... = atten_back(Ȳ)
+        _, ∂v = v_back(∂v′)
+        _, ∂k = k_back(∂k′)
+        _, ∂q = q_back(∂q′)
+        return (NoTangent(), ∂mixingf, ∂scoref, NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ∂args...)
+    end
+    return y, generic_grouped_query_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(generic_grouped_query_attention),
+    mixingf, scoref, head::Integer, group::Integer,
+    q::CollapsedDimsArray, k::CollapsedDimsArray, v::CollapsedDimsArray, args...
+)
+    rp, rem = divrem(head, group)
+    @assert iszero(rem)
+    hq, hq_back = rrule(config, _split_and_move_head, head, q)
+    gk, gk_back = rrule(config, _split_and_move_head, group, k)
+    hk, hk_back = rrule(config, repeat_head_group, rp, gk)
+    gv, gv_back = rrule(config, _split_and_move_head, group, v)
+    hv, hv_back = rrule(config, repeat_head_group, rp, gv)
+    t, atten_back = rrule(config, generic_qkv_attention, mixingf, scoref, hq, hk, hv, args...)
+    y, back = rrule(config, _move_and_merge_head, t)
+    @inline function generic_grouped_query_attention_pullback(Ȳ)
+        _, ∂t = back(Ȳ)
+        _, ∂mixingf, ∂scoref, ∂hq, ∂hk, ∂hv, ∂args... = atten_back(∂t)
+        _, _, ∂gv = hv_back(∂hv)
+        _, _, ∂v = gv_back(∂gv)
+        _, _, ∂gk = hk_back(∂hk)
+        _, _, ∂k = gk_back(∂gk)
+        _, _, ∂q = hq_back(∂hq)
+        return (NoTangent(), ∂mixingf, ∂scoref, NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ∂args...)
+    end
+    return y, generic_grouped_query_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(grouped_query_attention),
+    head::Integer, group::Integer, q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    y, attention_pullback = rrule(config, generic_grouped_query_attention,
+                                  weighted_sum_mixing, naive_attention_score(args...), head, group, q, k, v)
+    N = static(length(args))
+    function grouped_query_attention_pullback(Ȳ)
+        _, _, _, _, _, ∂q, ∂k, ∂v = attention_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ntuple(i->NoTangent(), N)...)
+    end
+    return y, grouped_query_attention_pullback
+end
+
+function ChainRulesCore.rrule(
+    config::RuleConfig, ::typeof(grouped_query_attention),
+    ::typeof(score_returning),
+    head::Integer, group::Integer,
+    q::AbstractArray, k::AbstractArray, v::AbstractArray, args...
+)
+    y, attention_pullback = rrule(config, generic_grouped_query_attention,
+                                  score_returning(weighted_sum_mixing), naive_attention_score(args...),
+                                  head, group, q, k, v)
+    N = static(length(args))
+    function grouped_query_attention_pullback(Ȳ)
+        _, _, _, _, _, ∂q, ∂k, ∂v = attention_pullback(Ȳ)
+        return (NoTangent(), NoTangent(), NoTangent(), NoTangent(), ∂q, ∂k, ∂v, ntuple(i->NoTangent(), N)...)
+    end
+    return y, grouped_query_attention_pullback
 end

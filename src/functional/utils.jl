@@ -77,3 +77,16 @@ function _move_and_merge_head(t::NamedTuple)
     return merge(t, (hidden_state = y,))
 end
 _move_and_merge_head(a) = (merge_head ∘ move_head_dim_in)(a)
+
+function repeat_head_group(n::Integer, x::CollapsedDimsArray)
+    p = parent(x)
+    s1, s2, s3 = size(x)
+    f_d, len_d, batch_d = noncollapsed_size(x)
+    n_batch = static(length(batch_d))
+    n_mat = static(ndims(p)) - n_batch
+    rs1 = (f_d..., len_d..., 1, batch_d...)
+    rp = (ntuple(one, n_mat)..., n, ntuple(one, n_batch)...)
+    rs2 = (f_d..., len_d..., n * first(batch_d), Base.tail(batch_d)...)
+    y = reshape(repeat(reshape(p, rs1), rp...), rs2)
+    return CollapsedDimsArray(y, (s1, s2, s3 * n), static(length(len_d)), n_batch)
+end

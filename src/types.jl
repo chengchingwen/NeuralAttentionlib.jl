@@ -86,8 +86,8 @@ end
 
 """
     struct MultiheadQKVAttenOp{F} <: AbstractAttenOp
-        head::Int                   # number of head
-        p::F  # dropout probability
+        head::Int  # number of head
+        p::F       # dropout probability
     end
 
 Structure for holding parameter of `multihead_qkv_attention`.
@@ -111,8 +111,8 @@ const MultiheadQKVAttenOpWithScore{F} = WithScore{MultiheadQKVAttenOp{F}}
 
 """
     struct CausalMultiheadQKVAttenOp{F} <: AbstractAttenOp
-        head::Int                   # number of head
-        p::F  # dropout probability
+        head::Int  # number of head
+        p::F       # dropout probability
     end
 
 Structure for holding parameter of `multihead_qkv_attention`.
@@ -132,3 +132,57 @@ get_attention_func_args(op::CausalMultiheadQKVAttenOp, q, k, v, mask = nothing) 
 
 "Same as [`CausalMultiheadQKVAttenOp`](@ref) but also return the attention score"
 const CausalMultiheadQKVAttenOpWithScore{F} = WithScore{CausalMultiheadQKVAttenOp{F}}
+
+"""
+    struct GroupedQueryAttenOp{F} <: AbstractAttenOp
+        head::Int
+        group::Int
+        p::F
+    end
+
+Structure for holding parameter of `grouped_query_attention`.
+
+    (op::GroupedQueryAttenOp)(q, k, v, mask = nothing)
+
+Perform grouped query attention.
+
+"""
+struct GroupedQueryAttenOp{F} <: AbstractAttenOp
+    head::Int
+    group::Int
+    p::F
+end
+GroupedQueryAttenOp(head, group) = GroupedQueryAttenOp(head, group, nothing)
+get_attention_func(::GroupedQueryAttenOp) = grouped_query_attention
+get_attention_func_args(op::GroupedQueryAttenOp, q, k, v, mask = nothing) =
+    (op.head, op.group, q, k, v, BatchedMask(mask), op.p)
+
+"Same as [`GroupedQueryAttenOp`](@ref) but also return the attention score"
+const GroupedQueryAttenOpWithScore{F} = WithScore{GroupedQueryAttenOp{F}}
+
+"""
+    struct CausalGroupedQueryAttenOp{F} <: AbstractAttenOp
+        head::Int
+        group::Int
+        p::F
+    end
+
+Structure for holding parameter of `grouped_query_attention`.
+
+    (op::CausalGroupedQueryAttenOp)(q, k, v, mask = nothing)
+
+Perform grouped query attention where `mask` would be combined with a [`CausalMask`](@ref).
+
+"""
+struct CausalGroupedQueryAttenOp{F} <: AbstractAttenOp
+    head::Int
+    group::Int
+    p::F
+end
+CausalGroupedQueryAttenOp(head, group) = CausalGroupedQueryAttenOp(head, group, nothing)
+get_attention_func(::CausalGroupedQueryAttenOp) = grouped_query_attention
+get_attention_func_args(op::CausalGroupedQueryAttenOp, q, k, v, mask = nothing) =
+    (op.head, op.group, q, k, v, BatchedMask(CausalMask() & mask), op.p)
+
+"Same as [`CausalGroupedQueryAttenOp`](@ref) but also return the attention score"
+const CausalGroupedQueryAttenOpWithScore{F} = WithScore{CausalGroupedQueryAttenOp{F}}

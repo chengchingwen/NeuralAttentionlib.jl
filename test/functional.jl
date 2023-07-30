@@ -6,11 +6,11 @@
     using ChainRulesCore
     using Pickle: npyload
     using NeuralAttentionlib.Matmul
-    using NeuralAttentionlib: as_collapsed, scaled_dot_product_score, dot_product_score, normalized_score,
-      biased_score, scalar_relative_position_embedding, get_scalar_relative_position_embeddings,
+    using NeuralAttentionlib.Functional
+    using NeuralAttentionlib: as_collapsed,
+      get_scalar_relative_position_embeddings,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
-      layer_norm, rms_layer_norm, get_sincos_position_embeddings,
-      with_rotary_position_embedding
+      layer_norm, rms_layer_norm, get_sincos_position_embeddings
 
     @testset "score" begin
         if !USE_CUDA
@@ -252,6 +252,59 @@
                 test_rrule(layer_norm, g, 0.3, x; atol = 1e-5)
                 test_rrule(layer_norm, 0, g, 0.3, x)
 
+            end
+        end
+    end
+
+    @testset "attention" begin
+        @testset "multihead_qkv_attention" begin
+            if !USE_CUDA
+                @testset "AD" begin
+                    for i = 1:3
+                        a = randn(20, 3, 2)
+                        b = randn(20, 5, 2)
+                        c = randn(20, 5, 2)
+                        test_rrule(multihead_qkv_attention, 4, a, b, c; atol = 1e-5)
+                    end
+                end
+            end
+        end
+
+        @testset "grouped_query_attention" begin
+            function naive_grouped_query_attention(head, group, q, k, v)
+                fdim, len, batch = size(q)
+                hdim = div(fdim, head)
+                hq = reshape(q, hdim, head, len, batch)
+                nq = div(head, group)
+                qs = ntuple(nq) do i
+                    reshape(hq[:, i:nq:end, :, :], group * hdim, len, batch)
+                end
+                os = ntuple(nq) do i
+                    reshape(multihead_qkv_attention(group, qs[i], k, v), hdim, group, len, batch)
+                end
+                o = reshape(cat(os...; dims=1), :, len, batch)
+                return o
+            end
+
+            a = drandn(30, 3, 2)
+            b = drandn(10, 5, 2)
+            c = drandn(10, 5, 2)
+
+            grad = Zygote.gradient((x,y,z)->sum(sin.(grouped_query_attention(6, 2, x, y, z))), a, b, c)
+            ngrad = Zygote.gradient((x,y,z)->sum(sin.(naive_grouped_query_attention(6, 2, x, y, z))), a, b, c)
+            @test grad[1] ≈ ngrad[1]
+            @test grad[2] ≈ ngrad[2]
+            @test grad[3] ≈ ngrad[3]
+
+            if !USE_CUDA
+                @testset "AD" begin
+                    for i = 1:3
+                        a = randn(30, 3, 2)
+                        b = randn(10, 5, 2)
+                        c = randn(10, 5, 2)
+                        test_rrule(grouped_query_attention, 6, 2, a, b, c; atol = 1e-5)
+                    end
+                end
             end
         end
     end
