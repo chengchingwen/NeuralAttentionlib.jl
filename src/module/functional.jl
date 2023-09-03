@@ -9,7 +9,7 @@ using ..NeuralAttentionlib: @imexport
     mixing, weighted_sum_mixing, attention_score,
     scaled_dot_product_score, dot_product_score,
     masked_score, normalized_score, scalar_relative_position_embedding,
-    biased_score, with_rotary_position_embedding
+    biased_score, with_rotary_position_embedding, alibi_position_embedding
 
 import ..NeuralAttentionlib:
     split_head, move_head_dim_out_perm, move_head_dim_out,
@@ -180,6 +180,16 @@ A relative position embedding that produce a trainable scalar bias for each valu
  dimensions.
 """
 scalar_relative_position_embedding
+
+"""
+    alibi_position_embedding(mask::Union{AbstractMask, Nothing}, score, args...)
+
+Add the non-trainable ALiBi position embedding to the attention score. The ALiBi embedding varied for each head, which
+ assuming the attention is multi-head variants. The first dimension of the batch dimension of the attention score is
+ treated as the head dimension. `mask` can either be a attention mask or `nothing`. Usually, it is needed when there are
+ gaps or prefix paddings in the samples.
+"""
+alibi_position_embedding
 
 """
     t5_bucketed_position_id(n_buckets::Int, max_distance::Int)
