@@ -9,7 +9,6 @@ import GPUArraysCore
 using ChainRulesCore
 
 using NNlib
-using NNlibCUDA
 
 using Requires
 
