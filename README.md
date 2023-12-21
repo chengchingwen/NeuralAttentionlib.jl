@@ -21,7 +21,7 @@ The core idea of this package is to make the attention operation composable, so 
  be used directly for high dimensional attentions, such as image or video.
 
 
-This package contain 3 submodules: `MatMul`, `Masks`, and `Functional`.
+This package contain 3 submodules: `Matmul`, `Masks`, and `Functional`.
 
 1. `Matmul` defines an Array wrapper `CollapsedDimsArray{T}(array, ni::Integer, nj::Integer)` which treat n-dimensional
  array as 3-dimensional array while preserving the original shape. By explicitly specifying which dimensions should be

@@ -4,7 +4,7 @@ using Documenter
 DocMeta.setdocmeta!(NeuralAttentionlib, :DocTestSetup, :(using NeuralAttentionlib); recursive=true)
 
 makedocs(;
-    modules=[NeuralAttentionlib],
+    modules=[NeuralAttentionlib.Matmul, NeuralAttentionlib.Masks, NeuralAttentionlib.Functional],
     authors="chengchingwen <adgjl5645@hotmail.com> and contributors",
     repo="https://github.com/chengchingwen/NeuralAttentionlib.jl/blob/{commit}{path}#{line}",
     sitename="NeuralAttentionlib.jl",

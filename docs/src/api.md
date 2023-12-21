@@ -11,6 +11,12 @@ Modules = [NeuralAttentionlib, NeuralAttentionlib.Functional, NeuralAttentionlib
 Pages   = ["functional.jl"]
 ```
 
+```@autodocs
+Modules = [NeuralAttentionlib]
+Pages   = ["types.jl", "utils.jl"]
+Filter  = t -> !(t isa typeof(NeuralAttentionlib.var"@imexport"))
+```
+
 ## Mask
 
 ```@autodocs

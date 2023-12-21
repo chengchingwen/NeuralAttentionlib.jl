@@ -4,6 +4,14 @@ as_bool(b::StaticBool) = Bool(b)
 as_char(c::Char) = c
 as_char(c::StaticInt) = Char(c)
 
+"""
+    PrefixedFunction(f, args::NTuple{N}) <: Function
+
+A type representating a partially-applied version of the function `f`, with the first `N` arguments fixed to the
+ values `args`. In other words, `PrefixedFunction(f, args)` behaves similarly to `(xs...)->f(args..., xs...)`.
+
+See also [`NeuralAttentionlib.:\$`](@ref).
+"""
 struct PrefixedFunction{F, A<:Tuple} <: Function
     f::F
     arg::A
@@ -17,6 +25,12 @@ Base.show(io::IO, ::MIME"text/plain", f::PrefixedFunction) = show(io, f)
 
 @inline (f::PrefixedFunction)(args...) = f.f(f.arg..., args...)
 
+"""
+    f \$ x
+    f \$ x \$ y \$ ...
+
+Partially-applied function. Return a [`PrefixedFunction`](@ref).
+"""
 ($)(f::Function, x) = PrefixedFunction(f, (x,))
 ($)(f::PrefixedFunction, x) = PrefixedFunction(f.f, (f.arg..., x))
 ($)(f::PrefixedFunction, g::PrefixedFunction) = PrefixedFunction(f.f, (f.arg..., g.f, g.arg...))

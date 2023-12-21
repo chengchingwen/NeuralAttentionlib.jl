@@ -90,7 +90,7 @@ end
         p::F       # dropout probability
     end
 
-Structure for holding parameter of `multihead_qkv_attention`.
+Structure for holding parameter of [`multihead_qkv_attention`](@ref).
 
     (op::MultiheadQKVAttenOp)(q, k, v, mask = nothing)
 
@@ -115,7 +115,7 @@ const MultiheadQKVAttenOpWithScore{F} = WithScore{MultiheadQKVAttenOp{F}}
         p::F       # dropout probability
     end
 
-Structure for holding parameter of `multihead_qkv_attention`.
+Structure for holding parameter of [`multihead_qkv_attention`](@ref).
 
     (op::CausalMultiheadQKVAttenOp)(q, k, v, mask = nothing)
 
@@ -140,7 +140,7 @@ const CausalMultiheadQKVAttenOpWithScore{F} = WithScore{CausalMultiheadQKVAttenO
         p::F
     end
 
-Structure for holding parameter of `grouped_query_attention`.
+Structure for holding parameter of [`grouped_query_attention`](@ref).
 
     (op::GroupedQueryAttenOp)(q, k, v, mask = nothing)
 
@@ -167,7 +167,7 @@ const GroupedQueryAttenOpWithScore{F} = WithScore{GroupedQueryAttenOp{F}}
         p::F
     end
 
-Structure for holding parameter of `grouped_query_attention`.
+Structure for holding parameter of [`grouped_query_attention`](@ref).
 
     (op::CausalGroupedQueryAttenOp)(q, k, v, mask = nothing)
 

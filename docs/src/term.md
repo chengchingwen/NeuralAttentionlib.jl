@@ -1,17 +1,17 @@
 # Terminology
 
 Term and Naming explanation.
-    
+
 ## Prerequisite
 
 Some term for better understanding this docs.
 
-### 1. [PartialFunctions](https://github.com/archermarx/PartialFunctions.jl)
+### 1. Partial Functions
 
 This actually live outside the scope of this package, but is extremely useful for illustrate the overall design.
- We'll use the `$` operation to denote partial function application 
+ We'll use the `$` operation to denote partial function application
  (i.e. `f $ x` is equivanlent to `(arg...)->f(x, arg...)`).
- 
+
 
 ### 2. Feature / Length / Batch Dimension
 
@@ -23,7 +23,7 @@ Under the context of attention operation in deep learning, the input data can be
 
 For example, given 3 sentence as a batch, each sentence have 10 word, and we choose to represent a word with
  a vector of 32 element. This data will be store in an 3-dim array with size `(32, 10, 3)`.
- 
+
 General speaking, *batch* stands for how many independent data you are going to run in one function call,
  usually just for performance/optimization need. *length* means how many entry you have for each data sample,
  like the #-words in a sentence or #-pixels in an image. *feature* is the number of value you used to
@@ -67,7 +67,7 @@ The overall attention operation can be viewed as three mutually inclusive block:
 The attention operation is actually a special way to "mix" (or "pick" in common lecture) the input information.
  In (probably) the first [attention paper](https://arxiv.org/abs/1409.0473), the attention is defined as weighted
  sum of the input sequence given a word embedding. The idea is furthur generalize to *QKV attention* in the first
- [transformer paper](https://arxiv.org/abs/1706.03762). 
+ [transformer paper](https://arxiv.org/abs/1706.03762).
 
 ### 1. Attention Score
 
