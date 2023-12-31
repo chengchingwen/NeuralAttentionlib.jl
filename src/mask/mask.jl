@@ -123,13 +123,4 @@ abstract type AbstractArrayMask <: AbstractAttenMask end
 
 Base.eltype(::AbstractMask) = Bool
 
-const MaskIndexer = Indexer{<:AbstractMask}
-Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I
-Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::Integer) = I
-Base.eltype(::MaskIndexer) = Bool
-Base.@propagate_inbounds Base.getindex(m::MaskIndexer, i::CartesianIndex) = m[Tuple(i)]
-Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
-
-Adapt.adapt(to::CUDA.Adaptor, m::AbstractArrayMask) = Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
-
 randomness(::AbstractMask) = static(false)

@@ -11,7 +11,35 @@ using ..NeuralAttentionlib: @imexport
     GenericSequenceMask, LengthMask, RevLengthMask
 
 import ..NeuralAttentionlib: AbstractMask, AbstractSequenceMask, AbstractAttenMask,
-    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint, lengths, BiSequenceMask
+    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint, Indexer, GetIndexer, set_dest_size,
+    CombinedMask, FlipMask, lengths, BiSequenceMask
+
+"""
+    Indexer{T <: AbstractMask, N} <: AbstractArray{Bool, N}
+
+A lazy array-like type implementing the computation of the marked mask `T`.
+
+    Indexer(m::AbstractMask, dest_size::NTuple{N, Int} where N)
+
+Convert the mask `m` to the corresponding `Indexer` without checking the size.
+
+See also: [`GetIndexer`](@ref)
+"""
+Indexer
+
+"""
+    GetIndexer(m::AbstractMask, dest_size::NTuple{N, Int} where N)
+
+Return the [`Indexer`](@ref) of `m` and check if the mask `m` can be applied to an array with size `dest_size`.
+"""
+GetIndexer
+
+"""
+    set_dest_size(I::Indexer, dest_size::NTuple{N, Int} where N)
+
+Set the size of the `Indexer`.
+"""
+set_dest_size
 
 """
     AbstractDatalessMask <: AbstractAttenMask
