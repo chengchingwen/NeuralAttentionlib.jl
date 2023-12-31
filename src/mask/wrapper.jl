@@ -177,7 +177,7 @@ adapt_structure(to, x::BiSequenceMask) = BiSequenceMask(adapt(to, x.q_mask), ada
 
 bi_dest_size(::Nothing, is_q) = nothing
 function bi_dest_size(dest_size, is_q)
-    if length(dest_size) > 2
+    if length(dest_size) <= 2
         i, j = dest_size
         J = ()
     else
