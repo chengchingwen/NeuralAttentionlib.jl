@@ -12,7 +12,4 @@ Base.size(m::AbstractMask) = ()
 
 const AxesConstraints = Tuple{Vararg{AxesConstraint}}
 
-function Base.Broadcast.preprocess(dest, m::AbstractMask)
-    check_constraint(AxesConstraint(m), axes(dest))
-    return GetIndexer(m, size(dest))
-end
+Base.Broadcast.preprocess(dest, m::AbstractMask) = GetIndexer(m, size(dest))

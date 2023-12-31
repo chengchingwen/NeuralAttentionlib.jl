@@ -20,8 +20,8 @@ include("./matmul/grad.jl")
 include("./matmul/scaled_matmul.jl")
 
 # attention score masking
-include("./mask/indexer.jl")
 include("./mask/mask.jl")
+include("./mask/indexer.jl")
 include("./mask/constraint.jl")
 include("./mask/broadcast.jl")
 include("./mask/sequence.jl")
