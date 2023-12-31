@@ -45,7 +45,7 @@ LengthMask(len::AbstractArray) = LengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::LengthMask) = LengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:LengthMask}, _, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:LengthMask}, _::Integer, j::Integer, J::Integer...)
     l = m.len[J...]
     return j <= l
 end
@@ -73,14 +73,12 @@ end
 
 Base.ndims(::RevLengthMask{N}) where N = N + 2
 
-require_dest(::RevLengthMask) = static(true)
-
 RevLengthMask(len::Integer) = RevLengthMask(Int32[len])
 RevLengthMask(len::AbstractArray) = RevLengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::RevLengthMask) = RevLengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevLengthMask, <:Tuple}, _, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevLengthMask}, _::Integer, j::Integer, J::Integer...)
     cl = m.dest_size[2]
     l = m.len[J...]
     return cl - l < j

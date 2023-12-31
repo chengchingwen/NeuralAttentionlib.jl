@@ -122,21 +122,12 @@ abstract type AbstractDatalessMask <: AbstractAttenMask end
 abstract type AbstractArrayMask <: AbstractAttenMask end
 
 Base.eltype(::AbstractMask) = Bool
-Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::CartesianIndex) = I
-Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::Integer) = I
 
 const MaskIndexer = Indexer{<:AbstractMask}
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I
 Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::Integer) = I
 Base.eltype(::MaskIndexer) = Bool
-
-GetIndexer(m::AbstractDatalessMask, dest_size = nothing) = m
-
-Base.@propagate_inbounds Base.getindex(m::AbstractMask, i::CartesianIndex) = m[Tuple(i)]
-Base.@propagate_inbounds Base.getindex(m::AbstractMask, I::Tuple) = GetIndexer(m)[I...]
-Base.@propagate_inbounds Base.getindex(m::M, I::Integer...) where {M <: Union{<:AbstractWrapperMask, <:AbstractArrayMask}} = m[I]
 Base.@propagate_inbounds Base.getindex(m::MaskIndexer, i::CartesianIndex) = m[Tuple(i)]
 Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
 
 randomness(::AbstractMask) = static(false)
-require_dest(::AbstractMask) = static(false)

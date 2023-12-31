@@ -24,7 +24,7 @@ SymLengthMask(len::AbstractArray) = SymLengthMask(convert(AbstractArray{Int32}, 
 
 adapt_structure(to, x::SymLengthMask) = SymLengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:SymLengthMask}, i, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:SymLengthMask}, i::Integer, j::Integer, J::Integer...)
     l = m.len[J...]
     return i <= l && j <= l
 end
@@ -53,7 +53,7 @@ end
 
 adapt_structure(to, x::BiLengthMask) = BiLengthMask(adapt(to, x.q_len), adapt(to, x.k_len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:BiLengthMask}, i, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:BiLengthMask}, i::Integer, j::Integer, J::Integer...)
     ql = m.q_len[J...]
     kl = m.k_len[J...]
     return i <= kl && j <= ql
@@ -75,14 +75,12 @@ end
 
 Base.ndims(::RevSymLengthMask{N}) where N = N + 2
 
-require_dest(::RevSymLengthMask) = static(true)
-
 RevSymLengthMask(len::Integer) = RevSymLengthMask(Int32[len])
 RevSymLengthMask(len::AbstractArray) = RevSymLengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::RevSymLengthMask) = RevSymLengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevSymLengthMask, <:Tuple}, i, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevSymLengthMask}, i::Integer, j::Integer, J::Integer...)
     rl, cl = m.dest_size
     l = m.len[J...]
     return rl - l < i && cl - l < j
@@ -105,8 +103,6 @@ end
 
 Base.ndims(::RevBiLengthMask{N}) where N = N + 2
 
-require_dest(::RevBiLengthMask) = static(true)
-
 function RevBiLengthMask(q_len, k_len)
     @assert size(q_len) == size(k_len)
     return RevBiLengthMask(convert(AbstractArray{Int32}, q_len), convert(AbstractArray{Int32}, k_len))
@@ -114,7 +110,7 @@ end
 
 adapt_structure(to, x::RevBiLengthMask) = RevBiLengthMask(adapt(to, x.q_len), adapt(to, x.k_len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevBiLengthMask, <:Tuple}, i, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevBiLengthMask}, i::Integer, j::Integer, J::Integer...)
     rl, cl = m.dest_size
     ql = m.q_len[J...]
     kl = m.k_len[J...]
