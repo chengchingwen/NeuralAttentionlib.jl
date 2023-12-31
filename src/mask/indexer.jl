@@ -1,11 +1,16 @@
-abstract type AbstractIndexer end
+abstract type AbstractIndexer{N} <: AbstractArray{Bool, N} end
 
-struct Indexer{T, D<:Union{Nothing, Tuple{Vararg{Int}}}, Ns<:NamedTuple} <: AbstractIndexer
+struct Indexer{T, N, D<:Base.Dims{N}, Ns<:NamedTuple} <: AbstractIndexer{N}
     __fields::Ns
     dest_size::D
+    function Indexer{T}(x::NamedTuple, dest_size::Base.Dims) where T
+        N = length(dest_size)
+        return new{T, N, typeof(dest_size), typeof(x)}(x, dest_size)
+    end
 end
 
-Indexer{T}(x::NamedTuple, dest_size = nothing) where T = Indexer{T, typeof(dest_size), typeof(x)}(x, dest_size)
+Base.length(I::Indexer) = prod(size(I))
+Base.size(I::Indexer) = getfield(I, :dest_size)
 
 IndexedType(::Indexer{T}) where T = T
 
@@ -17,13 +22,16 @@ function Base.getproperty(I::Indexer, x::Symbol)
     error("type Indexer{$(IndexedType(I))} has no field $x")
 end
 
-function GetIndexer(x, dest_size = nothing)
+function GetIndexer(x, dest_size)
     if @generated
         fs = fieldnames(x)
         ex = Expr(:tuple)
         for i = 1:fieldcount(x)
             push!(ex.args,
                   Expr(:(=), fs[i], :(getfield(x, $i))))
+        end
+        if isempty(ex.args)
+            ex = :(NamedTuple())
         end
         T = x
         ret = quote
@@ -39,10 +47,10 @@ function GetIndexer(x, dest_size = nothing)
     end
 end
 
-adapt_structure(to, x::Indexer) = Indexer{IndexedType(x)}(adapt(to, x.__fields), getfield(x, :dest_size))
+adapt_structure(to, x::Indexer) = Indexer{IndexedType(x)}(adapt(to, getfield(x, :__fields)), getfield(x, :dest_size))
 
 function Base.show(io::IO, I::Indexer)
     print(io, "Indexer{", IndexedType(I), '}')
-    show(io, I.__fields)
+    show(io, getfield(I, :__fields))
     return io
 end
