@@ -1,29 +1,29 @@
 ####################  Dataless Mask  ####################
 
-AxesConstraint(::AbstractDatalessMask) = (NDimConstraint(2, true),)
+AxesConstraint(::AbstractAttenMask{DATALESS}) = (NDimConstraint(2, true),)
 
-struct CausalMask <: AbstractDatalessMask end
+struct CausalMask <: AbstractAttenMask{DATALESS} end
 
-Base.@propagate_inbounds Base.getindex(::CausalMask, i, j, _...) = j >= i
+Base.@propagate_inbounds Base.getindex(::Indexer{CausalMask}, i::Integer, j::Integer, _::Integer...) = j >= i
 
-struct LocalMask <: AbstractDatalessMask
+struct LocalMask <: AbstractAttenMask{DATALESS}
     width::Int
 end
 
-Base.@propagate_inbounds Base.getindex(m::LocalMask, i, j, _...) = j - m.width < i < j + m.width
+Base.@propagate_inbounds Base.getindex(m::Indexer{LocalMask}, i::Integer, j::Integer, _::Integer...) = j - m.width < i < j + m.width
 
-struct RandomMask <: AbstractDatalessMask
+struct RandomMask <: AbstractAttenMask{DATALESS}
     p::Float64
 end
 
-Base.@propagate_inbounds Base.getindex(m::RandomMask, _::Integer...) = rand() > m.p
+Base.@propagate_inbounds Base.getindex(m::Indexer{RandomMask}, _::Integer...) = rand() > m.p
 
 AxesConstraint(m::RandomMask) = ()
 randomness(::RandomMask) = static(true)
 
-struct BandPartMask <: AbstractDatalessMask
+struct BandPartMask <: AbstractAttenMask{DATALESS}
     l::Int
     u::Int
 end
 
-Base.@propagate_inbounds Base.getindex(m::BandPartMask, i, j, _...) = (m.l < 0 || i <= j + m.l) && (m.u < 0 || i >= j - m.u)
+Base.@propagate_inbounds Base.getindex(m::Indexer{BandPartMask}, i::Integer, j::Integer, _::Integer...) = (m.l < 0 || i <= j + m.l) && (m.u < 0 || i >= j - m.u)
