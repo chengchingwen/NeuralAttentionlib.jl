@@ -10,8 +10,9 @@ using ..NeuralAttentionlib: @imexport
     BatchedMask, RepeatMask, getmask,
     GenericSequenceMask, LengthMask, RevLengthMask
 
-import ..NeuralAttentionlib: AbstractMask, AbstractSequenceMask, AbstractAttenMask,
-    AbstractDatalessMask, AbstractArrayMask, AttenMask, AxesConstraint, Indexer, GetIndexer, set_dest_size,
+import ..NeuralAttentionlib: AbstractMask, AbstractSeqMask, AbstractAttenMask,
+    MASKDATA, MASKTYPE, DATALESS, ARRAYDATA, MIXDATA, ATTENTION, SEQUENCE, MIXTYPE,
+    AttenMask, SeqMask, AxesConstraint, Indexer, GetIndexer, set_dest_size,
     CombinedMask, FlipMask, lengths, BiSequenceMask
 
 """
@@ -60,14 +61,14 @@ AbstractArrayMask
 
 Convert mask into corresponding attention mask.
 
-    AttenMask(q_mask::AbstractSequenceMask, k_mask::AbstractSequenceMask)
+    AttenMask(q_mask::AbstractSeqMask, k_mask::AbstractSeqMask)
 
 Create a attention mask from 2 sequence masks specific the sequence mask for "query" and "key".
 """
 AttenMask
 
 """
-    CausalMask() <: AbstractDatalessMask
+    CausalMask() <: AbstractAttenMask{DATALESS}
 
 Attention mask that block the future values.
 
@@ -76,7 +77,7 @@ Similar to applying `LinearAlgebra.triu!` on the score matrix
 CausalMask
 
 """
-    LocalMask(width::Int) <: AbstractDatalessMask
+    LocalMask(width::Int) <: AbstractAttenMask{DATALESS}
 
 Attention mask that only allow local (diagonal like) values to pass.
 
@@ -85,7 +86,7 @@ Attention mask that only allow local (diagonal like) values to pass.
 LocalMask
 
 """
-    RandomMask(p::Float64) <: AbstractDatalessMask
+    RandomMask(p::Float64) <: AbstractAttenMask{DATALESS}
 
 Attention mask that block value randomly.
 
@@ -95,7 +96,7 @@ Attention mask that block value randomly.
 RandomMask
 
 """
-    BandPartMask(l::Int, u::Int) <: AbstractDatalessMask
+    BandPartMask(l::Int, u::Int) <: AbstractAttenMask{DATALESS}
 
 Attention mask that only allow [band_part](https://www.tensorflow.org/api_docs/python/tf/linalg/band_part)
  values to pass.
@@ -103,14 +104,14 @@ Attention mask that only allow [band_part](https://www.tensorflow.org/api_docs/p
 BandPartMask
 
 """
-    GenericAttenMask <: AbstractArrayMask
+    GenericAttenMask <: AbstractAttenMask{ARRAYDATA}
 
 Generic attention mask. Just a wrapper over `AbstractArray{Bool}` for dispatch.
 """
 GenericAttenMask
 
 """
-    SymLengthMask(len::AbstractArray{Int, N}) <: AbstractArrayMask
+    SymLengthMask(len::AbstractArray{Int, N}) <: AbstractAttenMask{ARRAYDATA}
 
 Attention mask specified by an array of integer that indicate the length dimension size.
  assuming *Query* length and *Key* length are the same.
@@ -140,7 +141,7 @@ See also: [`LengthMask`](@ref), [`BiLengthMask`](@ref), [`BatchedMask`](@ref), [
 SymLengthMask
 
 """
-    BiLengthMask(q_len::A, k_len::A) where {A <: AbstractArray{Int, N}} <: AbstractArrayMask
+    BiLengthMask(q_len::A, k_len::A) where {A <: AbstractArray{Int, N}} <: AbstractAttenMask{ARRAYDATA}
 
 Attention mask specified by two arrays of integer that indicate the length dimension size.
 
@@ -173,7 +174,7 @@ See also: [`SymLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
 BiLengthMask
 
 """
-    LengthMask(len::AbstractArray{Int, N}) <: AbstractSequenceMask
+    LengthMask(len::AbstractArray{Int, N}) <: AbstractSeqMask{ARRAYDATA}
 
 A Sequence Mask specified by an array of integer that indicate the length dimension size.
  Can be convert to attention mask ([`SymLengthMask`](@ref), [`BiLengthMask`](@ref)) with [`AttenMask`](@ref).
@@ -206,7 +207,7 @@ julia> ones(7, 7, 2) .* LengthMask([3, 5])
 LengthMask
 
 """
-    RevSymLengthMask(len::AbstractArray{Int, N}) <: AbstractArrayMask
+    RevSymLengthMask(len::AbstractArray{Int, N}) <: AbstractAttenMask{ARRAYDATA}
 
 [`SymLengthMask`](@ref) but counts from the end of array, used for left padding.
 
@@ -235,7 +236,7 @@ See also: [`BiLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
 RevSymLengthMask
 
 """
-    RevBiLengthMask(q_len::A, k_len::A) where {A <: AbstractArray{Int, N}} <: AbstractArrayMask
+    RevBiLengthMask(q_len::A, k_len::A) where {A <: AbstractArray{Int, N}} <: AbstractAttenMask{ARRAYDATA}
 
 [`BiLengthMask`](@ref) but counts from the end of array, used for left padding.
 
@@ -268,7 +269,7 @@ See also: [`RevLengthMask`](@ref), [`RevSymLengthMask`](@ref), [`BatchedMask`](@
 RevBiLengthMask
 
 """
-    RevLengthMask(len::AbstractArray{Int, N}) <: AbstractSequenceMask
+    RevLengthMask(len::AbstractArray{Int, N}) <: AbstractSeqMask{ARRAYDATA}
 
 [`LengthMask`](@ref) but counts from the end of array, used for left padding.
  Can be convert to attention mask ([`RevSymLengthMask`](@ref), [`RevBiLengthMask`](@ref)) with [`AttenMask`](@ref).
@@ -301,7 +302,7 @@ julia> ones(7, 7, 2) .* RevLengthMask([3, 5])
 RevLengthMask
 
 """
-    GenericSequenceMask(mask::AbstractArray{Bool}) <: AbstractSequenceMask
+    GenericSequenceMask(mask::AbstractArray{Bool}) <: AbstractSeqMask{ARRAYDATA}
 
 Create a sequence mask from an array of `Bool`.
 
@@ -496,7 +497,7 @@ julia> getmask(CausalMask(), randn(7,7), 2)
 getmask
 
 """
-    lengths(::AbstractSequenceMask)
+    lengths(::AbstractSeqMask)
 
 Get the number of `true`s of each batch in the sequence mask.
 """

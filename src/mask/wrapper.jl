@@ -1,6 +1,6 @@
 ####################  Wrapper Mask  ####################
 
-struct FlipMask{M} <: AbstractWrapperMask
+struct FlipMask{D, T, M <: AbstractMask{D, T}} <: AbstractWrapperMask{D, T}
     mask::M
 end
 
@@ -19,9 +19,12 @@ randomness(m::FlipMask) = randomness(m.mask)
 
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
 
-struct CombinedMask{C, Ts<:Tuple{Vararg{AbstractMask}}} <: AbstractWrapperMask
+struct CombinedMask{C, D, T, Ts<:Tuple{Vararg{AbstractMask}}} <: AbstractWrapperMask{D, T}
     f::C
     masks::Ts
+    function CombinedMask(f, masks::Tuple{Vararg{AbstractMask}})
+        return new{typeof(f), combine_maskdatatag(masks), combine_masktypetag(masks), typeof(masks)}(f, masks)
+    end
 end
 
 AttenMask(c::CombinedMask) = CombinedMask(c.f, map(AttenMask, c.masks))
@@ -75,7 +78,7 @@ function Base.show(io::IO, m::CombinedMask)
     io
 end
 
-struct BatchedMask{M} <: AbstractWrapperMask
+struct BatchedMask{D, T, M <: AbstractMask{D, T}} <: AbstractWrapperMask{D, T}
     mask::M
     batch_dim::Int
 end
@@ -122,7 +125,7 @@ end
 AxesConstraint(m::BatchedMask) = batch_constraint(AxesConstraint(m.mask))
 randomness(m::BatchedMask) = randomness(m.mask)
 
-struct RepeatMask{M} <: AbstractWrapperMask
+struct RepeatMask{D, T, M <: AbstractMask{D, T}} <: AbstractWrapperMask{D, T}
     mask::M
     num::Int
 end
@@ -159,9 +162,12 @@ end
 
 randomness(m::RepeatMask) = randomness(m.mask)
 
-struct BiSequenceMask{QM<:AbstractMask, KM<:AbstractMask} <: AbstractWrapperMask
+struct BiSequenceMask{D, QM<:AbstractSeqMask, KM<:AbstractSeqMask} <: AbstractWrapperMask{D, ATTENTION}
     q_mask::QM
     k_mask::KM
+    function BiSequenceMask(q_mask::AbstractSeqMask{D1}, k_mask::AbstractSeqMask{D2}) where {D1, D2}
+        return new{combine_maskdatatag(D1, D2), typeof(q_mask), typeof(k_mask)}(q_mask, k_mask)
+    end
 end
 
 adapt_structure(to, x::BiSequenceMask) = BiSequenceMask(adapt(to, x.q_mask), adapt(to, x.k_mask))

@@ -1,6 +1,6 @@
 ####################  Array Mask  ####################
 
-struct GenericAttenMask{N, M <:AbstractArray{Bool, N}} <: AbstractArrayMask
+struct GenericAttenMask{N, M <:AbstractArray{Bool, N}} <: AbstractAttenMask{ARRAYDATA}
     mask::M
 end
 GenericAttenMask(mask) = GenericAttenMask(convert(AbstractArray{Bool}, mask))
@@ -13,7 +13,7 @@ Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericAttenMask}, I::Intege
 
 AxesConstraint(m::GenericAttenMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i, size(m.mask, i), i <= 2), ndims(m))...)
 
-struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
+struct SymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractAttenMask{ARRAYDATA}
     len::L
 end
 
@@ -39,7 +39,7 @@ Base.:(-)(m::SymLengthMask, l::Integer) = SymLengthMask(m.len .- l)
 Base.:(+)(l::Integer, m::SymLengthMask) = m + l
 Base.:(*)(l::Integer, m::SymLengthMask) = m * l
 
-struct BiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
+struct BiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractAttenMask{ARRAYDATA}
     q_len::L
     k_len::L
 end
@@ -69,7 +69,7 @@ Base.:(-)(m::BiLengthMask, l::Integer) = BiLengthMask(m.q_len .- l, m.k_len .- l
 Base.:(+)(l::Integer, m::BiLengthMask) = m + l
 Base.:(*)(l::Integer, m::BiLengthMask) = m * l
 
-struct RevSymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
+struct RevSymLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractAttenMask{ARRAYDATA}
     len::L
 end
 
@@ -96,7 +96,7 @@ Base.:(-)(m::RevSymLengthMask, l::Integer) = RevSymLengthMask(m.len .- l)
 Base.:(+)(l::Integer, m::RevSymLengthMask) = m + l
 Base.:(*)(l::Integer, m::RevSymLengthMask) = m * l
 
-struct RevBiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractArrayMask
+struct RevBiLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractAttenMask{ARRAYDATA}
     q_len::L
     k_len::L
 end
