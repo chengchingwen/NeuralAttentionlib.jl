@@ -1,8 +1,8 @@
 ####################  Sequence Mask  ####################
 
-AttenMask(q::AbstractSequenceMask, k::AbstractSequenceMask) = BiSequenceMask(q, k)
+AttenMask(q::AbstractSeqMask, k::AbstractSeqMask) = BiSequenceMask(q, k)
 
-struct GenericSequenceMask{N, M <: AbstractArray{Bool, N}} <: AbstractSequenceMask
+struct GenericSequenceMask{N, M <: AbstractArray{Bool, N}} <: AbstractSeqMask{ARRAYDATA}
     mask::M
     function GenericSequenceMask{N, M}(mask::M) where {N, M <: AbstractArray{Bool, N}}
         @assert size(mask, 1) == 1
@@ -34,7 +34,7 @@ lengths(m::GenericSequenceMask) = reshape(sum(m.mask; dims = _tn(m, static(1))),
 lengths(m::GenericSequenceMask{2}) = m.mask
 
 
-struct LengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSequenceMask
+struct LengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSeqMask{ARRAYDATA}
     len::L
 end
 
@@ -67,7 +67,7 @@ lengths(m::LengthMask) = reshape(sum(m.len; dims = _tn(m, static(3))), :)
 lengths(m::LengthMask{1}) = m.len
 
 
-struct RevLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSequenceMask
+struct RevLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSeqMask{ARRAYDATA}
     len::L
 end
 

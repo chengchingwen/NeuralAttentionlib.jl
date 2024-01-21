@@ -83,4 +83,4 @@ end
 using Adapt
 import Adapt: adapt_structure
 adapt_structure(to, x::Indexer) = Indexer{IndexedType(x)}(adapt(to, getfield(x, :__fields)), getfield(x, :dest_size))
-Base.print_array(io::IO, I::Indexer) = invoke(Base.print_array, Tuple{IO, AbstractArray}, io, Adapt.adapt(Array, I))
+Base.print_array(io::IO, I::Indexer) = invoke(Base.print_array, Tuple{IO, AbstractArray{Bool, ndims(I)}}, io, Adapt.adapt(Array, I))
