@@ -9,7 +9,6 @@ import GPUArraysCore
 using ChainRulesCore
 
 using NNlib
-using NNlibCUDA
 
 using Requires
 
@@ -65,5 +64,7 @@ include("./functional/optimized.jl")
 using .Masks
 using .Matmul
 using .Functional
+
+include("./flash/Flash.jl")
 
 end # module
