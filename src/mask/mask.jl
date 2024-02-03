@@ -1,32 +1,75 @@
-"""
-    AbstractMaskOp
+Base.@enum MASKDATA::UInt8 DATALESS ARRAYDATA MIXDATA
+Base.@enum MASKTYPE::UInt8 ATTENTION SEQUENCE MIXTYPE
+abstract type AbstractMask{D, T} end
 
-Trait-like abstract type for holding operation related argument, defined how the mask should be apply to input array
-"""
-abstract type AbstractMaskOp end
+abstract type AbstractWrapperMask{D, T} <: AbstractMask{D, T} end
+const AbstractAttenMask{D} = AbstractMask{D, ATTENTION}
+const AbstractSeqMask{D} = AbstractMask{D, SEQUENCE}
+
+const AbstractDatalessAttenMask = AbstractAttenMask{DATALESS}
+const AbstractArrayDataAttenMask = AbstractAttenMask{ARRAYDATA}
+const AbstractDatalessSeqMask = AbstractSeqMask{DATALESS}
+const AbstractArrayDataSeqMask = AbstractSeqMask{ARRAYDATA}
+
+MASKDATA(::AbstractMask{D, T}) where {D, T} = D
+MASKTYPE(::AbstractMask{D, T}) where {D, T} = T
+MASKDATA(t1::MASKDATA, t2::MASKDATA) = t1 == t2 ? t1 : MIXDATA
+MASKTYPE(t1::MASKTYPE, t2::MASKTYPE) = t1 == t2 ? t1 : MIXTYPE
+
+_combine_masktag(f, t1::T, t2::T) where {T <: Union{MASKDATA, MASKTYPE}} = f(t1, t2)
+_combine_masktag(f, t::Tuple{T}) where {T <: Union{MASKDATA, MASKTYPE}} = t[1]
+_combine_masktag(f, t::NTuple{2, T}) where {T <: Union{MASKDATA, MASKTYPE}} = _combine_masktag(f, t[1], t[2])
+function _combine_masktag(f, t::Tuple{T, T, T, Vararg{T}}) where {T <: Union{MASKDATA, MASKTYPE}}
+    return _combine_masktag(f, _combine_masktag(f, t[1], t[2]), Base.tail(Base.tail(t)))
+end
+_combine_masktag(f, t0::T, ::Tuple{}) where {T <: Union{MASKDATA, MASKTYPE}} = t0
+function _combine_masktag(f, t0::T, t::Tuple{T, Vararg{T}}) where {T <: Union{MASKDATA, MASKTYPE}}
+    return _combine_masktag(f, _combine_masktag(f, t0, t[1]), Base.tail(t))
+end
+
+function _combine_masktag(f, t0::T, m::Tuple{AbstractMask, Vararg{AbstractMask}}) where {T <: Union{MASKDATA, MASKTYPE}}
+    _combine_masktag(f, _combine_masktag(f, t0, T(m[1])), Base.tail(m))
+end
+function _combine_masktag(f::Type{T}, m::Tuple{AbstractMask, Vararg{AbstractMask}}) where {T <: Union{MASKDATA, MASKTYPE}}
+    return _combine_masktag(f, T(m[1]), Base.tail(m))
+end
+
+combine_maskdatatag(args...) = _combine_masktag(MASKDATA, args...)
+combine_masktypetag(args...) = _combine_masktag(MASKTYPE, args...)
 
 """
     AbstractMask
 
 Abstract type for mask data.
 """
-abstract type AbstractMask end
+AbstractMask
 
 """
-    AbstractSequenceMask <: AbstractMask
+    AbstractSeqMask <: AbstractMask
 
 Abstract type for mask data specifically for sequence.
 """
-abstract type AbstractSequenceMask <: AbstractMask end
+AbstractSeqMask
 
 """
     AbstractAttenMask <: AbstractMask
 
 Abstract type for mask data specifically for attention.
 """
-abstract type AbstractAttenMask <: AbstractMask end
+AbstractAttenMask
 
 AttenMask(m::AbstractAttenMask) = m
+SeqMask(m::AbstractSeqMask) = m
+
+Base.eltype(::AbstractMask) = Bool
+randomness(::AbstractMask) = static(false)
+
+"""
+    AbstractMaskOp
+
+Trait-like abstract type for holding operation related argument, defined how the mask should be apply to input array
+"""
+abstract type AbstractMaskOp end
 
 apply_mask(::Nothing, s) = s
 apply_mask(_, ::Nothing, s) = s
@@ -115,30 +158,3 @@ function apply_mask!(op::GenericMaskOp, mask::AbstractMask, score)
         return tmp
     end
 end
-
-abstract type AbstractWrapperMask <: AbstractMask end
-
-abstract type AbstractDatalessMask <: AbstractAttenMask end
-abstract type AbstractArrayMask <: AbstractAttenMask end
-
-Base.eltype(::AbstractMask) = Bool
-Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::CartesianIndex) = I
-Base.@propagate_inbounds Broadcast.newindex(arg::AbstractMask, I::Integer) = I
-
-const MaskIndexer = Indexer{<:AbstractMask}
-Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::CartesianIndex) = I
-Base.@propagate_inbounds Broadcast.newindex(arg::MaskIndexer, I::Integer) = I
-Base.eltype(::MaskIndexer) = Bool
-
-GetIndexer(m::AbstractDatalessMask, dest_size = nothing) = m
-
-Base.@propagate_inbounds Base.getindex(m::AbstractMask, i::CartesianIndex) = m[Tuple(i)]
-Base.@propagate_inbounds Base.getindex(m::AbstractMask, I::Tuple) = GetIndexer(m)[I...]
-Base.@propagate_inbounds Base.getindex(m::M, I::Integer...) where {M <: Union{<:AbstractWrapperMask, <:AbstractArrayMask}} = m[I]
-Base.@propagate_inbounds Base.getindex(m::MaskIndexer, i::CartesianIndex) = m[Tuple(i)]
-Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
-
-Adapt.adapt(to::CUDA.Adaptor, m::AbstractArrayMask) = Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
-
-randomness(::AbstractMask) = static(false)
-require_dest(::AbstractMask) = static(false)

@@ -1,8 +1,8 @@
 ####################  Sequence Mask  ####################
 
-AttenMask(q::AbstractSequenceMask, k::AbstractSequenceMask) = BiSequenceMask(q, k)
+AttenMask(q::AbstractSeqMask, k::AbstractSeqMask) = BiSequenceMask(q, k)
 
-struct GenericSequenceMask{N, M <: AbstractArray{Bool, N}} <: AbstractSequenceMask
+struct GenericSequenceMask{N, M <: AbstractArray{Bool, N}} <: AbstractSeqMask{ARRAYDATA}
     mask::M
     function GenericSequenceMask{N, M}(mask::M) where {N, M <: AbstractArray{Bool, N}}
         @assert size(mask, 1) == 1
@@ -34,7 +34,7 @@ lengths(m::GenericSequenceMask) = reshape(sum(m.mask; dims = _tn(m, static(1))),
 lengths(m::GenericSequenceMask{2}) = m.mask
 
 
-struct LengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSequenceMask
+struct LengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSeqMask{ARRAYDATA}
     len::L
 end
 
@@ -45,7 +45,7 @@ LengthMask(len::AbstractArray) = LengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::LengthMask) = LengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:LengthMask}, _, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:LengthMask}, _::Integer, j::Integer, J::Integer...)
     l = m.len[J...]
     return j <= l
 end
@@ -67,20 +67,18 @@ lengths(m::LengthMask) = reshape(sum(m.len; dims = _tn(m, static(3))), :)
 lengths(m::LengthMask{1}) = m.len
 
 
-struct RevLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSequenceMask
+struct RevLengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSeqMask{ARRAYDATA}
     len::L
 end
 
 Base.ndims(::RevLengthMask{N}) where N = N + 2
-
-require_dest(::RevLengthMask) = static(true)
 
 RevLengthMask(len::Integer) = RevLengthMask(Int32[len])
 RevLengthMask(len::AbstractArray) = RevLengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::RevLengthMask) = RevLengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevLengthMask, <:Tuple}, _, j, J::Integer...)
+Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevLengthMask}, _::Integer, j::Integer, J::Integer...)
     cl = m.dest_size[2]
     l = m.len[J...]
     return cl - l < j

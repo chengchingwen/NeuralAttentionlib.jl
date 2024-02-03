@@ -9,7 +9,6 @@ import GPUArraysCore
 using ChainRulesCore
 
 using NNlib
-using NNlibCUDA
 
 using Requires
 
@@ -26,8 +25,8 @@ include("./matmul/scaled_matmul.jl")
 include("./matmul/gpu.jl")
 
 # attention score masking
-include("./mask/indexer.jl")
 include("./mask/mask.jl")
+include("./mask/indexer.jl")
 include("./mask/constraint.jl")
 include("./mask/broadcast.jl")
 include("./mask/sequence.jl")
@@ -65,5 +64,7 @@ include("./functional/optimized.jl")
 using .Masks
 using .Matmul
 using .Functional
+
+include("./flash/Flash.jl")
 
 end # module
