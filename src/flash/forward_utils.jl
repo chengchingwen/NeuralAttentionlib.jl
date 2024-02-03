@@ -191,6 +191,11 @@ end
     (; computeT, reduceT) = config
     return @inbounds fragment_load_b(MMAConfig{Wn, Wm, Wk, computeT, reduceT}, ColMajor, lane, Qi, sk, si)
 end
+@inline function warp_load_mxk(config, lane, Qi, sk, si)
+    (; Wm, Wn, Wk) = config
+    (; computeT, reduceT) = config
+    return @inbounds fragment_load_b(MMAConfig{Wn, Wm, Wk, computeT, reduceT}, RowMajor, lane, Qi, sk, si)
+end
 @inline function warp_load_kxn(config, lane, Kj, sk, sj)
     (; Wm, Wn, Wk) = config
     (; computeT, reduceT) = config
