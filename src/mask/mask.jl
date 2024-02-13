@@ -138,7 +138,7 @@ Base.@propagate_inbounds Base.getindex(m::M, I::Integer...) where {M <: Union{<:
 Base.@propagate_inbounds Base.getindex(m::MaskIndexer, i::CartesianIndex) = m[Tuple(i)]
 Base.@propagate_inbounds Base.getindex(m::MaskIndexer, I::Tuple) = m[I...]
 
-Adapt.adapt(to::CUDA.Adaptor, m::AbstractArrayMask) = Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
+Adapt.adapt(to::CUDA.KernelAdaptor, m::AbstractArrayMask) = Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
 
 randomness(::AbstractMask) = static(false)
 require_dest(::AbstractMask) = static(false)

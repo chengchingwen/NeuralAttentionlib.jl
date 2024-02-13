@@ -19,16 +19,18 @@ _x_y2(x, y) = (x, x * y)
 function _normalize(inN::T, ϵ::T, x::T, mean_M2_::Tuple{Int32, T, T}) where T
     _, μ, M2 = mean_M2_
     v = M2 * inN
-    σ₀ = sqrt(v)
-    σ = max(σ₀, ϵ)
+    # σ₀ = sqrt(v .+ ϵ)
+    # σ = max(σ₀, ϵ)
+    σ = sqrt(v .+ ϵ)
     return (x - μ) / σ
 end
 
 function _normalize(inN::Float16, ϵ::Float16, x::Float16, mean_M2_::Tuple{Int32, Float32, Float32})
     _, μ, M2 = mean_M2_
     v = Float16(M2) * inN
-    σ₀ = sqrt(v)
-    σ = max(σ₀, ϵ)
+    # σ₀ = sqrt(v)
+    # σ = max(σ₀, ϵ)
+    σ = sqrt(v .+ ϵ)
     return Float16(Float32(x) - μ) / σ
 end
 
