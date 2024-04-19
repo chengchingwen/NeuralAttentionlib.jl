@@ -80,7 +80,3 @@ function ChainRulesCore.rrule(config::RuleConfig, pf::PrefixedFunction{typeof(ap
     pullback(Ȳ) = (NoTangent(), mask_pullback(Ȳ)[4])
     return y, pullback
 end
-
-@init @require Zygote="e88e6eb3-aa80-5325-afca-941959d7151f" begin
-    Zygote.unbroadcast(x::AbstractMask, _) = nothing
-end

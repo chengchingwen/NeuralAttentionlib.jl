@@ -1,41 +1,62 @@
-using NNlib
+module NeuralAttentionlibCUDAExt
+
+using NeuralAttentionlib
+using NeuralAttentionlib.Adapt
+using NeuralAttentionlib: AbstractArrayMask, Indexer, GetIndexer
+using CUDA
+using CUDA.GPUArrays
+using CUDA.GPUArrays.GPUArraysCore
 
 import LinearAlgebra
 import LinearAlgebra.BLAS
 using LinearAlgebra.BLAS: get_num_threads, set_num_threads
 
-const libblas = Base.libblas_name
+const NAlib = NeuralAttentionlib
 
-for (gemm, elty) in NNlib.gemm_datatype_mappings
+GPUArraysCore.backend(T::Type{<:NAlib.CollapsedDimsArray{E, <:CuArray}}) where E = GPUArraysCore.backend(CuArray{E, 3})
+
+function NeuralAttentionlib.batched_transpose_f!(f, B::AnyGPUArray{T, 3}, A::AnyGPUArray{T, 3}) where T
+    axes(B,1) == axes(A,2) && axes(B,2) == axes(A,1) && axes(A,3) == axes(B,3) || throw(DimensionMismatch(string(f)))
+    GPUArrays.gpu_call(B, A) do ctx, B, A
+        idx = GPUArrays.@cartesianidx A
+        @inbounds B[idx[2], idx[1], idx[3]] = f(A[idx[1], idx[2], idx[3]])
+        return
+    end
+    return B
+end
+
+import CUDA.CUBLAS
+for (fname, elty) in
+    ((:cublasDgemmStridedBatched,:Float64),
+     (:cublasSgemmStridedBatched,:Float32),
+     (:cublasHgemmStridedBatched,:Float16),
+     (:cublasZgemmStridedBatched,:ComplexF64),
+     (:cublasCgemmStridedBatched,:ComplexF32))
     @eval begin
 
-        @inline function unsafe_gemm!(
+        @inline function NeuralAttentionlib.unsafe_gemm_strided_batched!(
             transA::Char, transB::Char,
             m::Int, n::Int, k::Int,
-            alpha::($elty), ptrA::Ptr{$elty}, lda::Int,
-            ptrB::Ptr{$elty}, ldb::Int, beta::($elty),
-            ptrC::Ptr{$elty}, ldc::Int)
+            alpha::($elty), ptrA::CuPtr{$elty}, lda::Int, strideA::Int,
+            ptrB::CuPtr{$elty}, ldb::Int, strideB::Int, beta::($elty),
+            ptrC::CuPtr{$elty}, ldc::Int, strideC::Int, batchCount::Int)
 
-            ccall((BLAS.@blasfunc($gemm), libblas), Nothing,
-                  (Ref{UInt8}, Ref{UInt8}, Ref{BLAS.BlasInt}, Ref{BLAS.BlasInt}, Ref{BLAS.BlasInt},
-                   Ref{$elty}, Ptr{$elty}, Ref{BLAS.BlasInt},
-                   Ptr{$elty}, Ref{BLAS.BlasInt}, Ref{$elty},
-                   Ptr{$elty}, Ref{BLAS.BlasInt}),
-                  transA, transB, m, n, k,
-                  alpha, ptrA, lda,
-                  ptrB, ldb, beta,
-                  ptrC, ldc)
+            CUBLAS.$fname(CUBLAS.handle(),
+                          transA, transB, m, n, k,
+                          alpha, ptrA, lda, strideA,
+                          ptrB, ldb, strideB, beta,
+                          ptrC, ldc, strideC, batchCount)
             return nothing
         end
+
     end
 end
 
 for (elty, array) in (
-    (:ComplexF64, :AbstractArray), (:ComplexF32, :AbstractArray),
-    (:Float64, :AbstractArray), (:Float32, :AbstractArray),
+    (:Float16, :CuArray),
 )
     @eval begin
-        @inline function unsafe_gemm_strided_batched!(
+        @inline function NeuralAttentionlib.unsafe_gemm_strided_batched!(
             transA::Char, transB::Char,
             m::Int, n::Int, k::Int,
             alpha::($elty), ptrA::Ptr{$elty}, lda::Int, strideA::Int,
@@ -53,11 +74,10 @@ for (elty, array) in (
                         ptrBi = ptrB + (b - 1) * strideB * sizeof($elty)
                         ptrCi = ptrC + (b - 1) * strideC * sizeof($elty)
 
-                        unsafe_gemm!(transA, transB, m, n, k,
-                                     alpha, ptrAi, lda,
-                                     ptrBi, ldb, beta,
-                                     ptrCi, ldc)
-
+                        NeuralAttentionlib.unsafe_gemm!(transA, transB, m, n, k,
+                                                        alpha, ptrAi, lda,
+                                                        ptrBi, ldb, beta,
+                                                        ptrCi, ldc)
                     end
                 end
                 set_num_threads(old_threads)
@@ -66,18 +86,16 @@ for (elty, array) in (
                     ptrAi = ptrA + (i - 1) * strideA * sizeof($elty)
                     ptrBi = ptrB + (i - 1) * strideB * sizeof($elty)
                     ptrCi = ptrC + (i - 1) * strideC * sizeof($elty)
-
-                    unsafe_gemm!(transA, transB, m, n, k,
-                                 alpha, ptrAi, lda,
-                                 ptrBi, ldb, beta,
-                                 ptrCi, ldc)
-
+                    NeuralAttentionlib.unsafe_gemm!(transA, transB, m, n, k,
+                                                    alpha, ptrAi, lda,
+                                                    ptrBi, ldb, beta,
+                                                    ptrCi, ldc)
                 end
             end
             return nothing
         end
 
-        @inline function gemm_strided_batched_impl!(
+        @inline function NeuralAttentionlib.gemm_strided_batched_impl!(
             transA::Char, transB::Char,
             m::Int, n::Int, k::Int,
             alpha::($elty), A::$array{$elty}, lda::Int, strideA::Int,
@@ -87,9 +105,8 @@ for (elty, array) in (
             ptrA = pointer(A)
             ptrB = pointer(B)
             ptrC = pointer(C)
-
             GC.@preserve A B C begin
-                unsafe_gemm_strided_batched!(
+                NeuralAttentionlib.unsafe_gemm_strided_batched!(
                     transA, transB, m, n, k,
                     alpha, ptrA, lda, strideA,
                     ptrB, ldb, strideB, beta,
@@ -98,7 +115,7 @@ for (elty, array) in (
             return C
         end
 
-        @inline function gemm_strided_batched!(
+        @inline function NeuralAttentionlib.gemm_strided_batched!(
             transA::Char, transB::Char,
             alpha::($elty), A::$array{$elty, 3},
             B::$array{$elty, 3}, beta::($elty),
@@ -127,7 +144,7 @@ for (elty, array) in (
             strideC = stride(C, 3)
             batchCount = size(C, 3)
 
-            gemm_strided_batched_impl!(
+            NeuralAttentionlib.gemm_strided_batched_impl!(
                 transA, transB, m, n, ka,
                 alpha, A, lda, strideA,
                 B, ldb, strideB, beta,
@@ -136,22 +153,22 @@ for (elty, array) in (
             return C
         end
 
-        function gemm_strided_batched(
+        function NeuralAttentionlib.gemm_strided_batched(
             transA::Char, transB::Char,
             alpha::($elty), A::$array{$elty, 3},
             B::$array{$elty, 3})
             C = similar(B, (size(A, transA == 'N' ? 1 : 2), size(B, transB == 'N' ? 2 : 1), max(size(A, 3), size(B, 3))))
-            return gemm_strided_batched!(transA, transB, alpha, A, B, zero($elty), C)
+            return NeuralAttentionlib.gemm_strided_batched!(transA, transB, alpha, A, B, zero($elty), C)
         end
 
-        function gemm_strided_batched(
+        function NeuralAttentionlib.gemm_strided_batched(
             transA::Char, transB::Char,
             A::$array{$elty, 3},
             B::$array{$elty, 3})
-            return gemm_strided_batched(transA, transB, one($elty), A, B)
+            return NeuralAttentionlib.gemm_strided_batched(transA, transB, one($elty), A, B)
         end
 
-        function gemm_strided_batched!(
+        function NeuralAttentionlib.gemm_strided_batched!(
             transA::Char, transB::Char,
             alpha::($elty), A::$array{$elty, N1},
             B::$array{$elty, N2}, beta::($elty),
@@ -168,9 +185,9 @@ for (elty, array) in (
             Base.require_one_based_indexing(A, B, C)
             BLAS.chkstride1(A, B, C)
 
-            sa1, sa2, sa3 = collapsed_size(A, Ai, Aj)
-            sb1, sb2, sb3 = collapsed_size(B, Bi, Bj)
-            sc1, sc2, sc3 = collapsed_size(C, Ci, Cj)
+            sa1, sa2, sa3 = NeuralAttentionlib.collapsed_size(A, Ai, Aj)
+            sb1, sb2, sb3 = NeuralAttentionlib.collapsed_size(B, Bi, Bj)
+            sc1, sc2, sc3 = NeuralAttentionlib.collapsed_size(C, Ci, Cj)
 
             @assert sa3 == sc3 || sa3 == 1 "batch size mismatch: A != C"
             @assert sb3 == sc3 || sb3 == 1 "batch size mismatch: B != C"
@@ -193,7 +210,7 @@ for (elty, array) in (
             strideC = stride(C, N3 - Cj + 1)
             batchCount = sc3
 
-            gemm_strided_batched_impl!(
+            NeuralAttentionlib.gemm_strided_batched_impl!(
                 transA, transB, m, n, ka,
                 alpha, A, lda, strideA,
                 B, ldb, strideB, beta,
@@ -202,31 +219,47 @@ for (elty, array) in (
             return C
         end
 
-        function gemm_strided_batched(
+        function NeuralAttentionlib.gemm_strided_batched(
             transA::Char, transB::Char,
             alpha::($elty), A::$array{$elty, N1},
             B::$array{$elty, N2},
             Ai, Aj, Bi, Bj) where {N1, N2}
 
-            m = noncollapsed_size(A, Ai, Aj, transA == 'N' ? 1 : 2)
-            n = noncollapsed_size(B, Bi, Bj, transB == 'N' ? 2 : 1)
-            sc3 = collapsed_size(A, Ai, Aj, 3) > collapsed_size(B, Bi, Bj, 3) ?
-                noncollapsed_size(A, Ai, Aj, 3) :
-                noncollapsed_size(B, Bi, Bj, 3)
+            m = NeuralAttentionlib.noncollapsed_size(A, Ai, Aj, transA == 'N' ? 1 : 2)
+            n = NeuralAttentionlib.noncollapsed_size(B, Bi, Bj, transB == 'N' ? 2 : 1)
+            sc3 = NeuralAttentionlib.collapsed_size(A, Ai, Aj, 3) > NeuralAttentionlib.collapsed_size(B, Bi, Bj, 3) ?
+                NeuralAttentionlib.noncollapsed_size(A, Ai, Aj, 3) :
+                NeuralAttentionlib.noncollapsed_size(B, Bi, Bj, 3)
 
             Ci = length(n)
             Cj = length(sc3)
             C = similar(B, (m..., n..., sc3...))
-            return gemm_strided_batched!(transA, transB, alpha, A, B, zero($elty), C, Ai, Aj, Bi, Bj, Ci, Cj)
+            return NeuralAttentionlib.gemm_strided_batched!(
+                transA, transB, alpha, A, B, zero($elty), C, Ai, Aj, Bi, Bj, Ci, Cj)
         end
 
-        function gemm_strided_batched(
+        function NeuralAttentionlib.gemm_strided_batched(
             transA::Char, transB::Char,
             A::$array{$elty, N1},
             B::$array{$elty, N2},
             Ai, Aj, Bi, Bj) where {N1, N2}
-            return gemm_strided_batched(transA, transB, one($elty), A, B, Ai, Aj, Bi, Bj)
+            return NeuralAttentionlib.gemm_strided_batched(transA, transB, one($elty), A, B, Ai, Aj, Bi, Bj)
         end
 
     end
+end
+
+NeuralAttentionlib.check_strided_gemm_type(A::CuArray{Float16}) = true
+
+Adapt.adapt(to::CUDA.KernelAdaptor, m::AbstractArrayMask) =
+    Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
+Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.FlipMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask),))
+Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.CombinedMask) =
+    Indexer{typeof(m)}((f = adapt(to, m.f), masks = map(Base.Fix1(adapt, to), m.masks)))
+Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.BatchedMask) =
+    Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = static(m.batch_dim)))
+Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.RepeatMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), num = m.num))
+Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.BiSequenceMask) =
+    Indexer{typeof(m)}((q_mask = adapt(to, m.q_mask), k_mask = adapt(to, m.k_mask)))
+
 end

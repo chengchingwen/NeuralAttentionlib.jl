@@ -2,16 +2,11 @@ module NeuralAttentionlib
 
 using Static
 
-using CUDA
 using Adapt
 import Adapt: adapt_structure, adapt
-import GPUArraysCore
 using ChainRulesCore
 
 using NNlib
-using NNlibCUDA
-
-using Requires
 
 export multihead_qkv_attention, Functional, Masks
 
@@ -23,7 +18,6 @@ include("./matmul/gemm.jl")
 include("./matmul/matmul.jl")
 include("./matmul/grad.jl")
 include("./matmul/scaled_matmul.jl")
-include("./matmul/gpu.jl")
 
 # attention score masking
 include("./mask/indexer.jl")

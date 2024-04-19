@@ -100,7 +100,6 @@ NNlib.is_strided(ca::CollapsedDimsArray) = NNlib.is_strided(parent(ca))
 check_strided_gemm_type(ca::CollapsedDimsArray) = check_strided_gemm_type(parent(ca))
 check_strided_gemm_type(A::AbstractArray) = eltype(A) <: BLAS.BlasFloat
 check_strided_gemm_type(A::AbstractArray{Float16}) = false
-check_strided_gemm_type(A::CuArray{Float16}) = true
 
 function use_gemm_strided_batched(A::AbstractArray{TA}, B::AbstractArray{TB}) where {TA, TB}
     if NNlib.is_strided(A) && NNlib.is_strided(B)
