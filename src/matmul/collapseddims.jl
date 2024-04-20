@@ -1,5 +1,4 @@
 import LinearAlgebra
-using GPUArrays
 
 struct CollapsedDimsArray{T, A<:AbstractArray{T}, S1<:StaticInt, S2<:StaticInt} <: AbstractArray{T, 3}
     parent::A
@@ -161,21 +160,6 @@ collapsed_adjoint(x::CollapsedDimsArray) = batched_adjoint(x)
 collapsed_adjoint(x::AbstractVecOrMat) = adjoint(x)
 collapsed_adjoint(x::AbstractArray) = collapsed_adjoint(CollapsedDimsArray(x))
 
-# GPU
 adapt_structure(to, x::CollapsedDimsArray) = CollapsedDimsArray(Adapt.adapt_structure(to, parent(x)), x.dims, x.ni, x.nj)
-
 Base.print_array(io::IO, ca::CollapsedDimsArray) = Base.print_array(io, collapseddims(ca))
-
 Broadcast.BroadcastStyle(::Type{<:CollapsedDimsArray{T, S}}) where {T, S} = Broadcast.BroadcastStyle(S)
-
-GPUArraysCore.backend(T::Type{<:CollapsedDimsArray{E, <:CuArray}}) where E = GPUArraysCore.backend(CuArray{E, 3})
-
-function batched_transpose_f!(f, B::AnyGPUArray{T, 3}, A::AnyGPUArray{T, 3}) where T
-    axes(B,1) == axes(A,2) && axes(B,2) == axes(A,1) && axes(A,3) == axes(B,3) || throw(DimensionMismatch(string(f)))
-    GPUArrays.gpu_call(B, A) do ctx, B, A
-        idx = GPUArrays.@cartesianidx A
-        @inbounds B[idx[2], idx[1], idx[3]] = f(A[idx[1], idx[2], idx[3]])
-        return
-    end
-    return B
-end
