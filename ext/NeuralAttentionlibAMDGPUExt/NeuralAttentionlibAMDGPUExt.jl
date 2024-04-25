@@ -1,11 +1,11 @@
-module NeuralAttentionlibCUDAExt
+module NeuralAttentionlibAMDGPUExt
 
 using NeuralAttentionlib
 using NeuralAttentionlib.Adapt
 using NeuralAttentionlib: AbstractArrayMask, Indexer, GetIndexer
-using CUDA
-using CUDA.GPUArrays
-using CUDA.GPUArrays.GPUArraysCore
+using AMDGPU
+using AMDGPU.GPUArrays
+using AMDGPU.GPUArrays.GPUArraysCore
 
 import LinearAlgebra
 import LinearAlgebra.BLAS
@@ -13,7 +13,7 @@ using LinearAlgebra.BLAS: get_num_threads, set_num_threads
 
 const NAlib = NeuralAttentionlib
 
-GPUArraysCore.backend(T::Type{<:NAlib.CollapsedDimsArray{E,<:CuArray}}) where {E} = GPUArraysCore.backend(CuArray{E,3})
+GPUArraysCore.backend(T::Type{<:NAlib.CollapsedDimsArray{E,<:ROCArray}}) where {E} = GPUArraysCore.backend(ROCArray{E,3})
 
 function NeuralAttentionlib.batched_transpose_f!(f, B::AnyGPUArray{T,3}, A::AnyGPUArray{T,3}) where {T}
     axes(B, 1) == axes(A, 2) && axes(B, 2) == axes(A, 1) && axes(A, 3) == axes(B, 3) || throw(DimensionMismatch(string(f)))
@@ -24,24 +24,24 @@ function NeuralAttentionlib.batched_transpose_f!(f, B::AnyGPUArray{T,3}, A::AnyG
     end
     return B
 end
-
-import CUDA.CUBLAS
+using AMDGPU
+AMDGPU.roc
+import AMDGPU.rocBLAS
 for (fname, elty) in
-    ((:cublasDgemmStridedBatched, :Float64),
-    (:cublasSgemmStridedBatched, :Float32),
-    (:cublasHgemmStridedBatched, :Float16),
-    (:cublasZgemmStridedBatched, :ComplexF64),
-    (:cublasCgemmStridedBatched, :ComplexF32))
+    ((:rocblas_dgemm_strided_batched, :Float64),
+    (:rocblas_sgemm_strided_batched, :Float32),
+    (:rocblas_zgemm_strided_batched, :ComplexF64),
+    (:rocblas_cgemm_strided_batched, :ComplexF32))
     @eval begin
 
         @inline function NeuralAttentionlib.unsafe_gemm_strided_batched!(
             transA::Char, transB::Char,
             m::Int, n::Int, k::Int,
-            alpha::($elty), ptrA::CuPtr{$elty}, lda::Int, strideA::Int,
-            ptrB::CuPtr{$elty}, ldb::Int, strideB::Int, beta::($elty),
-            ptrC::CuPtr{$elty}, ldc::Int, strideC::Int, batchCount::Int)
+            alpha::($elty), ptrA::ROCArray{$elty}, lda::Int, strideA::Int,
+            ptrB::ROCArray{$elty}, ldb::Int, strideB::Int, beta::($elty),
+            ptrC::ROCArray{$elty}, ldc::Int, strideC::Int, batchCount::Int)
 
-            CUBLAS.$fname(CUBLAS.handle(),
+            rocBLAS.$fname(rocBLAS.handle(),
                 transA, transB, m, n, k,
                 alpha, ptrA, lda, strideA,
                 ptrB, ldb, strideB, beta,
@@ -53,7 +53,7 @@ for (fname, elty) in
 end
 
 for (elty, array) in (
-    (:Float16, :CuArray),
+    (:Float16, :ROCArray),
 )
     @eval begin
         @inline function NeuralAttentionlib.unsafe_gemm_strided_batched!(
@@ -249,19 +249,17 @@ for (elty, array) in (
     end
 end
 
-NeuralAttentionlib.check_strided_gemm_type(A::CuArray{Float16}) = true
-
-Adapt.adapt(to::CUDA.KernelAdaptor, m::AbstractArrayMask) =
+NeuralAttentionlib.check_strided_gemm_type(A::ROCArray{Float16}) = true
+AMDGPU.rocconvert
+Adapt.adapt(to::AMDGPU.Runtime.Adaptor, m::AbstractArrayMask) =
     Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.FlipMask) = Indexer{typeof(m)}((mask=adapt(to, m.mask),))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.CombinedMask) =
+Adapt.adapt(to::AMDGPU.Runtime.Adaptor, m::NAlib.FlipMask) = Indexer{typeof(m)}((mask=adapt(to, m.mask),))
+Adapt.adapt(to::AMDGPU.Runtime.Adaptor, m::NAlib.CombinedMask) =
     Indexer{typeof(m)}((f=adapt(to, m.f), masks=map(Base.Fix1(adapt, to), m.masks)))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.BatchedMask) =
+Adapt.adapt(to::AMDGPU.Runtime.Adaptor, m::NAlib.BatchedMask) =
     Indexer{typeof(m)}((mask=adapt(to, m.mask), batch_dim=static(m.batch_dim)))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.RepeatMask) = Indexer{typeof(m)}((mask=adapt(to, m.mask), num=m.num))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.BiSequenceMask) =
+Adapt.adapt(to::AMDGPU.Runtime.Adaptor, m::NAlib.RepeatMask) = Indexer{typeof(m)}((mask=adapt(to, m.mask), num=m.num))
+Adapt.adapt(to::AMDGPU.Runtime.Adaptor, m::NAlib.BiSequenceMask) =
     Indexer{typeof(m)}((q_mask=adapt(to, m.q_mask), k_mask=adapt(to, m.k_mask)))
 
 end
-
-

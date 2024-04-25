@@ -18,7 +18,7 @@
     end
     uwcs(x) = size(unwrap_collapse(x))
 
-    if USE_CUDA
+    if USE_CUDA || USE_AMDGPU
         eltype_list = (Float64, Float32, Float16, ComplexF64, ComplexF32)
     else
         eltype_list = (Float64, Float32, ComplexF64, ComplexF32)
@@ -180,16 +180,16 @@
 
     if !USE_CUDA
         @testset "AD" begin
-            test_rrule(matmul, randn(7,6,5), randn(6, 2), randn())
-            test_rrule(matmul, randn(7,6,5,4), randn(6), randn())
-            test_rrule(matmul, CollapsedDimsArray(randn(2,2,2,2,2,3), 2, 1), batched_transpose(randn(5,4,3)), randn())
-            test_rrule(scaled_matmul, randn(7,6,5), randn(6, 2), randn() ⊢ NoTangent())
-            test_rrule(scaled_matmul, randn(7,6,5,4), randn(6), randn() ⊢ NoTangent())
-            test_rrule(scaled_matmul, CollapsedDimsArray(randn(2,2,2,2,2,3), 2, 1),
-                       batched_transpose(randn(5,4,3)), randn() ⊢ NoTangent())
-            test_rrule(scaled_matmul, randn(7,6,5), randn(6, 2))
-            test_rrule(scaled_matmul, randn(7,6,5,4), randn(6))
-            test_rrule(scaled_matmul, CollapsedDimsArray(randn(2,2,2,2,2,3), 2, 1), batched_transpose(randn(5,4,3)))
+            test_rrule(matmul, randn(7, 6, 5), randn(6, 2), randn())
+            test_rrule(matmul, randn(7, 6, 5, 4), randn(6), randn())
+            test_rrule(matmul, CollapsedDimsArray(randn(2, 2, 2, 2, 2, 3), 2, 1), batched_transpose(randn(5, 4, 3)), randn())
+            test_rrule(scaled_matmul, randn(7, 6, 5), randn(6, 2), randn() ⊢ NoTangent())
+            test_rrule(scaled_matmul, randn(7, 6, 5, 4), randn(6), randn() ⊢ NoTangent())
+            test_rrule(scaled_matmul, CollapsedDimsArray(randn(2, 2, 2, 2, 2, 3), 2, 1),
+                batched_transpose(randn(5, 4, 3)), randn() ⊢ NoTangent())
+            test_rrule(scaled_matmul, randn(7, 6, 5), randn(6, 2))
+            test_rrule(scaled_matmul, randn(7, 6, 5, 4), randn(6))
+            test_rrule(scaled_matmul, CollapsedDimsArray(randn(2, 2, 2, 2, 2, 3), 2, 1), batched_transpose(randn(5, 4, 3)))
         end
     end
 

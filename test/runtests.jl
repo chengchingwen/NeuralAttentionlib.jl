@@ -4,6 +4,7 @@ using NeuralAttentionlib
 using Random
 using Flux
 using CUDA
+using AMDGPU
 using NNlib
 using Static
 using ChainRulesCore
@@ -34,13 +35,29 @@ function should_test_cuda()
     end
 end
 
+function should_test_amdgpu()
+    e = get(ENV, "JL_PKG_TEST_AMDGPU", false)
+    e isa Bool && return e
+    if e isa String
+        x = tryparse(Bool, e)
+        return isnothing(x) ? false : x
+    else
+        return false
+    end
+end
+
 const USE_CUDA = @show should_test_cuda()
+const USE_AMDGPU = @show should_test_amdgpu()
 
 if USE_CUDA
     CUDA.allowscalar(false)
 end
 
-device(x) = USE_CUDA ? gpu(x) : x
+if USE_AMDGPU
+    AMDGPU.allowscalar(false)
+end
+
+device(x) = USE_CUDA || USE_AMDGPU ? gpu(x) : x
 
 drandn(arg...) = randn(arg...) |> device
 drand(arg...) = rand(arg...) |> device
