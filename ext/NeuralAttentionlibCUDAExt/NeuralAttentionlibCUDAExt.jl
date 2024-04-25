@@ -4,26 +4,12 @@ using NeuralAttentionlib
 using NeuralAttentionlib.Adapt
 using NeuralAttentionlib: AbstractArrayMask, Indexer, GetIndexer
 using CUDA
-using CUDA.GPUArrays
-using CUDA.GPUArrays.GPUArraysCore
 
 import LinearAlgebra
 import LinearAlgebra.BLAS
 using LinearAlgebra.BLAS: get_num_threads, set_num_threads
 
 const NAlib = NeuralAttentionlib
-
-GPUArraysCore.backend(T::Type{<:NAlib.CollapsedDimsArray{E, <:CuArray}}) where E = GPUArraysCore.backend(CuArray{E, 3})
-
-function NeuralAttentionlib.batched_transpose_f!(f, B::AnyGPUArray{T, 3}, A::AnyGPUArray{T, 3}) where T
-    axes(B,1) == axes(A,2) && axes(B,2) == axes(A,1) && axes(A,3) == axes(B,3) || throw(DimensionMismatch(string(f)))
-    GPUArrays.gpu_call(B, A) do ctx, B, A
-        idx = GPUArrays.@cartesianidx A
-        @inbounds B[idx[2], idx[1], idx[3]] = f(A[idx[1], idx[2], idx[3]])
-        return
-    end
-    return B
-end
 
 import CUDA.CUBLAS
 for (fname, elty) in
@@ -56,45 +42,6 @@ for (elty, array) in (
     (:Float16, :CuArray),
 )
     @eval begin
-        @inline function NeuralAttentionlib.unsafe_gemm_strided_batched!(
-            transA::Char, transB::Char,
-            m::Int, n::Int, k::Int,
-            alpha::($elty), ptrA::Ptr{$elty}, lda::Int, strideA::Int,
-            ptrB::Ptr{$elty}, ldb::Int, strideB::Int, beta::($elty),
-            ptrC::Ptr{$elty}, ldc::Int, strideC::Int, batchCount::Int)
-
-            # https://github.com/FluxML/NNlib.jl/blob/cd3851d31e95020e77e67f80fb6402b5b87db1e6/src/gemm.jl#L91-L139
-            n_threads = min(Threads.nthreads(), 1 + max(m * k * batchCount, n * k * batchCount) ÷ 8000)
-            if n_threads > 1
-                old_threads = get_num_threads()
-                set_num_threads(1)
-                Threads.@sync for bs in Iterators.partition(1:batchCount, cld(batchCount, n_threads))
-                    Threads.@spawn for b in bs
-                        ptrAi = ptrA + (b - 1) * strideA * sizeof($elty)
-                        ptrBi = ptrB + (b - 1) * strideB * sizeof($elty)
-                        ptrCi = ptrC + (b - 1) * strideC * sizeof($elty)
-
-                        NeuralAttentionlib.unsafe_gemm!(transA, transB, m, n, k,
-                                                        alpha, ptrAi, lda,
-                                                        ptrBi, ldb, beta,
-                                                        ptrCi, ldc)
-                    end
-                end
-                set_num_threads(old_threads)
-            else
-                for i = 1:batchCount
-                    ptrAi = ptrA + (i - 1) * strideA * sizeof($elty)
-                    ptrBi = ptrB + (i - 1) * strideB * sizeof($elty)
-                    ptrCi = ptrC + (i - 1) * strideC * sizeof($elty)
-                    NeuralAttentionlib.unsafe_gemm!(transA, transB, m, n, k,
-                                                    alpha, ptrAi, lda,
-                                                    ptrBi, ldb, beta,
-                                                    ptrCi, ldc)
-                end
-            end
-            return nothing
-        end
-
         @inline function NeuralAttentionlib.gemm_strided_batched_impl!(
             transA::Char, transB::Char,
             m::Int, n::Int, k::Int,

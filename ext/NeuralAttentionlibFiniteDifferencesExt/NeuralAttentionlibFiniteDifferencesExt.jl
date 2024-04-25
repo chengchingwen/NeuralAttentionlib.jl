@@ -1,4 +1,4 @@
-module NeuralAttentionlibFiniteDifferences
+module NeuralAttentionlibFiniteDifferencesExt
 
 using NeuralAttentionlib
 using NeuralAttentionlib: CollapsedDimsArray, collapseddims
