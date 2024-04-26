@@ -13,7 +13,7 @@
       layer_norm, rms_layer_norm, get_sincos_position_embeddings
 
     @testset "score" begin
-        if !USE_CUDA
+        if !USE_GPU
             @testset "AD" begin
                 test_rrule(dot_product_score, randn(5, 3, 2), randn(5, 4, 2); check_inferred = false)
                 test_rrule(dot_product_score, randn(5, 3, 2, 2), randn(5, 4, 2, 2))
@@ -84,7 +84,7 @@
             end
         end
 
-        if !USE_CUDA
+        if !USE_GPU
             @testset "AD" begin
                 test_rrule(
                     scalar_relative_position_embedding, t5_bucketed_position_id(8, 20), randn(3, 8),
@@ -182,7 +182,7 @@
         @test with_rotary_position_embedding(x) ≈ naive_rotary_pe(x)
         @test with_rotary_position_embedding(256, x) ≈ naive_rotary_pe_w_dim(256, x)
         @test with_rotary_position_embedding(256)(x) ≈ naive_rotary_pe_w_dim(256, x)
-        if !USE_CUDA
+        if !USE_GPU
             @testset "AD" begin
                 x = randn(512, 5, 3, 2)
                 @test Zygote.gradient(x->sum(sin.(with_rotary_position_embedding(x))), x)[1] ≈
@@ -226,7 +226,7 @@
             atol = 5e-1
         )
 
-        if !USE_CUDA
+        if !USE_GPU
             @testset "AD" begin
                 g = randn(20)
                 b = randn(20)
@@ -258,7 +258,7 @@
 
     @testset "attention" begin
         @testset "multihead_qkv_attention" begin
-            if !USE_CUDA
+            if !USE_GPU
                 @testset "AD" begin
                     for i = 1:3
                         a = randn(20, 3, 2)
@@ -296,7 +296,7 @@
             @test grad[2] ≈ ngrad[2]
             @test grad[3] ≈ ngrad[3]
 
-            if !USE_CUDA
+            if !USE_GPU
                 @testset "AD" begin
                     for i = 1:3
                         a = randn(30, 3, 2)

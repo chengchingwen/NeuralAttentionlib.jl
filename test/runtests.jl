@@ -24,40 +24,39 @@ include("old_impl/old_impl.jl")
 using .Old_Impl
 using .Old_Impl: batched_triu!, batched_tril!
 
-function should_test_cuda()
-    e = get(ENV, "JL_PKG_TEST_CUDA", false)
-    e isa Bool && return e
+function testing_gpu()
+    e = get(ENV, "JL_PKG_TEST_GPU", nothing)
+    isnothing(e) && return nothing
     if e isa String
-        x = tryparse(Bool, e)
-        return isnothing(x) ? false : x
-    else
-        return false
+        x = lowercase(e)
+        if isempty(x)
+            return nothing
+        elseif x == "cuda"
+            return :cuda
+        elseif x == "amdgpu"
+            return :amdgpu
+        end
+    end
+    error("Unknown value for `JL_PKG_TEST_GPU`: $x")
+end
+
+const GPUBACKEND = testing_gpu()
+if isnothing(GPUBACKEND)
+    const USE_GPU = false
+else
+    const USE_GPU = true
+    if GPUBACKEND == :cuda
+        using CUDA
+        CUDA.allowscalar(false)
+    elseif GPUBACKEND == :amdgpu
+        using AMDGPU
+        AMDGPU.allowscalar(false)
     end
 end
+@show GPUBACKEND
+@show USE_GPU
 
-function should_test_amdgpu()
-    e = get(ENV, "JL_PKG_TEST_AMDGPU", false)
-    e isa Bool && return e
-    if e isa String
-        x = tryparse(Bool, e)
-        return isnothing(x) ? false : x
-    else
-        return false
-    end
-end
-
-const USE_CUDA = @show should_test_cuda()
-const USE_AMDGPU = @show should_test_amdgpu()
-
-if USE_CUDA
-    CUDA.allowscalar(false)
-end
-
-if USE_AMDGPU
-    AMDGPU.allowscalar(false)
-end
-
-device(x) = USE_CUDA || USE_AMDGPU ? gpu(x) : x
+device(x) = USE_GPU ? gpu(x) : x
 
 drandn(arg...) = randn(arg...) |> device
 drand(arg...) = rand(arg...) |> device
