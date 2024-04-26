@@ -7,6 +7,8 @@ using GPUArrays.GPUArraysCore
 
 GPUArraysCore.backend(::Type{<:CollapsedDimsArray{E, A}}) where {E, A} = GPUArraysCore.backend(A)
 
+NeuralAttentionlib.ptrtypetag(arr::AnyGPUArray) = NeuralAttentionlib.ptrtypetag(GPUArraysCore.backend(arr))
+
 function NeuralAttentionlib.batched_transpose_f!(f, B::AnyGPUArray{T, 3}, A::AnyGPUArray{T, 3}) where T
     axes(B,1) == axes(A,2) && axes(B,2) == axes(A,1) && axes(A,3) == axes(B,3) || throw(DimensionMismatch(string(f)))
     GPUArrays.gpu_call(B, A) do ctx, B, A
