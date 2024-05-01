@@ -18,7 +18,7 @@
     end
     uwcs(x) = size(unwrap_collapse(x))
 
-    if USE_CUDA
+    if USE_GPU
         eltype_list = (Float64, Float32, Float16, ComplexF64, ComplexF32)
     else
         eltype_list = (Float64, Float32, ComplexF64, ComplexF32)
@@ -178,7 +178,7 @@
         end
     end
 
-    if !USE_CUDA
+    if !USE_GPU
         @testset "AD" begin
             test_rrule(matmul, randn(7,6,5), randn(6, 2), randn())
             test_rrule(matmul, randn(7,6,5,4), randn(6), randn())

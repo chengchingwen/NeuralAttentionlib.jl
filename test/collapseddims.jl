@@ -1,4 +1,4 @@
-if !USE_CUDA
+if !USE_GPU
     @testset "CollapsedDim" begin
         using NeuralAttentionlib.Matmul
         using NeuralAttentionlib: collapseddims_fdim1, collapseddims_nonbatch, collapseddims_nonbatch_fdim1

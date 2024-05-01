@@ -285,7 +285,7 @@
         @test_throws DimensionMismatch drandn(5, 4) .* (GenericAttenMask(drand(Bool, 3, 4)) | SymLengthMask([2]))
     end
 
-    if !USE_CUDA
+    if !USE_GPU
         @testset "AD" begin
             m = (LocalMask(1) | CausalMask() & !(BandPartMask(5,5)) | BiLengthMask([2,3], [3, 7]))
 
