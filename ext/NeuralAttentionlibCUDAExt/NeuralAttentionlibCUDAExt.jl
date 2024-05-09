@@ -2,7 +2,7 @@ module NeuralAttentionlibCUDAExt
 
 using NeuralAttentionlib
 using NeuralAttentionlib.Adapt
-using NeuralAttentionlib: TypedPtr, AbstractArrayMask, Indexer, GetIndexer
+using NeuralAttentionlib: TypedPtr
 using CUDA
 
 import LinearAlgebra
@@ -41,16 +41,5 @@ end
 
 NeuralAttentionlib.ptrtypetag(::CUDA.CuArrayBackend) = CuArray
 NeuralAttentionlib.check_strided_gemm_type(A::CuArray{Float16}) = true
-
-Adapt.adapt(to::CUDA.KernelAdaptor, m::AbstractArrayMask) =
-    Indexer{typeof(m)}(map(Base.Fix1(Adapt.adapt, to), GetIndexer(m).__fields))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.FlipMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask),))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.CombinedMask) =
-    Indexer{typeof(m)}((f = adapt(to, m.f), masks = map(Base.Fix1(adapt, to), m.masks)))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.BatchedMask) =
-    Indexer{typeof(m)}((mask = adapt(to, m.mask), batch_dim = static(m.batch_dim)))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.RepeatMask) = Indexer{typeof(m)}((mask = adapt(to, m.mask), num = m.num))
-Adapt.adapt(to::CUDA.KernelAdaptor, m::NAlib.BiSequenceMask) =
-    Indexer{typeof(m)}((q_mask = adapt(to, m.q_mask), k_mask = adapt(to, m.k_mask)))
 
 end
