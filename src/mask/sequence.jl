@@ -21,7 +21,7 @@ GenericSequenceMask(mask) = GenericSequenceMask(convert(AbstractArray{Bool}, mas
 
 Base.ndims(::GenericSequenceMask{N}) where N = N
 
-adapt_structure(to, x::GenericSequenceMask) = GenericSequenceMask(adapt(to, x.mask))
+adapt_structure(to, x::GenericSequenceMask{N}) where N = GenericSequenceMask{N}(adapt(to, x.mask))
 
 Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericSequenceMask}, I::Integer...) = m.mask[1, Base.tail(I)...]
 
