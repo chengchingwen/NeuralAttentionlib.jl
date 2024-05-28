@@ -23,7 +23,7 @@ Base.ndims(::GenericSequenceMask{N}) where N = N
 
 adapt_structure(to, x::GenericSequenceMask{N}) where N = GenericSequenceMask{N}(adapt(to, x.mask))
 
-Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericSequenceMask}, I::Integer...) = m.mask[1, Base.tail(I)...]
+Base.@propagate_inbounds maskgetindex(::Dims, m::GenericSequenceMask, I::Integer...) = m.mask[1, Base.tail(I)...]
 
 AxesConstraint(m::GenericSequenceMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+1, size(m.mask, i+1), i < 2), ndims(m)-1)...)
 
@@ -45,7 +45,7 @@ LengthMask(len::AbstractArray) = LengthMask(convert(AbstractArray{Int32}, len))
 
 adapt_structure(to, x::LengthMask) = LengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:LengthMask}, _::Integer, j::Integer, J::Integer...)
+Base.@propagate_inbounds function maskgetindex(::Dims, m::LengthMask, _::Integer, j::Integer, J::Integer...)
     l = m.len[J...]
     return j <= l
 end
@@ -78,8 +78,8 @@ RevLengthMask(len::AbstractArray) = RevLengthMask(convert(AbstractArray{Int32}, 
 
 adapt_structure(to, x::RevLengthMask) = RevLengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevLengthMask}, _::Integer, j::Integer, J::Integer...)
-    cl = m.dest_size[2]
+Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::RevLengthMask, _::Integer, j::Integer, J::Integer...)
+    cl = destsize[2]
     l = m.len[J...]
     return cl - l < j
 end

@@ -9,7 +9,7 @@ Base.ndims(::GenericAttenMask{N}) where N = N
 
 adapt_structure(to, x::GenericAttenMask) = GenericAttenMask(adapt(to, x.mask))
 
-Base.@propagate_inbounds Base.getindex(m::Indexer{<:GenericAttenMask}, I::Integer...) = m.mask[I...]
+Base.@propagate_inbounds maskgetindex(::Dims, m::GenericAttenMask, I::Integer...) = m.mask[I...]
 
 AxesConstraint(m::GenericAttenMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i, size(m.mask, i), i <= 2), ndims(m))...)
 
@@ -24,7 +24,7 @@ SymLengthMask(len::AbstractArray) = SymLengthMask(convert(AbstractArray{Int32}, 
 
 adapt_structure(to, x::SymLengthMask) = SymLengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:SymLengthMask}, i::Integer, j::Integer, J::Integer...)
+Base.@propagate_inbounds function maskgetindex(::Dims, m::SymLengthMask, i::Integer, j::Integer, J::Integer...)
     l = m.len[J...]
     return i <= l && j <= l
 end
@@ -53,7 +53,7 @@ end
 
 adapt_structure(to, x::BiLengthMask) = BiLengthMask(adapt(to, x.q_len), adapt(to, x.k_len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:BiLengthMask}, i::Integer, j::Integer, J::Integer...)
+Base.@propagate_inbounds function maskgetindex(::Dims, m::BiLengthMask, i::Integer, j::Integer, J::Integer...)
     ql = m.q_len[J...]
     kl = m.k_len[J...]
     return i <= kl && j <= ql
@@ -80,8 +80,9 @@ RevSymLengthMask(len::AbstractArray) = RevSymLengthMask(convert(AbstractArray{In
 
 adapt_structure(to, x::RevSymLengthMask) = RevSymLengthMask(adapt(to, x.len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevSymLengthMask}, i::Integer, j::Integer, J::Integer...)
-    rl, cl = m.dest_size
+Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::RevSymLengthMask, i::Integer, j::Integer, J::Integer...)
+    rl = destsize[1]
+    cl = destsize[2]
     l = m.len[J...]
     return rl - l < i && cl - l < j
 end
@@ -110,8 +111,9 @@ end
 
 adapt_structure(to, x::RevBiLengthMask) = RevBiLengthMask(adapt(to, x.q_len), adapt(to, x.k_len))
 
-Base.@propagate_inbounds function Base.getindex(m::Indexer{<:RevBiLengthMask}, i::Integer, j::Integer, J::Integer...)
-    rl, cl = m.dest_size
+Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::RevBiLengthMask, i::Integer, j::Integer, J::Integer...)
+    rl = destsize[1]
+    cl = destsize[2]
     ql = m.q_len[J...]
     kl = m.k_len[J...]
     return rl - kl < i && cl - ql < j

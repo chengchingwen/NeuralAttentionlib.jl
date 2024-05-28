@@ -1,9 +1,7 @@
 using Base.Broadcast: BroadcastFunction, broadcasted, materialize
 
-ChainRulesCore.@non_differentiable Base.getindex(m::AbstractMask, I::Integer...)
-ChainRulesCore.@non_differentiable Base.getindex(m::MaskIndexer, I::Integer...)
-ChainRulesCore.@non_differentiable Base.getindex(m::AbstractMask, I::Tuple)
-ChainRulesCore.@non_differentiable Base.getindex(m::MaskIndexer, I::Tuple)
+ChainRulesCore.@non_differentiable Base.getindex(m::Indexer, I...)
+ChainRulesCore.@non_differentiable maskgetindex(::Dims, ::AbstractMask, I::Integer...)
 ChainRulesCore.@non_differentiable (::Type{<:AbstractMask})(args...)
 ChainRulesCore.@non_differentiable (::Type{<:AbstractMaskOp})(args...)
 ChainRulesCore.@non_differentiable getmask(arg...)

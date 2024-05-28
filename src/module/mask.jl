@@ -12,7 +12,7 @@ using ..NeuralAttentionlib: @imexport
 
 import ..NeuralAttentionlib: AbstractMask, AbstractSeqMask, AbstractAttenMask,
     MASKDATA, MASKTYPE, DATALESS, ARRAYDATA, MIXDATA, ATTENTION, SEQUENCE, MIXTYPE,
-    AttenMask, SeqMask, AxesConstraint, Indexer, GetIndexer, set_dest_size,
+    AttenMask, SeqMask, AxesConstraint, Indexer, GetIndexer,
     CombinedMask, FlipMask, lengths, BiSequenceMask
 
 """
@@ -35,12 +35,6 @@ Return the [`Indexer`](@ref) of `m` and check if the mask `m` can be applied to 
 """
 GetIndexer
 
-"""
-    set_dest_size(I::Indexer, dest_size::NTuple{N, Int} where N)
-
-Set the size of the `Indexer`.
-"""
-set_dest_size
 
 """
     AbstractDatalessMask <: AbstractAttenMask

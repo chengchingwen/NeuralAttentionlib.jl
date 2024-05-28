@@ -1,41 +1,30 @@
 Base.@enum MASKDATA::UInt8 DATALESS ARRAYDATA MIXDATA
 Base.@enum MASKTYPE::UInt8 ATTENTION SEQUENCE MIXTYPE
+const MASKTAG = Union{MASKDATA, MASKTYPE}
 abstract type AbstractMask{D, T} end
-
 abstract type AbstractWrapperMask{D, T} <: AbstractMask{D, T} end
+
 const AbstractAttenMask{D} = AbstractMask{D, ATTENTION}
 const AbstractSeqMask{D} = AbstractMask{D, SEQUENCE}
+const AbstractArrayMask{T} = AbstractMask{ARRAYDATA, T}
+const AbstractDatalessMask{T} = AbstractMask{DATALESS, T}
 
 const AbstractDatalessAttenMask = AbstractAttenMask{DATALESS}
 const AbstractArrayDataAttenMask = AbstractAttenMask{ARRAYDATA}
 const AbstractDatalessSeqMask = AbstractSeqMask{DATALESS}
 const AbstractArrayDataSeqMask = AbstractSeqMask{ARRAYDATA}
 
+MASKDATA(t::MASKDATA) = t
+MASKTYPE(t::MASKTYPE) = t
 MASKDATA(::AbstractMask{D, T}) where {D, T} = D
 MASKTYPE(::AbstractMask{D, T}) where {D, T} = T
 MASKDATA(t1::MASKDATA, t2::MASKDATA) = t1 == t2 ? t1 : MIXDATA
 MASKTYPE(t1::MASKTYPE, t2::MASKTYPE) = t1 == t2 ? t1 : MIXTYPE
 
-_combine_masktag(f, t1::T, t2::T) where {T <: Union{MASKDATA, MASKTYPE}} = f(t1, t2)
-_combine_masktag(f, t::Tuple{T}) where {T <: Union{MASKDATA, MASKTYPE}} = t[1]
-_combine_masktag(f, t::NTuple{2, T}) where {T <: Union{MASKDATA, MASKTYPE}} = _combine_masktag(f, t[1], t[2])
-function _combine_masktag(f, t::Tuple{T, T, T, Vararg{T}}) where {T <: Union{MASKDATA, MASKTYPE}}
-    return _combine_masktag(f, _combine_masktag(f, t[1], t[2]), Base.tail(Base.tail(t)))
-end
-_combine_masktag(f, t0::T, ::Tuple{}) where {T <: Union{MASKDATA, MASKTYPE}} = t0
-function _combine_masktag(f, t0::T, t::Tuple{T, Vararg{T}}) where {T <: Union{MASKDATA, MASKTYPE}}
-    return _combine_masktag(f, _combine_masktag(f, t0, t[1]), Base.tail(t))
-end
-
-function _combine_masktag(f, t0::T, m::Tuple{AbstractMask, Vararg{AbstractMask}}) where {T <: Union{MASKDATA, MASKTYPE}}
-    _combine_masktag(f, _combine_masktag(f, t0, T(m[1])), Base.tail(m))
-end
-function _combine_masktag(f::Type{T}, m::Tuple{AbstractMask, Vararg{AbstractMask}}) where {T <: Union{MASKDATA, MASKTYPE}}
-    return _combine_masktag(f, T(m[1]), Base.tail(m))
-end
-
-combine_maskdatatag(args...) = _combine_masktag(MASKDATA, args...)
-combine_masktypetag(args...) = _combine_masktag(MASKTYPE, args...)
+_combine_masktag(::Type{T}, t::NTuple{1}) where T <: MASKTAG = T(t[1])
+_combine_masktag(::Type{T}, t::Tuple) where T <: MASKTAG = T(T(first(t)), _combine_masktag(T, Base.tail(t)))
+combine_maskdatatag(args...) = _combine_masktag(MASKDATA, args)
+combine_masktypetag(args...) = _combine_masktag(MASKTYPE, args)
 
 """
     AbstractMask
