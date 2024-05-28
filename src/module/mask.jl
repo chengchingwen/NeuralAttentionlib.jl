@@ -35,7 +35,6 @@ Return the [`Indexer`](@ref) of `m` and check if the mask `m` can be applied to 
 """
 GetIndexer
 
-
 """
     AbstractDatalessMask <: AbstractAttenMask
 

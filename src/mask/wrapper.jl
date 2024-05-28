@@ -174,7 +174,6 @@ function bi_destsize(destsize, is_q)
         i, j, J... = destsize
     end
     return (1, ifelse(is_q, j, i), J...)
-    # return is_q ? (1, j, J...) : (1, i, J...)
 end
 
 Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::BiSequenceMask, i::Integer, j::Integer, J::Integer...)
