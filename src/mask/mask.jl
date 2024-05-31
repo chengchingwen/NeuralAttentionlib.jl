@@ -51,7 +51,6 @@ AttenMask(m::AbstractAttenMask) = m
 SeqMask(m::AbstractSeqMask) = m
 
 Base.eltype(::AbstractMask) = Bool
-randomness(::AbstractMask) = static(false)
 
 """
     AbstractMaskOp
@@ -71,8 +70,8 @@ struct NaiveMaskOp <: AbstractMaskOp end
 
 Directly broadcast multiply mask to attention score, i.e. `score .* mask`.
 """
-apply_mask(op::NaiveMaskOp, mask::AbstractMask, score) = score .* mask
-apply_mask!(op::NaiveMaskOp, mask::AbstractMask, score) = score .*= mask
+apply_mask(op::NaiveMaskOp, mask::AbstractMask, score) = apply_mask!(op, mask, copy(score))
+apply_mask!(op::NaiveMaskOp, mask::AbstractMask, score) = _fast_broadcast!(*, score, GetIndexer(mask, size(score)))
 
 struct GenericMaskOp{F, B<:StaticBool, T} <: AbstractMaskOp
     apply::F
@@ -89,10 +88,10 @@ GenericMaskOp(::typeof(.-), flip::StaticBool, scale) = GenericMaskOp(.+, flip, -
 GenericMaskOp() = GenericMaskOp(.+, static(true), -1e9)
 
 getmask(m::AbstractMask, score, scale = one(eltype(score))) = getmask!(similar(score), m, score, scale)
-getmask!(tmp, m::AbstractMask, score, scale = one(eltype(score))) = @. tmp = m * scale
+getmask!(tmp, m::AbstractMask, score, scale = one(eltype(score))) = _fast_broadcast2!(identity, tmp, GetIndexer(m, size(score), convert(eltype(score), scale)))
 
-apply_broadcast_mask(f, mask::AbstractMask, score, scale) = @. f(score, mask * scale)
-apply_broadcast_mask!(f, mask::AbstractMask, score, scale) = @. score = f(score, mask * scale)
+apply_broadcast_mask(f, mask::AbstractMask, score, scale) = apply_broadcast_mask!(f, mask, copy(score), scale)
+apply_broadcast_mask!(f, mask::AbstractMask, score, scale) = _fast_broadcast!(f, score, GetIndexer(mask, size(score), convert(eltype(score), scale))) #@. score = f(score, mask * scale)
 
 """
     apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
@@ -112,24 +111,7 @@ true
 
 ```
 """
-function apply_mask(op::GenericMaskOp, mask::AbstractMask, score)
-    scale = convert(eltype(score), op.scale)
-    if isinf(scale)
-        scale = scale > 0 ? prevfloat(scale) :  nextfloat(scale)
-        @assert !isinf(scale)
-    end
-    apply = op.apply
-    m = as_bool(op.flip) ? !mask : mask
-
-    if apply isa Base.BroadcastFunction
-        masked_score = apply_broadcast_mask(apply.f, m, score, scale)
-    else
-        tmp = getmask(m, score, scale)
-        masked_score = apply(tmp, score)
-    end
-    return masked_score
-end
-
+apply_mask(op::GenericMaskOp, mask::AbstractMask, score) = apply_mask!(op, mask, copy(score))
 function apply_mask!(op::GenericMaskOp, mask::AbstractMask, score)
     scale = convert(eltype(score), op.scale)
     if isinf(scale)
@@ -138,12 +120,11 @@ function apply_mask!(op::GenericMaskOp, mask::AbstractMask, score)
     end
     apply = op.apply
     m = as_bool(op.flip) ? !mask : mask
-
     if apply isa Base.BroadcastFunction
         return apply_broadcast_mask!(apply.f, m, score, scale)
     else
         tmp = getmask(m, score, scale)
-        tmp .= apply(tmp, score)
-        return tmp
+        score .= apply(score, tmp)
+        return score
     end
 end

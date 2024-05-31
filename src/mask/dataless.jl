@@ -29,7 +29,6 @@ Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::RandomMask, I:
 end
 
 AxesConstraint(m::RandomMask) = ()
-randomness(::RandomMask) = static(true)
 
 struct BandPartMask <: AbstractAttenMask{DATALESS}
     l::Int

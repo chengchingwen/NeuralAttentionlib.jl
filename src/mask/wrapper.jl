@@ -14,7 +14,6 @@ adapt_structure(to, x::FlipMask) = FlipMask(adapt(to, x.mask))
 Base.@propagate_inbounds maskgetindex(destsize::Dims, m::FlipMask, I::Integer...) = !maskgetindex(destsize, m.mask, I...)
 
 AxesConstraint(m::FlipMask) = AxesConstraint(m.mask)
-randomness(m::FlipMask) = randomness(m.mask)
 
 Base.show(io::IO, m::FlipMask) = (print(io, '!'); show(io, m.mask); io)
 
@@ -71,8 +70,6 @@ function AxesConstraint(m::CombinedMask)
     merge_constraint(map(AxesConstraint, m.masks)...)
 end
 
-randomness(m::CombinedMask) = static(any(map(randomness, m.masks)))
-
 function Base.show(io::IO, m::CombinedMask)
     print(io, '(')
     show(io, first(m.masks))
@@ -128,7 +125,6 @@ function batch_constraint(cs::Tuple{NDimConstraint, Vararg{DimConstraint}})
 end
 
 AxesConstraint(m::BatchedMask) = batch_constraint(AxesConstraint(m.mask))
-randomness(m::BatchedMask) = randomness(m.mask)
 
 struct RepeatMask{D, T, M <: AbstractMask{D, T}} <: AbstractWrapperMask{D, T}
     mask::M
@@ -163,8 +159,6 @@ end
     c = cs[end]
     return (h..., DimConstraint(c.dim, c.val * n, c.fixed))
 end
-
-randomness(m::RepeatMask) = randomness(m.mask)
 
 struct BiSequenceMask{D, QM<:AbstractSeqMask, KM<:AbstractSeqMask} <: AbstractWrapperMask{D, ATTENTION}
     q_mask::QM
@@ -212,5 +206,3 @@ function AxesConstraint(m::BiSequenceMask)
     kc = seq_cs_transpose(AxesConstraint(m.k_mask))
     return merge_constraint(qc, kc)
 end
-
-randomness(m::BiSequenceMask) = randomness(m.q_mask) | randomness(m.k_mask)

@@ -65,3 +65,13 @@ function ChainRulesCore.rrule(config::RuleConfig, pf::PrefixedFunction, args...)
     num_f_args = static(length(pf.arg)) + static(1)
     return y, PrefixedFunctionPullback(back, num_input, num_f_args)
 end
+
+struct SkipFirstArg{F} <: Function
+    f::F
+end
+@inline (_f::SkipFirstArg)(dst, xs...) = _f.f(xs...)
+
+using NNlib: _fast_broadcast!
+@inline _fast_broadcast(f, x, yz...) = _fast_broadcast!(f, copy(x), yz...)
+@inline _fast_broadcast2(f, x, yz...) = _fast_broadcast2!(f, similar(x), x, yz...)
+@inline _fast_broadcast2!(f, dst, x, yz...) = _fast_broadcast!(SkipFirstArg(f), dst, x, yz...)

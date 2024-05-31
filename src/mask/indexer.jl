@@ -1,28 +1,30 @@
-abstract type AbstractIndexer{N} <: AbstractArray{Bool, N} end
+abstract type AbstractIndexer{T, N} <: AbstractArray{T, N} end
 
-struct Indexer{M <: AbstractMask, N} <: AbstractIndexer{N}
+struct Indexer{T, M <: AbstractMask, N} <: AbstractIndexer{T, N}
+    scale::T
     mask::M
     destsize::Dims{N}
-    function Indexer(mask::AbstractMask, destsize::Dims{N}) where N
-        m = adapt(Indexer, mask)
-        return new{typeof(m), N}(m, destsize)
-    end
 end
-function GetIndexer(mask::AbstractMask, destsize::Dims)
+function Indexer(mask::AbstractMask, destsize::Dims{N}, scale = true) where N
+    m = adapt(Indexer, mask)
+    return Indexer{typeof(scale), typeof(m), N}(scale, m, destsize)
+end
+function GetIndexer(mask::AbstractMask, destsize::Dims, scale = true)
     check_constraint(AxesConstraint(mask), destsize)
-    return Indexer(mask, destsize)
+    return Indexer(mask, destsize, scale)
 end
 Base.length(I::Indexer) = prod(size(I))
 Base.size(I::Indexer) = getfield(I, :destsize)
-Base.eltype(::Indexer) = Bool
 
-@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Integer...) = __maskgetindex__(m.destsize, m.mask, I...)
-@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Tuple) = __maskgetindex__(m.destsize, m.mask, I...)
+@inline Base.@propagate_inbounds Base.getindex(m::Indexer{Bool}, I::Integer...) = __maskgetindex__(m.destsize, m.mask, I...)
+@inline Base.@propagate_inbounds Base.getindex(m::Indexer{Bool}, I::Tuple) = __maskgetindex__(m.destsize, m.mask, I...)
+@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Integer...) = m.scale * __maskgetindex__(m.destsize, m.mask, I...)
+@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Tuple) = m.scale * __maskgetindex__(m.destsize, m.mask, I...)
 
 using Adapt
 import Adapt: adapt_structure
-adapt_structure(to, m::Indexer) = Indexer(adapt(to, m.mask), m.destsize)
-Base.print_array(io::IO, m::Indexer) = invoke(Base.print_array, Tuple{IO, AbstractArray{Bool, ndims(m)}}, io, Adapt.adapt(Array, m))
+adapt_structure(to, m::Indexer) = (mask = adapt(to, m.mask); Indexer{eltype(m), typeof(mask), ndims(m)}(m.scale, mask, m.destsize))
+Base.print_array(io::IO, m::Indexer) = invoke(Base.print_array, Tuple{IO, AbstractArray{eltype(m), ndims(m)}}, io, Adapt.adapt(Array, m))
 
 using FuncTransforms: FuncTransforms, FuncTransform, FA, VA
 function _maskgetindex_generator(world, source, self, destsize, mask, I)
