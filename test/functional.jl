@@ -8,9 +8,24 @@
     using NeuralAttentionlib.Matmul
     using NeuralAttentionlib.Functional
     using NeuralAttentionlib: as_collapsed,
-      get_scalar_relative_position_embeddings,
+      get_scalar_relative_position_embeddings, dropout,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
       layer_norm, rms_layer_norm, get_sincos_position_embeddings
+
+    @testset "dropout" begin
+        function test_dropout_size(shape, p)
+            N = prod(shape)
+            x = dropout(dones(Float32, shape), p)
+            n = count(>(0), x)
+            @test abs(1 - p - n/N) < 0.05
+            return x
+        end
+        for p in [0.1, 0.15, 0.3, 0.5, 0.8, 0.9]
+            test_dropout_size((100, 100, 8), p)
+            test_dropout_size((128, 128, 32), p)
+            test_dropout_size((1024, 1024, 128), p)
+        end
+    end
 
     @testset "score" begin
         if !USE_GPU
