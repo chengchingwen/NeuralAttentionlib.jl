@@ -12,11 +12,21 @@ end
 
 Base.@propagate_inbounds maskgetindex(::Dims, m::LocalMask, i::Integer, j::Integer, _::Integer...) = j - m.width < i < j + m.width
 
-struct RandomMask <: AbstractAttenMask{DATALESS}
-    p::Float64
+struct RandomMask{R} <: AbstractAttenMask{DATALESS}
+    p::Float32
+    rng::R
 end
+RandomMask(p) = RandomMask(convert(Float32, p), nothing)
 
-Base.@propagate_inbounds maskgetindex(::Dims, m::RandomMask, _::Integer...) = rand() > m.p
+include("prand.jl")
+adapt_structure(to::Type{Indexer}, x::RandomMask) = RandomMask(x.p, adapt(to, @something(x.rng, CPLCGm32())))
+
+Base.@propagate_inbounds maskgetindex(::Dims, m::RandomMask{Nothing}, _::Integer...) = rand(Float32) >= m.p
+Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::RandomMask, I::Integer...)
+    s = +((UInt32.(destsize) .* UInt32.(reverse(I)))...)
+    v, rng = prand(Float32, setpos(m.rng, s), s)
+    return v >= m.p
+end
 
 AxesConstraint(m::RandomMask) = ()
 randomness(::RandomMask) = static(true)
