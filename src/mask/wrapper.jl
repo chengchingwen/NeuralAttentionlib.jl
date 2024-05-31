@@ -42,7 +42,17 @@ Base.:|(::Nothing, m::AbstractMask) = nothing
 Base.:&(m::AbstractMask, ::Nothing) = m
 Base.:&(::Nothing, m::AbstractMask) = m
 
-adapt_structure(to, x::CombinedMask) = CombinedMask(x.f, map(m->adapt(to, m), x.masks))
+@generated function adapt_structure(to, x::CombinedMask)
+    n = length(x.parameters[4].parameters)
+    expr = Expr(:tuple)
+    for i = 1:n
+        push!(expr.args, :(adapt(to, masks[$i])))
+    end
+    return quote
+        masks = x.masks
+        return CombinedMask(x.f, $expr)
+    end
+end
 
 @generated function maskgetindex(destsize::Dims, m::CombinedMask, I::Integer...)
     n = length(m.parameters[4].parameters)
