@@ -10,6 +10,7 @@ FuncTransforms = "79abecb7-a74d-442d-bb0e-6136fbda6b73"
 GPUArraysCore = "46192b85-c4d5-4398-a991-12ede77f4527"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Static = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
 
 [weakdeps]
