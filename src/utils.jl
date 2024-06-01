@@ -66,12 +66,22 @@ function ChainRulesCore.rrule(config::RuleConfig, pf::PrefixedFunction, args...)
     return y, PrefixedFunctionPullback(back, num_input, num_f_args)
 end
 
-struct SkipFirstArg{F} <: Function
-    f::F
-end
-@inline (_f::SkipFirstArg)(dst, xs...) = _f.f(xs...)
+shape2stride(shape::Tuple{T, Vararg{T}}) where T = _shape2stride((one(T),), shape)
+_shape2stride(stride, shape::NTuple{1}) = stride
+_shape2stride(stride, shape::Tuple{T, T, Vararg{T}}) where T =
+    _shape2stride((stride..., last(stride) * first(shape)), Base.tail(shape))
 
+# https://github.com/FluxML/NNlib.jl/blob/7369244c1a64317eef5b0a20c142316947a85bb3/src/utils.jl#L131-L141
+function _fast_broadcast2!(f::F, dst::Array, x, yz...) where {F<:Function}
+    bc = Broadcast.instantiate(Broadcast.broadcasted(f, x, yz...))
+    @simd ivdep for I in eachindex(bc)
+        @inbounds dst[I] = bc[I]
+    end
+    return dst
+end
+function _fast_broadcast2!(f::F, dst::AbstractArray, x, yz...) where {F<:Function}
+    return broadcast!(f, dst, x, yz...)
+end
 using NNlib: _fast_broadcast!
 @inline _fast_broadcast(f, x, yz...) = _fast_broadcast!(f, copy(x), yz...)
 @inline _fast_broadcast2(f, x, yz...) = _fast_broadcast2!(f, similar(x), x, yz...)
-@inline _fast_broadcast2!(f, dst, x, yz...) = _fast_broadcast!(SkipFirstArg(f), dst, x, yz...)
