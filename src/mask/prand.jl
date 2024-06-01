@@ -4,9 +4,10 @@
 #  state from different locations. The initail seeds are created by a another RNG (like `Random.default_rng()`).
 #
 # We use a Combined LCG (modulo 2^32) and a hashed position number to create the unique RNG for each position.
-#  The additive constants are multipled with the hashed position number to create different random
-#  streams for each position.
+#  The additive constants are multipled with the hashed position number to create different random streams for
+#  each position. The random number would multipled with the hashed position number as the final random number
 abstract type PosRNGAlg end
+setpos(::PosRNGAlg, state, pos) = state
 randstate(alg::PosRNGAlg) = randstate(Random.default_rng(), alg)
 struct CPLCGm32{T<:Tuple{Vararg{UInt32}}} <: PosRNGAlg
     a::T
@@ -26,13 +27,13 @@ PosRNG() = PosRNG(CPLCGm32)
 PosRNG(rng::AbstractRNG) = PosRNG(rng, CPLCGm32())
 PosRNG(alg::PosRNGAlg) = PosRNG(Random.defalut_rng(), alg)
 PosRNG(rng::AbstractRNG, alg::PosRNGAlg) = PosRNG(alg, randstate(rng, alg))
-setpos(rng::PosRNG, pos) = PosRNG(setpos(rng.alg, pos), rng.state)
+setpos(rng::PosRNG, pos) = PosRNG(setpos(rng.alg, pos), setpos(rng.alg, rng.state, pos))
 i2fp(rng::PosRNG, x) = i2fp(rng.alg, x)
 adapt_structure(to::IndexerAdaptor, rng::PosRNG) = isnothing(to.rng) ? rng : PosRNG(rng.alg, randstate(to.rng, rng.alg))
 
 @inline function rngstep(rng::CPLCGm32{T}, seed::T, pos::UInt32) where T
     state = fma.(rng.a, seed, rng.c)
-    val = xor(state...)
+    val = xor(state...) * pos
     return val, state
 end
 @inline function rngstep(rng::PosRNG, pos)
