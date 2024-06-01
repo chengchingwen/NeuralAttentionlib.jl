@@ -495,7 +495,7 @@ julia> trues(7, 7, 2) .* Masks.BiSeqMask(Masks.LengthMask([3, 5]), Masks.RevLeng
  1  1  1  1  1  0  0
 ```
 
-See also: [`BiLengthMask`](@ref), [`BiRevLengthMask`](@ref)
+See also: [`BiLengthMask`](@ref), [`RevBiLengthMask`](@ref)
 """
 BiSeqMask
 
