@@ -32,7 +32,7 @@ function create_atten_mask(T::Type, score::AbstractArray, _mask::AbstractArray, 
 end
 ChainRulesCore.@non_differentiable create_atten_mask(T, score, _mask, future)
 
-struct MultiheadAttention{Q<:Dense, K<:Dense, V<:Dense, O<:Dense, DP<:Dropout} <: AbstractAttention
+struct MultiheadAttention{Q<:Dense, K<:Dense, V<:Dense, O<:Dense, DP} <: AbstractAttention
     head::Int
     future::Bool
     iqproj::Q
@@ -42,29 +42,12 @@ struct MultiheadAttention{Q<:Dense, K<:Dense, V<:Dense, O<:Dense, DP<:Dropout} <
     drop::DP
 end
 
-Flux.functor(mh::MultiheadAttention) = (mh.iqproj, mh.ikproj, mh.ivproj, mh.oproj, mh.drop), m -> MultiheadAttention(mh.head, mh.future, m...)
+Flux.functor(mh::MultiheadAttention) = (mh.iqproj, mh.ikproj, mh.ivproj, mh.oproj), m -> MultiheadAttention(mh.head, mh.future, m..., mh.drop)
 
-"""
-    MultiheadAttention(head::Int, is::Int, hs::Int, os::Int;
-                       future::Bool=true, pdrop = 0.1)
-
-Multihead dot product Attention Layer, `head` is the number of head,
-`is` is the input size, `hs` is the hidden size of input projection layer of each head,
-`os` is the output size. When `future` is `false`, the k-th token can't see tokens at > k.
-`pdrop` is the dropout rate.
-"""
-MultiheadAttention(head::Int,
-                   is::Int,
-                   hs::Int,
-                   os::Int;
-                   future::Bool=true, pdrop = 0.1) = MultiheadAttention(head,
-                                                                        future,
-                                                                        Dense(is, hs*head),
-                                                                        Dense(is, hs*head),
-                                                                        Dense(is, hs*head),
-                                                                        Dense(hs*head, os),
-                                                                        Dropout(pdrop),
-                                                                        )
+MultiheadAttention(head::Int, is::Int, hs::Int, os::Int; future::Bool=true, drop = nothing) =
+    MultiheadAttention(head, future,
+                       Dense(is, hs*head), Dense(is, hs*head), Dense(is, hs*head), Dense(hs*head, os),
+                       isnothing(drop) ? nothing : NeuralAttentionlib._dropout_func(drop))
 
 
 function Base.show(io::IO, mh::MultiheadAttention)
@@ -179,7 +162,7 @@ function attention(query::A1,
                    key::A2,
                    value::A3,
                    mask, future::Bool,
-                   dropout, return_score::Bool) where {T,
+                   drop, return_score::Bool) where {T,
                                    A1 <: Abstract3DTensor{T},
                                    A2 <: Abstract3DTensor{T},
                                    A3 <: Abstract3DTensor{T}}
@@ -191,7 +174,7 @@ function attention(query::A1,
 
   score = apply_mask(score, mask, future)
   score = softmax(score; dims=1)
-  dropout !== nothing && (score = dropout(score))
+  !isnothing(drop) && (score = drop(score))
   result = batchedmul(value, score) #size(return) == (dims, q_seq_len, batch)
   return return_score ? (result, score) : (result, nothing)
 end

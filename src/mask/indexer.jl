@@ -1,20 +1,26 @@
-abstract type AbstractIndexer{T, N} <: AbstractArray{T, N} end
+# using `adapt` as a free walk interface
+using Random
+struct IndexerAdaptor{R<:Union{Nothing, AbstractRNG}}; rng::R; end
+IndexerAdaptor() = IndexerAdaptor(Random.default_rng())
 
+abstract type AbstractIndexer{T, N} <: AbstractArray{T, N} end
 struct Indexer{T, M <: AbstractMask, N} <: AbstractIndexer{T, N}
     scale::T
     mask::M
     destsize::Dims{N}
 end
-function Indexer(mask::AbstractMask, destsize::Dims{N}, scale = true) where N
-    m = adapt(Indexer, mask)
+Indexer(mask::AbstractMask, destsize::Dims, scale = true) = Indexer(IndexerAdaptor(), mask, destsize, scale)
+function Indexer(to::IndexerAdaptor, mask::AbstractMask, destsize::Dims{N}, scale = true) where N
+    m = adapt(to, mask)
     return Indexer{typeof(scale), typeof(m), N}(scale, m, destsize)
 end
-function GetIndexer(mask::AbstractMask, destsize::Dims, scale = true)
+GetIndexer(mask::AbstractMask, destsize::Dims, scale = true) = GetIndexer(IndexerAdaptor(), mask, destsize, scale)
+function GetIndexer(to::IndexerAdaptor, mask::AbstractMask, destsize::Dims, scale = true)
     check_constraint(AxesConstraint(mask), destsize)
-    return Indexer(mask, destsize, scale)
+    return Indexer(to, mask, destsize, scale)
 end
 Base.length(I::Indexer) = prod(size(I))
-Base.size(I::Indexer) = getfield(I, :destsize)
+Base.size(I::Indexer) = I.destsize
 
 @inline Base.@propagate_inbounds Base.getindex(m::Indexer{Bool}, I::Integer...) = __maskgetindex__(m.destsize, m.mask, I...)
 @inline Base.@propagate_inbounds Base.getindex(m::Indexer{Bool}, I::Tuple) = __maskgetindex__(m.destsize, m.mask, I...)

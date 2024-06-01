@@ -19,7 +19,7 @@ end
 RandomMask(p) = RandomMask(convert(Float32, p), nothing)
 
 include("prand.jl")
-adapt_structure(to::Type{Indexer}, x::RandomMask) = RandomMask(x.p, adapt(to, @something(x.rng, CPLCGm32())))
+adapt_structure(to::IndexerAdaptor, x::RandomMask) = RandomMask(x.p, adapt(to, @something(x.rng, CPLCGm32())))
 
 Base.@propagate_inbounds maskgetindex(::Dims, m::RandomMask{Nothing}, _::Integer...) = rand(Float32) >= m.p
 Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::RandomMask, I::Integer...)

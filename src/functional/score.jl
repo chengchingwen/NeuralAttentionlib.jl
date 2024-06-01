@@ -24,9 +24,12 @@ masked_score(maskop::AbstractMaskOp, mask::Union{AbstractMask, Nothing}) = maske
 normalized_score(norm) = normalized_score $ norm
 @inline normalized_score(norm, score, args...) = collapseddims(norm, score(args...))
 
-dropout(x, p) = x .* getmask(RandomMask(p), x, inv(1 - p))
+include("dropout.jl")
+_dropout_func(p::Real) = dropoutF(; p)
+_dropout_func(p::Function) = p
 dropout_score(p) = dropout_score $ p
-@inline dropout_score(p, score, args...) = collapseddims(Base.Fix2(dropout, p), score(args...))
+@inline dropout_score(p::Real, score, args...) = dropout_score(_dropout_func(p), score, args...)
+@inline dropout_score(p, score, args...) = collapseddims(_dropout_func(p), score(args...))
 @inline dropout_score(::Nothing, score, args...) = score(args...)
 
 bias_add(b) = bias_add $ b

@@ -1,11 +1,13 @@
 # A simple, fast, reproducible, but reasonably weak RNG for generating random number per array elements.
 #  The basic idea is to create a unique RNG for each array positions, so the RNG state is only
 #  shared across multiple calls at the same location. This eliminate the need for accessing RNG
-#  state from different locations.
+#  state from different locations. The initail seeds are created by a another RNG (like `Random.default_rng()`).
+#
 # We use a Combined LCG (modulo 2^32) and a hashed position number to create the unique RNG for each position.
 #  The additive constants are multipled with the hashed position number to create different random
 #  streams for each position.
 abstract type PosRNGAlg end
+randstate(alg::PosRNGAlg) = randstate(Random.default_rng(), alg)
 struct CPLCGm32{T<:Tuple{Vararg{UInt32}}} <: PosRNGAlg
     a::T
     c::T
@@ -13,17 +15,20 @@ end
 CPLCGm32() = CPLCGm32(UInt32.((22695477, 69069, 1664525,)), UInt32.((1, 12345, 1013904223,)))
 setpos(lcg::CPLCGm32, pos::UInt32) = CPLCGm32(lcg.a, lcg.c .* pos)
 i2fp(::CPLCGm32, x::UInt32) = 2.3283064f-10 * Float32(x)
-randstate(lcg::CPLCGm32) = ntuple(i->rand(UInt32), Val(length(lcg.a)))
-adapt_structure(::Type{Indexer}, alg::CPLCGm32) = PosRNG(alg, randstate(alg))
+randstate(rng::AbstractRNG, lcg::CPLCGm32) = ntuple(i->rand(rng, UInt32), Val(length(lcg.a)))
+adapt_structure(to::IndexerAdaptor, alg::CPLCGm32) = PosRNG(alg, randstate(to.rng, alg))
 
 struct PosRNG{A <: PosRNGAlg, S}
     alg::A
     state::S
 end
-PosRNG() = (alg = CPLCGm32(); PosRNG(alg, randstate(alg)))
+PosRNG() = PosRNG(CPLCGm32)
+PosRNG(rng::AbstractRNG) = PosRNG(rng, CPLCGm32())
+PosRNG(alg::PosRNGAlg) = PosRNG(Random.defalut_rng(), alg)
+PosRNG(rng::AbstractRNG, alg::PosRNGAlg) = PosRNG(alg, randstate(rng, alg))
 setpos(rng::PosRNG, pos) = PosRNG(setpos(rng.alg, pos), rng.state)
 i2fp(rng::PosRNG, x) = i2fp(rng.alg, x)
-adapt_structure(::Type{Indexer}, rng::PosRNG) = PosRNG(rng.alg, randstate(rng.alg))
+adapt_structure(to::IndexerAdaptor, rng::PosRNG) = isnothing(to.rng) ? rng : PosRNG(rng.alg, randstate(to.rng, rng.alg))
 
 @inline function rngstep(rng::CPLCGm32{T}, seed::T, pos::UInt32) where T
     state = fma.(rng.a, seed, rng.c)

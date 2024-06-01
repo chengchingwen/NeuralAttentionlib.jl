@@ -101,7 +101,7 @@ function BatchedMask(mask)
 end
 
 adapt_structure(to, x::BatchedMask) = BatchedMask(adapt(to, x.mask), x.batch_dim)
-adapt_structure(::Type{Indexer}, x::BatchedMask) = BatchedMask(adapt(Indexer, x.mask), static(x.batch_dim))
+adapt_structure(to::IndexerAdaptor, x::BatchedMask) = BatchedMask(adapt(to, x.mask), static(x.batch_dim))
 
 @inline function _tailtuples(I, dim)
     offset = static(length(I)) - dim
