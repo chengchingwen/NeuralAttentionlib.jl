@@ -26,27 +26,6 @@ _combine_masktag(::Type{T}, t::Tuple) where T <: MASKTAG = T(T(first(t)), _combi
 combine_maskdatatag(args...) = _combine_masktag(MASKDATA, args)
 combine_masktypetag(args...) = _combine_masktag(MASKTYPE, args)
 
-"""
-    AbstractMask
-
-Abstract type for mask data.
-"""
-AbstractMask
-
-"""
-    AbstractSeqMask <: AbstractMask
-
-Abstract type for mask data specifically for sequence.
-"""
-AbstractSeqMask
-
-"""
-    AbstractAttenMask <: AbstractMask
-
-Abstract type for mask data specifically for attention.
-"""
-AbstractAttenMask
-
 AttenMask(m::AbstractAttenMask) = m
 SeqMask(m::AbstractSeqMask) = m
 

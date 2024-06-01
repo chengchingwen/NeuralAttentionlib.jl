@@ -15,7 +15,8 @@ import ..NeuralAttentionlib:
     split_head, move_head_dim_out_perm, move_head_dim_out,
     move_head_dim_in_perm, move_head_dim_in, merge_head,
     t5_bucketed_position_id, t5_causal_bucketed_position_id,
-    layer_norm, rms_layer_norm, get_sincos_position_embeddings
+    layer_norm, rms_layer_norm, get_sincos_position_embeddings,
+    dropout, dropoutF
 
 using ..NeuralAttentionlib: SymLengthMask, BiLengthMask, CausalMask
 

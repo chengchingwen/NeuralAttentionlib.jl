@@ -19,6 +19,7 @@ makedocs(;
         "Example" => "example.md",
         "API Reference" => "api.md",
     ],
+    warnonly = [:autodocs_block]
 )
 
 deploydocs(;

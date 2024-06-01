@@ -2,36 +2,37 @@
 
 AttenMask(q::AbstractSeqMask, k::AbstractSeqMask) = BiSequenceMask(q, k)
 
-struct GenericSequenceMask{N, M <: AbstractArray{Bool, N}} <: AbstractSeqMask{ARRAYDATA}
+struct GenericSeqMask{N, M <: AbstractArray{Bool, N}} <: AbstractSeqMask{ARRAYDATA}
     mask::M
-    function GenericSequenceMask{N, M}(mask::M) where {N, M <: AbstractArray{Bool, N}}
+    function GenericSeqMask{N, M}(mask::M) where {N, M <: AbstractArray{Bool, N}}
         @assert size(mask, 1) == 1
         return new{N, M}(mask)
     end
 end
+const GenericSequenceMask = GenericSeqMask
 
-GenericSequenceMask{N}(mask::AbstractArray{Bool}) where N = GenericSequenceMask{N, typeof(mask)}(mask)
-function GenericSequenceMask(mask::AbstractArray{Bool})
+GenericSeqMask{N}(mask::AbstractArray{Bool}) where N = GenericSeqMask{N, typeof(mask)}(mask)
+function GenericSeqMask(mask::AbstractArray{Bool})
     if size(mask, 1) != 1
         mask = reshape(mask, (1, size(mask)...))
     end
-    return GenericSequenceMask{ndims(mask), typeof(mask)}(mask)
+    return GenericSeqMask{ndims(mask), typeof(mask)}(mask)
 end
-GenericSequenceMask(mask) = GenericSequenceMask(convert(AbstractArray{Bool}, mask))
+GenericSeqMask(mask) = GenericSeqMask(convert(AbstractArray{Bool}, mask))
 
-Base.ndims(::GenericSequenceMask{N}) where N = N
+Base.ndims(::GenericSeqMask{N}) where N = N
 
-adapt_structure(to, x::GenericSequenceMask{N}) where N = GenericSequenceMask{N}(adapt(to, x.mask))
+adapt_structure(to, x::GenericSeqMask{N}) where N = GenericSeqMask{N}(adapt(to, x.mask))
 
-Base.@propagate_inbounds maskgetindex(::Dims, m::GenericSequenceMask, I::Integer...) = m.mask[1, Base.tail(I)...]
+Base.@propagate_inbounds maskgetindex(::Dims, m::GenericSeqMask, I::Integer...) = m.mask[1, Base.tail(I)...]
 
-AxesConstraint(m::GenericSequenceMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+1, size(m.mask, i+1), i < 2), ndims(m)-1)...)
+AxesConstraint(m::GenericSeqMask) = (NDimConstraint(ndims(m)), ntuple(i->DimConstraint(i+1, size(m.mask, i+1), i < 2), ndims(m)-1)...)
 
-AttenMask(m::GenericSequenceMask) = GenericAttenMask(PermutedDimsArray(m.mask, ntuple(i-> i == 1 ? 2 : i == 2 ? 1 : i, Val(ndims(m)))) .* m.mask)
+AttenMask(m::GenericSeqMask) = GenericAttenMask(PermutedDimsArray(m.mask, ntuple(i-> i == 1 ? 2 : i == 2 ? 1 : i, Val(ndims(m)))) .* m.mask)
 
 _tn(m, s) = ntuple(identity, static(ndims(m)) - s)
-lengths(m::GenericSequenceMask) = reshape(sum(m.mask; dims = _tn(m, static(1))), :)
-lengths(m::GenericSequenceMask{2}) = m.mask
+lengths(m::GenericSeqMask) = reshape(sum(m.mask; dims = _tn(m, static(1))), :)
+lengths(m::GenericSeqMask{2}) = m.mask
 
 
 struct LengthMask{N, L <: AbstractArray{Int32, N}} <: AbstractSeqMask{ARRAYDATA}

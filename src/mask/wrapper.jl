@@ -160,15 +160,16 @@ end
     return (h..., DimConstraint(c.dim, c.val * n, c.fixed))
 end
 
-struct BiSequenceMask{D, QM<:AbstractSeqMask, KM<:AbstractSeqMask} <: AbstractWrapperMask{D, ATTENTION}
+struct BiSeqMask{D, QM<:AbstractSeqMask, KM<:AbstractSeqMask} <: AbstractWrapperMask{D, ATTENTION}
     q_mask::QM
     k_mask::KM
-    function BiSequenceMask(q_mask::AbstractSeqMask{D1}, k_mask::AbstractSeqMask{D2}) where {D1, D2}
+    function BiSeqMask(q_mask::AbstractSeqMask{D1}, k_mask::AbstractSeqMask{D2}) where {D1, D2}
         return new{combine_maskdatatag(D1, D2), typeof(q_mask), typeof(k_mask)}(q_mask, k_mask)
     end
 end
+const BiSequenceMask = BiSeqMask
 
-adapt_structure(to, x::BiSequenceMask) = BiSequenceMask(adapt(to, x.q_mask), adapt(to, x.k_mask))
+adapt_structure(to, x::BiSeqMask) = BiSeqMask(adapt(to, x.q_mask), adapt(to, x.k_mask))
 
 function bi_destsize(destsize, is_q)
     if length(destsize) <= 2
@@ -180,7 +181,7 @@ function bi_destsize(destsize, is_q)
     return (1, ifelse(is_q, j, i), J...)
 end
 
-Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::BiSequenceMask, i::Integer, j::Integer, J::Integer...)
+Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::BiSeqMask, i::Integer, j::Integer, J::Integer...)
     q = maskgetindex(destsize, m.q_mask, 1, j, J...)
     k = maskgetindex(destsize, m.k_mask, 1, i, J...)
     return q & k
@@ -201,7 +202,7 @@ function seq_cs_transpose(cs::Tuple{NDimConstraint, Vararg{DimConstraint}})
     return cs
 end
 
-function AxesConstraint(m::BiSequenceMask)
+function AxesConstraint(m::BiSeqMask)
     qc = AxesConstraint(m.q_mask)
     kc = seq_cs_transpose(AxesConstraint(m.k_mask))
     return merge_constraint(qc, kc)

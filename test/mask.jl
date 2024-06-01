@@ -34,6 +34,20 @@
         @test c .* BandPartMask(3, 5) == bandpart(c, 3, 5)
 
     end
+    @testset "random mask" begin
+        function test_dropout_size(shape, p)
+            N = prod(shape)
+            x = GetIndexer(RandomMask(p), shape)
+            n = count(x)
+            @test abs(1 - p - n/N) < 0.05
+            return x
+        end
+        for p in [0.1, 0.15, 0.3, 0.5, 0.8, 0.9]
+            test_dropout_size((100, 100, 8), p)
+            test_dropout_size((128, 128, 32), p)
+            test_dropout_size((1024, 1024, 128), p)
+        end
+    end
 
     function grow_length(_len1, _len2, n)
         len1 = collect(_len1)
@@ -204,26 +218,26 @@
 
         @test lengths(LengthMask(b)) == b
         @test lengths(RevLengthMask(b)) == b
-        @test lengths(GenericSequenceMask(a)) == b
+        @test lengths(GenericSeqMask(a)) == b
 
         @test x .* a == x .* LengthMask(b)
         @test x .* ra == x .* RevLengthMask(b)
-        @test x .* a == x .* GenericSequenceMask(a)
+        @test x .* a == x .* GenericSeqMask(a)
         @test x2 .* a2 == x2 .* BatchedMask(LengthMask(b))
         @test x2 .* ra2 == x2 .* BatchedMask(RevLengthMask(b))
-        @test x2 .* a2 == x2 .* BatchedMask(GenericSequenceMask(a))
+        @test x2 .* a2 == x2 .* BatchedMask(GenericSeqMask(a))
 
         m = reshape(a, 1, 5, 2) .* reshape(ra, 5, 1,  2)
         x3 = drandn(5, 5, 2)
         x4 = drandn(7, 7, 2)
-        @test x3 .* m == x3 .* AttenMask(GenericSequenceMask(a), GenericSequenceMask(ra))
+        @test x3 .* m == x3 .* AttenMask(GenericSeqMask(a), GenericSeqMask(ra))
         @test x3 .* m == x3 .* AttenMask(LengthMask(b), RevLengthMask(b))
-        @test x3 .* m == x3 .* AttenMask(LengthMask(b), GenericSequenceMask(ra))
-        @test x3 .* m == x3 .* AttenMask(GenericSequenceMask(a), RevLengthMask(b))
+        @test x3 .* m == x3 .* AttenMask(LengthMask(b), GenericSeqMask(ra))
+        @test x3 .* m == x3 .* AttenMask(GenericSeqMask(a), RevLengthMask(b))
         @test x4 .* AttenMask(RevLengthMask(b), RevLengthMask(b)) ==
-            x4 .* Masks.BiSequenceMask(RevLengthMask(b), RevLengthMask(b))
+            x4 .* Masks.BiSeqMask(RevLengthMask(b), RevLengthMask(b))
         @test x4 .* AttenMask(LengthMask(b), LengthMask(b)) ==
-            x4 .* Masks.BiSequenceMask(LengthMask(b), LengthMask(b))
+            x4 .* Masks.BiSeqMask(LengthMask(b), LengthMask(b))
 
         len = [5]
         l = 2

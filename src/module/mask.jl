@@ -6,34 +6,52 @@ using ..NeuralAttentionlib: @imexport
     apply_mask, NaiveMaskOp, GenericMaskOp,
     CausalMask, LocalMask, RandomMask, BandPartMask,
     GenericAttenMask, SymLengthMask, BiLengthMask,
-    RevSymLengthMask, RevBiLengthMask,
-    BatchedMask, RepeatMask, getmask,
-    GenericSequenceMask, LengthMask, RevLengthMask
+    RevSymLengthMask, RevBiLengthMask, BiSeqMask,
+    BatchedMask, RepeatMask, getmask, GetIndexer,
+    GenericSeqMask, LengthMask, RevLengthMask
 
-import ..NeuralAttentionlib: AbstractMask, AbstractSeqMask, AbstractAttenMask,
+import ..NeuralAttentionlib: AbstractMask, AbstractSeqMask, AbstractAttenMask, AbstractDatalessMask, AbstractArrayMask,
     MASKDATA, MASKTYPE, DATALESS, ARRAYDATA, MIXDATA, ATTENTION, SEQUENCE, MIXTYPE,
     AttenMask, SeqMask, AxesConstraint, Indexer, GetIndexer,
-    CombinedMask, FlipMask, lengths, BiSequenceMask
+    CombinedMask, FlipMask, lengths, GenericSequenceMask, BiSequenceMask
 
 """
-    Indexer{T <: AbstractMask, N} <: AbstractArray{Bool, N}
+    Indexer(m::AbstractMask, size::Dims{N}) <: AbstractArray{Bool, N}
+    Indexer(m::AbstractMask, size::Dims{N}, scale::T) <: AbstractArray{T, N}
 
-A lazy array-like type implementing the computation of the marked mask `T`.
-
-    Indexer(m::AbstractMask, dest_size::NTuple{N, Int} where N)
-
-Convert the mask `m` to the corresponding `Indexer` without checking the size.
+A lazy array-like object that "materialize" the mask `m` with `size` and a optional `scale` without size check.
 
 See also: [`GetIndexer`](@ref)
 """
 Indexer
 
 """
-    GetIndexer(m::AbstractMask, dest_size::NTuple{N, Int} where N)
+    GetIndexer(m::AbstractMask, destsize::Dims{N})
 
-Return the [`Indexer`](@ref) of `m` and check if the mask `m` can be applied to an array with size `dest_size`.
+Return the [`Indexer`](@ref) of `m` and check if the mask `m` can be applied to an array with size `destsize`.
 """
 GetIndexer
+
+"""
+    AbstractMask
+
+Abstract type for mask data.
+"""
+AbstractMask
+
+"""
+    AbstractSeqMask <: AbstractMask
+
+Abstract type for mask data specifically for sequence.
+"""
+AbstractSeqMask
+
+"""
+    AbstractAttenMask <: AbstractMask
+
+Abstract type for mask data specifically for attention.
+"""
+AbstractAttenMask
 
 """
     AbstractDatalessMask <: AbstractAttenMask
@@ -66,6 +84,23 @@ AttenMask
 Attention mask that block the future values.
 
 Similar to applying `LinearAlgebra.triu!` on the score matrix
+
+# Example
+
+```julia-repl
+julia> trues(10, 10) .* CausalMask()
+10×10 BitMatrix:
+ 1  1  1  1  1  1  1  1  1  1
+ 0  1  1  1  1  1  1  1  1  1
+ 0  0  1  1  1  1  1  1  1  1
+ 0  0  0  1  1  1  1  1  1  1
+ 0  0  0  0  1  1  1  1  1  1
+ 0  0  0  0  0  1  1  1  1  1
+ 0  0  0  0  0  0  1  1  1  1
+ 0  0  0  0  0  0  0  1  1  1
+ 0  0  0  0  0  0  0  0  1  1
+ 0  0  0  0  0  0  0  0  0  1
+```
 """
 CausalMask
 
@@ -75,16 +110,63 @@ CausalMask
 Attention mask that only allow local (diagonal like) values to pass.
 
 `width` should be ≥ 0 and `A .* LocalMask(1)` is similar to `Diagonal(A)`
+
+# Example
+
+```julia-repl
+julia> trues(10, 10) .* LocalMask(3)
+10×10 BitMatrix:
+ 1  1  1  0  0  0  0  0  0  0
+ 1  1  1  1  0  0  0  0  0  0
+ 1  1  1  1  1  0  0  0  0  0
+ 0  1  1  1  1  1  0  0  0  0
+ 0  0  1  1  1  1  1  0  0  0
+ 0  0  0  1  1  1  1  1  0  0
+ 0  0  0  0  1  1  1  1  1  0
+ 0  0  0  0  0  1  1  1  1  1
+ 0  0  0  0  0  0  1  1  1  1
+ 0  0  0  0  0  0  0  1  1  1
+```
 """
 LocalMask
 
 """
-    RandomMask(p::Float64) <: AbstractAttenMask{DATALESS}
+    RandomMask(p::Float32) <: AbstractAttenMask{DATALESS}
 
 Attention mask that block value randomly.
 
 `p` specify the percentage of value to block. e.g. `A .* RandomMask(0)` is equivalent to `identity(A)` and
  `A .* RandomMask(1)` is equivalent to `zero(A)`.
+
+# Example
+
+```julia-repl
+julia> trues(10, 10) .* RandomMask(0.5)
+10×10 BitMatrix:
+ 1  1  1  1  1  1  0  1  1  1
+ 0  0  1  0  1  0  0  0  1  0
+ 0  0  1  1  0  0  0  0  1  1
+ 1  0  1  1  1  0  0  1  0  1
+ 1  1  0  1  0  0  1  0  1  1
+ 0  1  1  1  1  0  1  0  1  1
+ 1  1  0  0  0  0  1  0  0  0
+ 0  0  1  0  1  1  0  1  1  0
+ 1  1  1  1  1  1  0  0  1  1
+ 0  0  1  0  1  1  0  0  1  0
+
+julia> trues(10, 10) .* RandomMask(0.5)
+10×10 BitMatrix:
+ 1  0  1  1  0  0  1  1  0  1
+ 0  1  0  1  1  1  0  0  1  1
+ 0  0  1  0  0  0  1  1  0  0
+ 0  0  0  0  1  0  0  1  1  1
+ 0  1  1  1  1  0  1  0  0  1
+ 1  0  0  1  1  0  0  0  1  1
+ 1  1  1  0  1  1  1  0  0  0
+ 0  0  1  1  0  0  1  1  1  0
+ 0  1  1  1  1  0  1  0  1  0
+ 0  0  1  0  0  0  0  1  1  1
+```
 """
 RandomMask
 
@@ -93,6 +175,23 @@ RandomMask
 
 Attention mask that only allow [band_part](https://www.tensorflow.org/api_docs/python/tf/linalg/band_part)
  values to pass.
+
+# Example
+
+```julia-repl
+julia> trues(10, 10) .* BandPartMask(3, 5)
+10×10 BitMatrix:
+ 1  1  1  1  1  1  0  0  0  0
+ 1  1  1  1  1  1  1  0  0  0
+ 1  1  1  1  1  1  1  1  0  0
+ 1  1  1  1  1  1  1  1  1  0
+ 0  1  1  1  1  1  1  1  1  1
+ 0  0  1  1  1  1  1  1  1  1
+ 0  0  0  1  1  1  1  1  1  1
+ 0  0  0  0  1  1  1  1  1  1
+ 0  0  0  0  0  1  1  1  1  1
+ 0  0  0  0  0  0  1  1  1  1
+```
 """
 BandPartMask
 
@@ -100,6 +199,36 @@ BandPartMask
     GenericAttenMask <: AbstractAttenMask{ARRAYDATA}
 
 Generic attention mask. Just a wrapper over `AbstractArray{Bool}` for dispatch.
+
+# Example
+
+```julia-repl
+julia> bitmask = rand(Bool, 10, 10)
+10×10 Matrix{Bool}:
+ 1  0  1  1  0  0  1  0  1  1
+ 0  0  1  1  0  0  0  1  1  1
+ 0  1  0  1  0  1  0  0  1  0
+ 0  1  1  0  1  1  0  0  0  1
+ 1  0  1  1  1  0  0  0  0  1
+ 1  0  1  0  1  1  1  1  0  1
+ 0  0  0  1  1  1  0  1  1  1
+ 1  0  1  0  1  1  1  0  0  1
+ 0  1  0  1  0  0  1  1  0  1
+ 0  0  0  1  0  1  0  0  0  1
+
+julia> trues(10, 10) .* GenericAttenMask(bitmask)
+10×10 BitMatrix:
+ 1  0  1  1  0  0  1  0  1  1
+ 0  0  1  1  0  0  0  1  1  1
+ 0  1  0  1  0  1  0  0  1  0
+ 0  1  1  0  1  1  0  0  0  1
+ 1  0  1  1  1  0  0  0  0  1
+ 1  0  1  0  1  1  1  1  0  1
+ 0  0  0  1  1  1  0  1  1  1
+ 1  0  1  0  1  1  1  0  0  1
+ 0  1  0  1  0  0  1  1  0  1
+ 0  0  0  1  0  1  0  0  0  1
+```
 """
 GenericAttenMask
 
@@ -162,7 +291,7 @@ julia> trues(5,5, 2) .* bm
 
 ```
 
-See also: [`SymLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
+See also: [`SymLengthMask`](@ref), [`BiSeqMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
 """
 BiLengthMask
 
@@ -257,7 +386,7 @@ julia> trues(5,5, 2) .* bm
 
 ```
 
-See also: [`RevLengthMask`](@ref), [`RevSymLengthMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
+See also: [`RevLengthMask`](@ref), [`RevSymLengthMask`](@ref), [`BiSeqMask`](@ref), [`BatchedMask`](@ref), [`RepeatMask`](@ref)
 """
 RevBiLengthMask
 
@@ -295,15 +424,15 @@ julia> ones(7, 7, 2) .* RevLengthMask([3, 5])
 RevLengthMask
 
 """
-    GenericSequenceMask(mask::AbstractArray{Bool}) <: AbstractSeqMask{ARRAYDATA}
+    GenericSeqMask(mask::AbstractArray{Bool}) <: AbstractSeqMask{ARRAYDATA}
 
 Create a sequence mask from an array of `Bool`.
 
 # Example
 
 ```julia-repl
-julia> m = GenericSequenceMask(rand(Bool, 10, 2))
-GenericSequenceMask{3, Array{Bool, 3}}([0 1 … 0 0;;; 1 0 … 1 0])
+julia> m = GenericSeqMask(rand(Bool, 10, 2))
+GenericSeqMask{3, Array{Bool, 3}}([0 1 … 0 0;;; 1 0 … 1 0])
 
 julia> trues(7, 10, 2) .* m
 7×10×2 BitArray{3}:
@@ -335,7 +464,40 @@ julia> m.mask
 
 ```
 """
-GenericSequenceMask
+GenericSeqMask
+
+"""
+    BiSeqMask(qmask::A1, kmask::A2) where {A1 <: AbstractSeqMask, A2 <: AbstractSeqMask} <: AbstractAttenMask
+
+Take two sequence mask and construct an attention mask.
+
+# Example
+
+```julia-repl
+julia> trues(7, 7, 2) .* Masks.BiSeqMask(Masks.LengthMask([3, 5]), Masks.RevLengthMask([3, 5]))
+7×7×2 BitArray{3}:
+[:, :, 1] =
+ 0  0  0  0  0  0  0
+ 0  0  0  0  0  0  0
+ 0  0  0  0  0  0  0
+ 0  0  0  0  0  0  0
+ 1  1  1  0  0  0  0
+ 1  1  1  0  0  0  0
+ 1  1  1  0  0  0  0
+
+[:, :, 2] =
+ 0  0  0  0  0  0  0
+ 0  0  0  0  0  0  0
+ 1  1  1  1  1  0  0
+ 1  1  1  1  1  0  0
+ 1  1  1  1  1  0  0
+ 1  1  1  1  1  0  0
+ 1  1  1  1  1  0  0
+```
+
+See also: [`BiLengthMask`](@ref), [`BiRevLengthMask`](@ref)
+"""
+BiSeqMask
 
 """
     !m::AbstractMask
