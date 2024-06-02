@@ -37,7 +37,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dropout), rng::Abstra
     m = GetIndexer(IndexerAdaptor(rng), RandomMask(p), _dropout_masksize(x, dims), scale)
     function dropout_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        thk = @thunk _fast_broadcast(*, Ȳ, m)
+        thk = @thunk _fast_broadcast2!(*, similar(x), Ȳ, m)
         return (NoTangent(), NoTangent(), thk, NoTangent(), NoTangent())
     end
     return _fast_broadcast(*, x, m), dropout_pullback

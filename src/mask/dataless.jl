@@ -23,7 +23,7 @@ adapt_structure(to::IndexerAdaptor, x::RandomMask) = RandomMask(x.p, adapt(to, @
 
 Base.@propagate_inbounds maskgetindex(::Dims, m::RandomMask{Nothing}, _::Integer...) = rand(Float32) >= m.p
 Base.@propagate_inbounds function maskgetindex(destsize::Dims, m::RandomMask, I::Integer...)
-    s = xor(((one(UInt32), UInt32.(Base.tail(destsize))...) .* UInt32.(reverse(I)))...) + one(UInt32)
+    s = +((shape2stride(unsafe_trunc.(UInt32, destsize)) .* unsafe_trunc.(UInt32, I))...)
     v, rng = prand(Float32, setpos(m.rng, s), s)
     return v >= m.p
 end

@@ -11,7 +11,11 @@ ChainRulesCore.@non_differentiable lengths(m)
 
 function ChainRulesCore.rrule(::typeof(apply_mask), ::NaiveMaskOp, mask, score)
     m = GetIndexer(mask, size(score))
-    naive_apply_mask_pullback(Ȳ) = (NoTangent(), NoTangent(), NoTangent(), _fast_broadcast(*, unthunk(Ȳ), m))
+    function naive_apply_mask_pullback(Ybar)
+        Ȳ = unthunk(Ybar)
+        thk = @thunk _fast_broadcast2!(*, similar(score), Ȳ, m)
+        (NoTangent(), NoTangent(), NoTangent(), thk)
+    end
     return _fast_broadcast(*, score, m), naive_apply_mask_pullback
 end
 
@@ -58,7 +62,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask)
     m = GetIndexer(mask, size(score), convert(eltype(score), scale))
     function apply_broadcast_mask_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        thk = @thunk _fast_broadcast(*, Ȳ, m)
+        thk = @thunk _fast_broadcast2!(*, similar(score), Ȳ, m)
         return (NoTangent(), NoTangent(), NoTangent(), thk, NoTangent())
     end
     return _fast_broadcast(*, score, m), apply_broadcast_mask_pullback

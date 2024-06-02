@@ -24,8 +24,8 @@ Base.size(I::Indexer) = I.destsize
 
 @inline Base.@propagate_inbounds Base.getindex(m::Indexer{Bool}, I::Integer...) = __maskgetindex__(m.destsize, m.mask, I...)
 @inline Base.@propagate_inbounds Base.getindex(m::Indexer{Bool}, I::Tuple) = __maskgetindex__(m.destsize, m.mask, I...)
-@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Integer...) = m.scale * __maskgetindex__(m.destsize, m.mask, I...)
-@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Tuple) = m.scale * __maskgetindex__(m.destsize, m.mask, I...)
+@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Integer...) = ifelse(__maskgetindex__(m.destsize, m.mask, I...), m.scale, zero(m.scale))
+@inline Base.@propagate_inbounds Base.getindex(m::Indexer, I::Tuple) = ifelse(__maskgetindex__(m.destsize, m.mask, I...), m.scale, zero(m.scale))
 
 using Adapt
 import Adapt: adapt_structure
