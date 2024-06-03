@@ -73,7 +73,8 @@ _shape2stride(stride, shape::Tuple{T, T, Vararg{T}}) where T =
 
 # https://github.com/FluxML/NNlib.jl/blob/7369244c1a64317eef5b0a20c142316947a85bb3/src/utils.jl#L131-L141
 function _fast_broadcast2!(f::F, dst::Array, x, yz...) where {F<:Function}
-    bc = Broadcast.instantiate(Broadcast.broadcasted(f, x, yz...))
+    bc = Broadcast.broadcasted(f, x, yz...)
+    bc = Broadcast.instantiate(Broadcast.Broadcasted(bc.style, bc.f, bc.args, axes(dst)))
     @simd ivdep for I in eachindex(bc)
         @inbounds dst[I] = bc[I]
     end
