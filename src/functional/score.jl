@@ -38,7 +38,7 @@ function bias_add(b, s)
     return s .+ b
 end
 biased_score(b) = biased_score $ b
-biased_score(b, score, args...) = collapseddims_nonbatch(bias_add(b), score(args...))
+@inline biased_score(b, score, args...) = collapseddims_nonbatch(bias_add(b), score(args...))
 
 @inline attention_score(f, args...) = f(args...)
 @inline attention_score(pf::PrefixedFunction, args...) = attention_score(pf.f, pf.arg..., args...)

@@ -16,6 +16,13 @@ function _dropout!(rng::AbstractRNG, dst::AbstractArray, src::AbstractArray, p::
     return _fast_broadcast2!(*, dst, src, m)
 end
 
+function _dropout_rrule!(rng::AbstractRNG, y::AbstractArray, x::AbstractArray, p::Real, dims)
+    scale = convert(eltype(x), inv(one(p) - p))
+    m = GetIndexer(IndexerAdaptor(rng), RandomMask(p), _dropout_masksize(x, dims), scale)
+    _fast_broadcast2!(*, y, x, m)
+    dropout_dx!(dx, dy) = _fast_broadcast2!(*, dx, dy, m)
+    return y, dropout_dx!
+end
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dropout), x::AbstractArray, p::Real)
     y, back = rrule(config, dropout, x, p, :)
     dropout_pullback(Ȳ) = Base.front(back(Ȳ))
@@ -33,14 +40,13 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dropout), rng::Abstra
     return y, dropout_pullback
 end
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dropout), rng::AbstractRNG, x::AbstractArray, p::Real, dims)
-    scale = convert(eltype(x), inv(one(p) - p))
-    m = GetIndexer(IndexerAdaptor(rng), RandomMask(p), _dropout_masksize(x, dims), scale)
+    y, dropout_dx! = _dropout_rrule!(rng, similar(x), x, p, dims)
     function dropout_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        thk = @thunk _fast_broadcast2!(*, similar(x), Ȳ, m)
+        thk = @thunk dropout_dx!(similar(x), Ȳ)
         return (NoTangent(), NoTangent(), thk, NoTangent(), NoTangent())
     end
-    return _fast_broadcast(*, x, m), dropout_pullback
+    return y, dropout_pullback
 end
 
 struct dropoutF{R <: Union{Nothing, AbstractRNG}, P <: Union{Nothing, Real}, D} <: Function
@@ -70,6 +76,18 @@ function ChainRulesCore.rrule(config::RuleConfig, f::dropoutF{R}, x::AbstractArr
     pullback(Ȳ) = Base.front(back(Ȳ))
     return y, pullback
 end
+
+struct dropoutF!{R <: Union{Nothing, AbstractRNG}, P <: Union{Nothing, Real}, D} <: Function
+    rng::R
+    p::P
+    dims::D
+end
+dropoutF!(; rng = nothing, p = nothing, dims = :) = dropoutF!(rng, p, dims)
+dropoutF!(f::dropoutF) = dropoutF!(f.rng, f.p, f.dims)
+(f::dropoutF!{Nothing, Nothing})(x::AbstractArray, p::Real) = dropout!(x, p, f.dims)
+(f::dropoutF!{Nothing})(x::AbstractArray) = dropout!(x, f.p, f.dims)
+(f::dropoutF!{R, Nothing})(x::AbstractArray, p::Real) where R <: AbstractRNG = dropout!(f.rng, x, p, f.dims)
+(f::dropoutF!{R})(x::AbstractArray) where R <: AbstractRNG = dropout!(f.rng, x, f.p, f.dims)
 
 
 """

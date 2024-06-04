@@ -2,6 +2,16 @@
 
 AxesConstraint(::AbstractAttenMask{DATALESS}) = (NDimConstraint(2, true),)
 
+struct NoMask{T} <: AbstractDatalessMask{T} end
+NoMask() = NoMask{MIXTYPE}()
+
+Base.@propagate_inbounds maskgetindex(::Dims, ::NoMask, _::Integer...) = true
+
+AxesConstraint(::NoMask) = ()
+
+AttenMask(::NoMask) = NoMask{ATTENTION}()
+SeqMask(::NoMask) = NoMask{SEQUENCE}()
+
 struct CausalMask <: AbstractAttenMask{DATALESS} end
 
 Base.@propagate_inbounds maskgetindex(::Dims, ::CausalMask, i::Integer, j::Integer, _::Integer...) = j >= i

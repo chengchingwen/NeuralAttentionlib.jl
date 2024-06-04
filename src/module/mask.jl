@@ -12,7 +12,7 @@ using ..NeuralAttentionlib: @imexport
 
 import ..NeuralAttentionlib: AbstractMask, AbstractSeqMask, AbstractAttenMask, AbstractDatalessMask, AbstractArrayMask,
     MASKDATA, MASKTYPE, DATALESS, ARRAYDATA, MIXDATA, ATTENTION, SEQUENCE, MIXTYPE,
-    AttenMask, SeqMask, AxesConstraint, Indexer, GetIndexer,
+    AttenMask, SeqMask, AxesConstraint, Indexer, GetIndexer, NoMask,
     CombinedMask, FlipMask, lengths, GenericSequenceMask, BiSequenceMask
 
 """
@@ -77,6 +77,14 @@ Convert mask into corresponding attention mask.
 Create a attention mask from 2 sequence masks specific the sequence mask for "query" and "key".
 """
 AttenMask
+
+"""
+    NoMask{T}() <: AbstractDatalessMask{T}
+
+A mask for no mask only for work with wrapper masks type constraints. Generally use `nothing` instead of `NoMask`
+ with `apply_mask`/`mask_score` for the fast path.
+"""
+NoMask
 
 """
     CausalMask() <: AbstractAttenMask{DATALESS}

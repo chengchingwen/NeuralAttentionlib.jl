@@ -14,6 +14,9 @@
       layer_norm, rms_layer_norm, get_sincos_position_embeddings,
       dropout_score, dropoutF, alibi_position_embedding
 
+    struct Rng <: AbstractRNG end
+    Random.rand(::Rng, ::Type{UInt32}) = zero(UInt32)
+
     @testset "score" begin
         if !USE_GPU
             @testset "AD" begin
@@ -63,6 +66,19 @@
                     ; check_inferred = false)
                 test_rrule(
                     normalized_score, x-> (x .^ 2) ./ sum(x; dims=1) ,
+                    dot_product_score,
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                    ; check_inferred = false)
+                test_rrule(
+                    dropout_score, dropoutF(; rng = Rng(), p = 0.5) ⊢ NoTangent(),
+                    dot_product_score,
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                    ; check_inferred = false)
+                test_rrule(
+                    dropout_score, dropoutF(; rng = Rng(), p = 0.5) ⊢ NoTangent(),
+                    normalized_score, NNlib.softmax,
                     dot_product_score,
                     CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
                     CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
@@ -232,8 +248,6 @@
         @test dropoutF(; rng = rng1, p = 0.5, dims = 2)(x) ≈ dropoutF(; rng = rng2, p = 0.5, dims = 2)(x)
         if !USE_GPU
             @testset "AD" begin
-                struct Rng <: AbstractRNG end
-                Random.rand(::Rng, ::Type{UInt32}) = zero(UInt32)
                 test_rrule(dropoutF(; rng = Rng(), p = 0.7) ⊢ NoTangent(), randn(20, 7))
                 test_rrule(dropoutF(; rng = Rng(), p = 0.7, dims=1) ⊢ NoTangent(), randn(20, 7))
                 test_rrule(
