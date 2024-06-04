@@ -1,108 +1,79 @@
 using ChainRulesCore
 
-_alibi_base(cp2) = 2 ^ (- (2 ^ (3 - log2(cp2))))
-function _alibi_slope(base, ebase, cp2, i)
-    if i <= cp2
-        b = base
-        p = i
-    else
-        b = ebase
-        p = ((i - cp2) << 1) - 1
-    end
+_alibi_base(cp2) = Float32(2 ^ (- (2 ^ (3 - log2(cp2)))))
+function _alibi_slope(base, ebase, cp2, e0, i)
+    i = unsafe_trunc(Int32, i)
+    le = i <= cp2
+    b = ifelse(le, base, ebase)
+    e = (i << one(i)) - e0
+    p = oftype(b, ifelse(le, i, e))
     return b ^ p
 end
-_alibi(base, ebase, cp2, h, c::CartesianIndex) = _alibi(base, ebase, cp2, h, first(Tuple(c)))
-function _alibi(base, ebase, cp2, h, i)
-    s = _alibi_slope(base, ebase, cp2, h)
-    return s * (i - 1)
+function _alibi(base, ebase, cp2, e0, h, i)
+    s = _alibi_slope(base, ebase, cp2, e0, h)
+    return s * (i - one(i))
 end
 
+# fast path for a few mask types:
+#  based on the translation invariance property of softmax, the alibi value for each query are shift to have 0 on
+#  the first key. As long as there is no "gaps" between keys, the alibi values with different mask can be the same.
+#  for other kind of masks, we compute the "indices" that ingores all the "gaps" between keys hence allocating a
+#  Int32 array with the same size of the score array.
+_alibi_mask_pattern(::Nothing, _) = nothing
+_alibi_mask_pattern(mask::AbstractAttenMask, _) = mask
+_alibi_mask_pattern(mask::BatchedMask, score) = (pat = _alibi_mask_pattern(mask.mask, score); isnothing(pat) ? nothing : mask)
+_alibi_mask_pattern(mask::CombinedMask{typeof(&)}, score) = all(isnothing ∘ (Base.Fix2(_alibi_mask_pattern, score)), mask.masks) ? nothing : mask
+_alibi_mask_pattern(::CausalMask, _) = nothing
+_alibi_mask_pattern(::LocalMask, _) = nothing
+_alibi_mask_pattern(::BandPartMask, _) = nothing
+_alibi_mask_pattern(::SymLengthMask, _) = nothing
+_alibi_mask_pattern(::BiLengthMask, _) = nothing
+_alibi_mask_pattern(::RevSymLengthMask, _) = nothing
+_alibi_mask_pattern(::RevBiLengthMask, _) = nothing
+_alibi_mask_pattern(mask::BiSeqMask, score) = (pat = _alibi_k_seqmask_pattern(mask.k_mask, score); isnothing(pat) ? nothing : mask)
+_alibi_k_seqmask_pattern(::LengthMask, _) = nothing
+_alibi_k_seqmask_pattern(::RevLengthMask, _) = nothing
 
-_alibi_pattern_path(pat::Union{LengthMask, RevLengthMask, GenericSequenceMask, Nothing}) = true
-_alibi_pattern_path(pat) = false
-_alibi_mask_pattern(mask::Union{CausalMask, SymLengthMask, BiLengthMask}) = nothing
-_alibi_mask_pattern(mask::RevSymLengthMask) = RevLengthMask(mask.len)
-_alibi_mask_pattern(mask::RevBiLengthMask) = RevLengthMask(mask.k_len)
-function _alibi_mask_pattern(mask::BatchedMask)
-    pat = _alibi_mask_pattern(mask.mask)
-    return _alibi_pattern_path(pat) ? pat : mask
-end
-_alibi_mask_pattern(mask) = mask
-_alibi_and_mask_pattern(masks) = _alibi_and_mask_pattern(_alibi_mask_pattern(first(masks)), Base.tail(masks))
-_alibi_and_mask_pattern(pat, ::Tuple{}) = pat
-function _alibi_and_mask_pattern(pat, masks::Tuple)
-    pat1 = _alibi_mask_pattern(first(masks))
-    return pat == pat1 && _alibi_pattern_path(pat) ? _alibi_and_mask_pattern(pat, Base.tail(masks)) : ()
-end
-function _alibi_mask_pattern(mask::CombinedMask{typeof(&)})
-    pat = _alibi_and_mask_pattern(mask.masks)
-    return _alibi_pattern_path(pat) ? pat : mask
-end
-
-_build_alibi(::LengthMask, score) = _build_alibi(nothing, score)
+# alibi is designed for multi-head attention and thus have a head specific scalar
+# we assume the head dim exist and treat the first dim of batch dims as head dim, and others are still batch dims
 function _build_alibi(::Nothing, score)
     klen, qlen, bh = size(score)
     bs = noncollapsed_size(score, 3)
-    # Assume head dim exist, we treat the first number of batch dim as head dim, and others are still batch dims
-    b = ntuple(_->1, length(Base.tail(bs)))
+    b = ntuple(one, Val(length(Base.tail(bs))))
     h = first(bs)
-    cp2 = prevpow(2, h)
+    cp2 = Int32(prevpow(2, h))
+    rp2 = cp2 << 1
     base = _alibi_base(cp2)
-    ebase = _alibi_base(cp2 << 1)
-    return Broadcast.broadcasted(_alibi, base, ebase, cp2,
-                                 LinearIndices((1, 1, h, b...)), CartesianIndices((klen, 1, 1, b...)))
+    ebase = _alibi_base(rp2)
+    e0 = rp2 + one(rp2)
+    return Broadcast.broadcasted(_alibi, base, ebase, cp2, e0, LinearIndices((1, 1, h, b...)), Base.OneTo{Int32}(klen))
 end
-function _build_alibi(mask::GenericSequenceMask, score)
+function _build_alibi(mask::AbstractAttenMask, score)
     klen, qlen, bh = size(score)
     bs = noncollapsed_size(score, 3)
-    b = ntuple(_->1, length(Base.tail(bs)))
+    b = ntuple(one, length(Base.tail(bs)))
     h = first(bs)
-    cp2 = prevpow(2, h)
+    cp2 = Int32(prevpow(2, h))
+    rp2 = cp2 << 1
     base = _alibi_base(cp2)
-    ebase = _alibi_base(cp2 << 1)
-    ms = Base.tail(size(mask.mask))
-    # add an extra head dim here, we are assuming that GenericSequenceMask would NOT contain head mask.
-    _mask = reshape(mask.mask, (first(ms), 1, 1 #= head dim =#, Base.tail(ms)...))
-    indices = similar(_mask, Int32)
-    cumsum!(indices, _mask; dims = 1)
-    return Broadcast.broadcasted(_alibi, base, ebase, cp2, LinearIndices((1, 1, h, b...)), indices)
-end
-function _build_alibi(mask::RevLengthMask, score)
-    klen, qlen, bh = size(score)
-    bs = noncollapsed_size(score, 3)
-    m = similar(score, Bool, 1, klen, Base.tail(bs)...)
-    m .= first.(tuple.(mask, m))
-    return build_alibi(GenericSequenceMask(m), score)
-end
-function _build_alibi(mask::AbstractMask, score)
-    klen, qlen, bh = size(score)
-    bs = noncollapsed_size(score, 3)
-    b = ntuple(_->1, length(Base.tail(bs)))
-    h = first(bs)
-    cp2 = prevpow(2, h)
-    base = _alibi_base(cp2)
-    ebase = _alibi_base(cp2 << 1)
-    indices = similar(score, Int32, klen, qlen, bs...)
-    indices .= first.(tuple.(mask, collapseddims_nonbatch(score)))
+    ebase = _alibi_base(rp2)
+    e0 = rp2 + one(rp2)
+    shape = (klen, qlen, bs...)
+    indices = _fast_broadcast2!(identity, similar(score, Int32, shape), GetIndexer(mask, shape))
     cumsum!(indices, indices; dims=1)
-    return Broadcast.broadcasted(_alibi, base, ebase, cp2, LinearIndices((1, 1, h, b...)), indices)
+    return Broadcast.broadcasted(_alibi, base, ebase, cp2, e0, LinearIndices((1, 1, h, b...)), indices)
 end
+build_alibi(mask::Union{AbstractAttenMask, Nothing}, score) = _build_alibi(_alibi_mask_pattern(mask, score), score)
 
-function build_alibi(mask::Union{AbstractMask, Nothing}, score)
-    pat = _alibi_mask_pattern(mask)
-    return _build_alibi(pat, score)
-end
-
-
-alibi_position_embedding(mask::Union{AbstractMask, Nothing}) = alibi_position_embedding $ mask
+alibi_position_embedding(mask::Union{AbstractAttenMask, Nothing}) = alibi_position_embedding $ mask
 alibi_position_embedding(score, args...) = alibi_position_embedding(nothing, score, args...)
-function alibi_position_embedding(mask::Union{AbstractMask, Nothing}, score, args...)
+function alibi_position_embedding(mask::Union{AbstractAttenMask, Nothing}, score, args...)
     score_val = score(args...)
     alibi = build_alibi(mask, score_val)
-    return collapseddims_nonbatch(Base.Fix1(.+, alibi), score_val)
+    score_val2 = similar(score_val)
+    _fast_broadcast2!(+, collapseddims_nonbatch(score_val2), alibi, collapseddims_nonbatch(score_val))
+    return score_val2
 end
-alibi_position_embedding(::typeof(build_alibi), alibi, score, args...) =
-    collapseddims_nonbatch(Base.Fix1(.+, alibi), score(args...))
 
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(alibi_position_embedding), score, args...)
     y, pullback = rrule(config, alibi_position_embedding, nothing, score, args...)
@@ -110,25 +81,13 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(alibi_position_embedd
     return y, alibi_pullback
 end
 function ChainRulesCore.rrule(config::RuleConfig, ::typeof(alibi_position_embedding),
-                              mask::Union{AbstractMask, Nothing}, score, args...)
+                              mask::Union{AbstractAttenMask, Nothing}, score, args...)
     score_tape = rrule(config, score, args...)
     isnothing(score_tape) && (score_tape = rrule_via_ad(config, score, args...))
     score_val, score_pullback = score_tape
     alibi = build_alibi(mask, score_val)
-    function alibi_pullback(Ȳ)
-        ∂args = score_pullback(Ȳ)
-        return (NoTangent(), NoTangent(), ∂args...)
-    end
-    return collapseddims_nonbatch(Base.Fix1(.+, alibi), score_val), alibi_pullback
-end
-function ChainRulesCore.rrule(config::RuleConfig, ::typeof(alibi_position_embedding),
-                              ::typeof(build_alibi), alibi, score, args...)
-    score_tape = rrule(config, score, args...)
-    isnothing(score_tape) && (score_tape = rrule_via_ad(config, score, args...))
-    score_val, score_pullback = score_tape
-    function alibi_pullback(Ȳ)
-        ∂args = score_pullback(Ȳ)
-        return (NoTangent(), NoTangent(), NoTangent(), ∂args...)
-    end
-    return collapseddims_nonbatch(Base.Fix1(.+, alibi), score_val), alibi_pullback
+    score_val2 = similar(score_val)
+    _fast_broadcast2!(+, collapseddims_nonbatch(score_val2), alibi, collapseddims_nonbatch(score_val))
+    alibi_pullback(Ȳ) = (NoTangent(), NoTangent(), score_pullback(Ȳ)...)
+    return score_val2, alibi_pullback
 end

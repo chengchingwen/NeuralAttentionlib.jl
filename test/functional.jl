@@ -1,4 +1,5 @@
 @testset "functional" begin
+    using Random
     using Statistics
     using Flux
     using Flux.Zygote
@@ -10,7 +11,8 @@
     using NeuralAttentionlib: as_collapsed,
       get_scalar_relative_position_embeddings,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
-      layer_norm, rms_layer_norm, get_sincos_position_embeddings
+      layer_norm, rms_layer_norm, get_sincos_position_embeddings,
+      dropout_score, dropoutF, alibi_position_embedding
 
     @testset "score" begin
         if !USE_GPU
@@ -199,6 +201,47 @@
                 test_rrule(
                     scaled_dot_product_score, with_rotary_position_embedding, randn(512, 5, 2), randn(512, 5, 2);
                     check_inferred = false)
+            end
+        end
+    end
+
+    @testset "alibi position embedding" begin
+        x1 = dzeros(10, 10, 3, 2);
+        x2 = dzeros(10, 10, 3, 2);
+        x1 .= NeuralAttentionlib._build_alibi(nothing, CollapsedDimsArray(randn(10, 5, 2, 3, 2), 2, 2))
+        x2 .= NeuralAttentionlib._build_alibi(Masks.BatchedMask(Masks.GenericAttenMask(trues(10, 10))), CollapsedDimsArray(randn(10, 5, 2, 3, 2), 2, 2))
+        @test x1 ≈ x2
+        if !USE_GPU
+            @testset "AD" begin
+                test_rrule(
+                    alibi_position_embedding,
+                    dot_product_score,
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                )
+            end
+        end
+    end
+
+    @testset "dropout" begin
+        x = drandn(20, 7)
+        rng1 = Xoshiro()
+        rng2 = copy(rng1)
+        @test dropoutF(; rng = rng1, p = 0.5)(x) ≈ dropoutF(; rng = rng2, p = 0.5)(x)
+        @test dropoutF(; rng = rng1, p = 0.5, dims = 1)(x) ≈ dropoutF(; rng = rng2, p = 0.5, dims = 1)(x)
+        @test dropoutF(; rng = rng1, p = 0.5, dims = 2)(x) ≈ dropoutF(; rng = rng2, p = 0.5, dims = 2)(x)
+        if !USE_GPU
+            @testset "AD" begin
+                struct Rng <: AbstractRNG end
+                Random.rand(::Rng, ::Type{UInt32}) = zero(UInt32)
+                test_rrule(dropoutF(; rng = Rng(), p = 0.7) ⊢ NoTangent(), randn(20, 7))
+                test_rrule(dropoutF(; rng = Rng(), p = 0.7, dims=1) ⊢ NoTangent(), randn(20, 7))
+                test_rrule(
+                    dropout_score, dropoutF(; rng = Rng(), p = 0.5) ⊢ NoTangent(),
+                    dot_product_score,
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                    CollapsedDimsArray(randn(5, 21, 3, 2), 1, 2),
+                )
             end
         end
     end

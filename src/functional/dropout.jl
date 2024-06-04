@@ -56,8 +56,8 @@ dropoutF(; rng = nothing, p = nothing, dims = :) = dropoutF(rng, p, dims)
 
 function ChainRulesCore.rrule(config::RuleConfig, f::dropoutF{R, Nothing}, x::AbstractArray, p::Real) where R
     if R <: AbstractRNG
-        y, back = rrule(config, dropout, f.rng, x, p, f.dims)
-        pullback_rng(Ȳ) = (NoTangent(), back(Ȳ)[3], NoTangent())
+        y, back_rng = rrule(config, dropout, f.rng, x, p, f.dims)
+        pullback_rng(Ȳ) = (NoTangent(), back_rng(Ȳ)[3], NoTangent())
         return y, pullback_rng
     else
         y, back = rrule(config, dropout, x, p, f.dims)
