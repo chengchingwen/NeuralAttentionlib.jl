@@ -45,6 +45,7 @@ include("./functional/position_embedding/alibi.jl")
 
 # extra helper functions
 include("./functional/layernorm.jl")
+include("./functional/l2norm.jl")
 
 include("./types.jl")
 

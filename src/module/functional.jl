@@ -16,7 +16,7 @@ import ..NeuralAttentionlib:
     move_head_dim_in_perm, move_head_dim_in, merge_head,
     t5_bucketed_position_id, t5_causal_bucketed_position_id,
     layer_norm, rms_layer_norm, get_sincos_position_embeddings,
-    dropout, dropoutF
+    l2norm, dropout, dropoutF
 
 using ..NeuralAttentionlib: SymLengthMask, BiLengthMask, CausalMask
 
@@ -328,5 +328,12 @@ If both `alpha` is `Nothing`, this is just a normalization with root-mean-square
  dimension.
 """
 rms_layer_norm
+
+"""
+    l2norm([epsilon = 1e-5,] x)
+
+Function which perform the L2 normalization on `x`.
+"""
+l2norm
 
 end

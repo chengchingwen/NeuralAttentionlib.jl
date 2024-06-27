@@ -12,7 +12,7 @@
       get_scalar_relative_position_embeddings,
       t5_bucketed_position_id, t5_causal_bucketed_position_id,
       layer_norm, rms_layer_norm, get_sincos_position_embeddings,
-      dropout_score, dropoutF, alibi_position_embedding
+      dropout_score, dropoutF, alibi_position_embedding, l2norm
 
     struct Rng <: AbstractRNG end
     Random.rand(::Rng, ::Type{UInt32}) = zero(UInt32)
@@ -163,7 +163,6 @@
             end
             return embedding
         end
-        l2norm(x) = x ./ sqrt.(sum(x .^ 2; dims=1))
         @test get_sincos_position_embeddings(512, false, 1024) ≈ sincos_pe(512, 1024)
         @test get_sincos_position_embeddings(513, false, 1024) ≈ sincos_pe(513, 1024)
         @test get_sincos_position_embeddings(512, true, 1024) ≈ l2norm(sincos_pe(512, 1024))
@@ -311,6 +310,13 @@
 
             end
         end
+    end
+
+    @testset "l2norm" begin
+        naive_l2norm(x) = x ./ sqrt.(sum(x .^ 2; dims=1))
+        x = drandn(512, 3, 2)
+        @test l2norm(x) ≈ naive_l2norm(x)
+        @test Zygote.gradient(x->sum(sin.(l2norm(x))), x)[1] ≈ Zygote.gradient(x->sum(sin.(naive_l2norm(x))), x)[1]
     end
 
     @testset "attention" begin

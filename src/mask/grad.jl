@@ -7,6 +7,7 @@ ChainRulesCore.@non_differentiable (::Type{<:AbstractMaskOp})(args...)
 ChainRulesCore.@non_differentiable getmask(arg...)
 ChainRulesCore.@non_differentiable AttenMask(m)
 ChainRulesCore.@non_differentiable AttenMask(m1, m2)
+ChainRulesCore.@non_differentiable SeqMask(m)
 ChainRulesCore.@non_differentiable lengths(m)
 
 function ChainRulesCore.rrule(::typeof(apply_mask), ::NaiveMaskOp, mask, score)
