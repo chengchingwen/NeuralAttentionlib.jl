@@ -5,10 +5,6 @@ using NeuralAttentionlib.Adapt
 using NeuralAttentionlib: TypedPtr
 using AMDGPU
 
-import LinearAlgebra
-import LinearAlgebra.BLAS
-using LinearAlgebra.BLAS: get_num_threads, set_num_threads
-
 const NAlib = NeuralAttentionlib
 
 import AMDGPU.rocBLAS
@@ -39,7 +35,7 @@ for (fname, elty) in
     end
 end
 
-NeuralAttentionlib.ptrtypetag(::AMDGPU.ROCArrayBackend) = ROCArray
-NeuralAttentionlib.check_strided_gemm_type(A::ROCArray{Float16}) = true
+NAlib.ptrtypetag(::AMDGPU.ROCArrayBackend) = ROCArray
+NAlib.check_strided_gemm_type(A::ROCArray{Float16}) = true
 
 end

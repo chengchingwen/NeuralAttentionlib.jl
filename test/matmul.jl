@@ -14,12 +14,16 @@
         cy = y isa NeuralAttentionlib.Collapsed ? collapseddims(y) : y
         @assert !(cx isa CollapsedDimsArray) "$(typeof(cx))"
         @assert !(cy isa CollapsedDimsArray) "$(typeof(cy))"
-        return matmul(x, y, s) ≈ batched_mul(cx, cy) .* s
+        return matmul(x, y, s) ≈ device(batched_mul(cpu(cx), cpu(cy)) .* s)
     end
     uwcs(x) = size(unwrap_collapse(x))
 
     if USE_GPU
-        eltype_list = (Float64, Float32, Float16, ComplexF64, ComplexF32)
+        if GPUBACKEND == :metal
+            eltype_list = (Float32, Float16, ComplexF32)
+        else
+            eltype_list = (Float64, Float32, Float16, ComplexF64, ComplexF32)
+        end
     else
         eltype_list = (Float64, Float32, ComplexF64, ComplexF32)
     end

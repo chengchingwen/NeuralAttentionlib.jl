@@ -1,7 +1,6 @@
 module Old_Impl
 
 import NeuralAttentionlib
-using CUDA
 
 export MultiheadAttention
 
