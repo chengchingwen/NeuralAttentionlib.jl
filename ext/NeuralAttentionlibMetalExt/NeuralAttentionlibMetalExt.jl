@@ -4,19 +4,9 @@ using NeuralAttentionlib
 using NeuralAttentionlib.Adapt
 using NeuralAttentionlib.NNlib
 using Metal
-using Metal.MPS: MPSMatrix, MTLBuffer, NSUInteger, MPSMatrixDescriptor, id
 
 const NAlib = NeuralAttentionlib
 
-function _mpsmatrix(arr, desc, offset)
-    mat = MPS.@objc [MPSMatrix alloc]::id{MPSMatrix}
-    obj = MPS.MPSMatrix(mat)
-    finalizer(MPS.release, obj)
-    MPS.@objc [obj::MPS.id{MPSMatrix} initWithBuffer:arr::id{MTLBuffer}
-               offset:offset::NSUInteger
-               descriptor:desc::id{MPSMatrixDescriptor}]::id{MPSMatrix}
-    return obj
-end
 function mpsmatrix(arr::MtlArray{T}, lda, stride, batch) where T
     sz = sizeof(T)
     N = length(arr)
@@ -28,7 +18,7 @@ function mpsmatrix(arr::MtlArray{T}, lda, stride, batch) where T
     matrix_bytes = iszero(stride) ? 0 : row_bytes * n_rows
     desc = MPS.MPSMatrixDescriptor(n_rows, n_cols, n_matrices, row_bytes, matrix_bytes, T)
     offset = arr.offset * sz
-    return _mpsmatrix(arr, desc, offset), (n_cols, n_rows, n_matrices)
+    return MPS.MPSMatrix(arr, desc, offset), (n_cols, n_rows, n_matrices)
 end
 
 for elty in (:Float32, :Float16)
@@ -51,10 +41,9 @@ for elty in (:Float32, :Float16)
             cols_a = shp_A[transpose_a ? 1 : 2]
             cols_c, rows_c = shp_C
 
-            mat_mul_kernel = MPS.MPSMatrixMultiplication(Metal.current_device(),
-                                                         transpose_b, transpose_a, rows_c, cols_c, cols_a, alpha, beta)
+            mat_mul_kernel = MPS.MPSMatrixMultiplication(device(), transpose_b, transpose_a, rows_c, cols_c, cols_a, alpha, beta)
 
-            cmdbuf = Metal.MTLCommandBuffer(Metal.global_queue(Metal.current_device()))
+            cmdbuf = Metal.MTLCommandBuffer(Metal.global_queue(device()))
             MPS.encode!(cmdbuf, mat_mul_kernel, mps_b, mps_a, mps_c)
             Metal.commit!(cmdbuf)
             return C
