@@ -18,6 +18,7 @@ AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
+Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [extensions]
@@ -25,6 +26,7 @@ NeuralAttentionlibAMDGPUExt = ["AMDGPU", "GPUArrays"]
 NeuralAttentionlibCUDAExt = ["CUDA", "GPUArrays"]
 NeuralAttentionlibFiniteDifferencesExt = "FiniteDifferences"
 NeuralAttentionlibGPUArraysExt = "GPUArrays"
+NeuralAttentionlibMetalExt = ["Metal", "GPUArrays"]
 NeuralAttentionlibZygoteExt = "Zygote"
 
 [compat]
@@ -36,18 +38,18 @@ FiniteDifferences = "0.12"
 FuncTransforms = "0.1"
 GPUArrays = "10"
 GPUArraysCore = "0.1"
+Metal = "1.1"
 NNlib = "0.9"
 Static = "0.7, 0.8"
 Zygote = "0.6"
 julia = "1.10"
 
 [extras]
-AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 Pickle = "fbb45041-c46e-462f-888f-7c521cafbc2c"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -55,4 +57,4 @@ ZipFile = "a5390f91-8eb1-5f08-bee0-b1d1ffed6cea"
 ZygoteRules = "700de1a5-db45-46bc-99cf-38207098b444"
 
 [targets]
-test = ["Test", "Flux", "MacroTools", "ZygoteRules", "CUDA", "AMDGPU", "ChainRulesTestUtils", "Random", "Pickle", "ZipFile", "Statistics"]
+test = ["Test", "Flux", "MacroTools", "ZygoteRules", "ChainRulesTestUtils", "Random", "Pickle", "Pkg", "ZipFile", "Statistics"]
