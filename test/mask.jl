@@ -3,9 +3,9 @@
     using NeuralAttentionlib.Masks
     using NeuralAttentionlib: getmask, lengths, AttenMask
 
-    causal(x) = batched_triu!(copy(x), 0) |> device
-    trilu(x, d) = batched_tril!(batched_triu!(copy(x), -d), d) |> device
-    bandpart(x, l, u) = batched_tril!(batched_triu!(copy(x), -l), u) |> device
+    causal(x) = batched_triu!(cpu(copy(x)), 0) |> device
+    trilu(x, d) = batched_tril!(batched_triu!(cpu(copy(x)), -d), d) |> device
+    bandpart(x, l, u) = batched_tril!(batched_triu!(cpu(copy(x)), -l), u) |> device
 
     test_random(x, p) = isapprox(sum(x .* RandomMask(p)) / length(x), 1-p, atol=1e-1)
 
@@ -62,7 +62,7 @@
         end
         return y |> device
     end
-    grow_rlength(len1, len2, n) = reverse!(reverse!(grow_length(len1, len2, n); dims=1); dims=2)
+    grow_rlength(len1, len2, n) = reverse!(reverse!(cpu(grow_length(len1, len2, n)); dims=1); dims=2) |> device
 
     @testset "array mask" begin
         a = dones(Int, 10, 10)
@@ -93,7 +93,7 @@
         @test b .* BiLengthMask(bmaskq_b, bmaskk_b) == grow_length(bmaskk_b, bmaskq_b, 10)
         @test c .* BiLengthMask(bmaskq_c, bmaskk_c) == grow_length(bmaskk_c, bmaskq_c, 10)
 
-        rev!(x) = reverse!(reverse!(x; dims=1); dims=2)
+        rev!(x) = reverse!(reverse!(cpu(x); dims=1); dims=2) |> device
         @test a .* RevSymLengthMask(smask_a) == rev!(a .* SymLengthMask(smask_a))
         @test b .* RevSymLengthMask(smask_b) == rev!(b .* SymLengthMask(smask_b))
         @test c .* RevSymLengthMask(smask_c) == rev!(c .* SymLengthMask(smask_c))
@@ -206,8 +206,8 @@
     end
 
     @testset "sequence mask" begin
-        a0 = hcat([1, 1, 1, 1, 0], [1,1,1,0,0])
-        ra0 = hcat([0, 1, 1, 1, 1], [0,0,1,1,1])
+        a0 = hcat(Bool[1, 1, 1, 1, 0], Bool[1,1,1,0,0])
+        ra0 = hcat(Bool[0, 1, 1, 1, 1], Bool[0,0,1,1,1])
         a = device(reshape(a0, (1, 5, 2)))
         ra = device(reshape(ra0, (1, 5, 2)))
         b = device([4,3])
