@@ -4,7 +4,7 @@ using ChainRulesCore
 default_position_func(hidden_size) = Base.Fix1(default_position_func, static(Int32(hidden_size)))
 @inline function default_position_func(hidden_size, i)
     j = (0x1 - i) << 0x3 #8 * (1 - i)
-    return 1e1 ^ (j / hidden_size)
+    return 1f1 ^ (Float32(j) / hidden_size)
 end
 
 function sincos_position_embed(f, ::Val{hidden_size}, pos, indices, ::Val{normalized}) where {hidden_size, normalized}
@@ -17,9 +17,9 @@ function sincos_position_embed(f, ::Val{hidden_size}, pos, indices, ::Val{normal
         half = hidden_size >> 0x1
         if half << 0x1 != hidden_size
             r = sin(_pos * f(half + 0x1))
-            return y * inv(sqrt(half + r))
+            return y * inv(sqrt(Float32(half + r)))
         else
-            return y * inv(sqrt(half))
+            return y * inv(sqrt(Float32(half)))
         end
     else
         return y
