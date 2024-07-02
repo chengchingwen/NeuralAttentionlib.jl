@@ -223,8 +223,8 @@
     @testset "alibi position embedding" begin
         x1 = dzeros(10, 10, 3, 2);
         x2 = dzeros(10, 10, 3, 2);
-        x1 .= NeuralAttentionlib._build_alibi(nothing, CollapsedDimsArray(randn(10, 5, 2, 3, 2), 2, 2))
-        x2 .= NeuralAttentionlib._build_alibi(Masks.BatchedMask(Masks.GenericAttenMask(trues(10, 10))), CollapsedDimsArray(randn(10, 5, 2, 3, 2), 2, 2))
+        x1 .= NeuralAttentionlib._build_alibi(nothing, CollapsedDimsArray(drandn(10, 5, 2, 3, 2), 2, 2))
+        x2 .= NeuralAttentionlib._build_alibi(Masks.BatchedMask(Masks.GenericAttenMask(device(trues(10, 10)))), CollapsedDimsArray(drandn(10, 5, 2, 3, 2), 2, 2))
         @test x1 ≈ x2
         if !USE_GPU
             @testset "AD" begin
@@ -313,7 +313,12 @@
     end
 
     @testset "l2norm" begin
-        naive_l2norm(x) = x ./ sqrt.(sum(x .^ 2; dims=1))
+        square(x) = x .^ 2
+        function ChainRulesCore.rrule(::typeof(square), x)
+            square_back(Ȳ) = (NoTangent(), convert(eltype(Ȳ), 2) .* x .* Ȳ)
+            return square(x), square_back
+        end
+        naive_l2norm(x) = x ./ sqrt.(sum(square(x); dims=1))
         x = drandn(512, 3, 2)
         @test l2norm(x) ≈ naive_l2norm(x)
         @test Zygote.gradient(x->sum(sin.(l2norm(x))), x)[1] ≈ Zygote.gradient(x->sum(sin.(naive_l2norm(x))), x)[1]

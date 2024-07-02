@@ -1,6 +1,4 @@
-include("./batched_gemm.jl")
-include("./batched_gemm_gpu.jl")
-
+using NeuralAttentionlib
 using ZygoteRules: @adjoint
 
 function batchedmul(a::Abstract3DTensor{T}, b::Abstract3DTensor{T};
@@ -27,7 +25,7 @@ function batched_mul!(C::Abstract3DTensor{T}, A::Abstract3DTensor{T}, B::Abstrac
                       transA::Bool = false, transB::Bool = false) where T
     At = transA ? 'T' : 'N'
     Bt = transB ? 'T' : 'N'
-    batched_gemm!(At, Bt, one(T), A, B, zero(T), C)
+    NeuralAttentionlib.gemm_strided_batched!(At, Bt, one(T), A, B, zero(T), C)
     C
 end
 

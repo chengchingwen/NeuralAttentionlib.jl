@@ -5,10 +5,6 @@ using NeuralAttentionlib.Adapt
 using NeuralAttentionlib: TypedPtr
 using CUDA
 
-import LinearAlgebra
-import LinearAlgebra.BLAS
-using LinearAlgebra.BLAS: get_num_threads, set_num_threads
-
 const NAlib = NeuralAttentionlib
 
 import CUDA.CUBLAS
@@ -39,7 +35,7 @@ for (fname, elty) in
     end
 end
 
-NeuralAttentionlib.ptrtypetag(::CUDA.CuArrayBackend) = CuArray
-NeuralAttentionlib.check_strided_gemm_type(A::CuArray{Float16}) = true
+NAlib.ptrtypetag(::CUDA.CuArrayBackend) = CuArray
+NAlib.check_strided_gemm_type(A::CuArray{Float16}) = true
 
 end
