@@ -1,6 +1,6 @@
 using ChainRulesCore
 using Flux
-using Flux: @functor
+using Flux.Functors: Functors, @functor
 using MacroTools: @forward, @capture
 
 macro toNd(ex, outref::Int=1)
@@ -42,7 +42,7 @@ struct MultiheadAttention{Q<:Dense, K<:Dense, V<:Dense, O<:Dense, DP} <: Abstrac
     drop::DP
 end
 
-Flux.functor(mh::MultiheadAttention) = (mh.iqproj, mh.ikproj, mh.ivproj, mh.oproj), m -> MultiheadAttention(mh.head, mh.future, m..., mh.drop)
+Functors.functor(mh::MultiheadAttention) = (mh.iqproj, mh.ikproj, mh.ivproj, mh.oproj), m -> MultiheadAttention(mh.head, mh.future, m..., mh.drop)
 
 MultiheadAttention(head::Int, is::Int, hs::Int, os::Int; future::Bool=true, drop = nothing) =
     MultiheadAttention(head, future,

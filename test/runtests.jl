@@ -3,8 +3,6 @@ using NeuralAttentionlib
 
 using Random
 using Flux
-using CUDA
-using AMDGPU
 using NNlib
 using Static
 using ChainRulesCore
@@ -46,7 +44,7 @@ if isnothing(GPUBACKEND)
 else
     const USE_GPU = true
     if GPUBACKEND == :cuda
-        using CUDA
+        using CUDA, cuDNN
         CUDA.allowscalar(false)
     elseif GPUBACKEND == :amdgpu
         using AMDGPU

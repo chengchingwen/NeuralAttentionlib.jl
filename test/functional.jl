@@ -223,8 +223,8 @@
     @testset "alibi position embedding" begin
         x1 = dzeros(10, 10, 3, 2);
         x2 = dzeros(10, 10, 3, 2);
-        x1 .= NeuralAttentionlib._build_alibi(nothing, CollapsedDimsArray(randn(10, 5, 2, 3, 2), 2, 2))
-        x2 .= NeuralAttentionlib._build_alibi(Masks.BatchedMask(Masks.GenericAttenMask(trues(10, 10))), CollapsedDimsArray(randn(10, 5, 2, 3, 2), 2, 2))
+        x1 .= NeuralAttentionlib._build_alibi(nothing, CollapsedDimsArray(drandn(10, 5, 2, 3, 2), 2, 2))
+        x2 .= NeuralAttentionlib._build_alibi(device(Masks.BatchedMask(Masks.GenericAttenMask(trues(10, 10)))), CollapsedDimsArray(drandn(10, 5, 2, 3, 2), 2, 2))
         @test x1 ≈ x2
         if !USE_GPU
             @testset "AD" begin
@@ -261,7 +261,7 @@
 
     @testset "layer_norm" begin
         LN = device(LayerNorm(20))
-        LN0 = device(LayerNorm(20; ϵ=0))
+        LN0 = device(LayerNorm(20; eps=0))
         LN.diag.scale .= drandn(20)
         LN.diag.bias .= drandn(20)
         LN0.diag.scale .= drandn(20)
@@ -275,9 +275,9 @@
         @test rms_layer_norm_naive(LN0.diag.scale, x) ≈ rms_layer_norm(0, LN0.diag.scale, x)
 
         x32 = drand(Float32, 100, 2) .+ 1f4
-        @test isapprox(Flux.normalise(x32; dims=1, ϵ = 1f-10), layer_norm(1f-10, nothing, nothing, x32); atol = 2e-1)
+        @test isapprox(Flux.normalise(x32; dims=1, eps = 1f-10), layer_norm(1f-10, nothing, nothing, x32); atol = 2e-1)
         @test isapprox(
-            Flux.gradient(x->sum(sin.(Flux.normalise(x; dims=1, ϵ = 1f-10))), x32)[1],
+            Flux.gradient(x->sum(sin.(Flux.normalise(x; dims=1, eps = 1f-10))), x32)[1],
             Flux.gradient(x->sum(sin.(layer_norm(1f-10, nothing, nothing, x))), x32)[1];
             atol = 5e-1
         )

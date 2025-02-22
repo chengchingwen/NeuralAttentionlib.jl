@@ -39,7 +39,11 @@ for (fname, elty) in
     end
 end
 
-NeuralAttentionlib.ptrtypetag(::CUDA.CuArrayBackend) = CuArray
+@static if isdefined(CUDA, :CuArrayBackend)
+    NeuralAttentionlib.ptrtypetag(::CUDA.CuArrayBackend) = CuArray
+else
+    NeuralAttentionlib.ptrtypetag(::CUDA.CUDABackend) = CuArray
+end
 NeuralAttentionlib.check_strided_gemm_type(A::CuArray{Float16}) = true
 
 end

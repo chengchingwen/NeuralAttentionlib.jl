@@ -39,7 +39,11 @@ for (fname, elty) in
     end
 end
 
-NeuralAttentionlib.ptrtypetag(::AMDGPU.ROCArrayBackend) = ROCArray
+@static if isdefined(AMDGPU, :ROCArrayBackend)
+    NeuralAttentionlib.ptrtypetag(::AMDGPU.ROCArrayBackend) = ROCArray
+else
+    NeuralAttentionlib.ptrtypetag(::AMDGPU.ROCBackend) = ROCArray
+end
 NeuralAttentionlib.check_strided_gemm_type(A::ROCArray{Float16}) = true
 
 end
