@@ -6,13 +6,13 @@
 end
 
 using ChainRulesCore
-using ChainRulesCore: NoTangent, @thunk
+using ChainRulesCore: NoTangent
 import ChainRulesCore: ProjectTo
 function ChainRulesCore.rrule(::Type{CollapsedDimsArray}, x, dims, ni, nj)
     s = size(x)
     function CollapsedDimsArray_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        ∂x = @thunk begin
+        ∂x = @_thunk begin
             tmp = unwrap_collapse(Ȳ)
             size(tmp) == s ? tmp : reshape(tmp, s)
         end
@@ -53,7 +53,7 @@ function ChainRulesCore.rrule(::typeof(parent), x::CollapsedDimsArray)
     proj = ProjectTo(x)
     function collapsed_parent_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        ∂x = @thunk proj(Ȳ)
+        ∂x = @_thunk proj(Ȳ)
         return (NoTangent(), ∂x)
     end
     collapsed_parent_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent())
@@ -67,9 +67,9 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractVecOrMat, B::Abstract
         if Ȳ isa ChainRulesCore.AbstractZero
             Athunk = Bthunk = sthunk = NoTangent()
         else
-            Athunk = @thunk matmul(Ȳ, B', s)
-            Bthunk = @thunk matmul(A', Ȳ, s)
-            sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
+            Athunk = @_thunk matmul(Ȳ, B', s)
+            Bthunk = @_thunk matmul(A', Ȳ, s)
+            sthunk = @_thunk sum(reshape(Ȳ, :) .* reshape(Y, :)) * inv(s)
         end
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
@@ -107,15 +107,15 @@ function ChainRulesCore.rrule(::typeof(matmul), A::AbstractArray, B::AbstractArr
         Â = trans(transA, a)
         B̂ = trans(transB, b)
 
-        Athunk = @thunk begin
+        Athunk = @_thunk begin
             tmp = matmul(Ȳ, batched_adjoint(B̂), s)
             ProjA(size(Â, 3) == 1 ? _sumbatch(tmp) : tmp)
         end
-        Bthunk = @thunk begin
+        Bthunk = @_thunk begin
             tmp = matmul(batched_adjoint(Â), Ȳ, s)
             ProjB(size(B̂, 3) == 1 ? _sumbatch(tmp) : tmp)
         end
-        sthunk = @thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
+        sthunk = @_thunk sum(reshape(Ȳ, :) .* reshape(unwrap_collapse(Y), :)) * inv(s)
         return (NoTangent(), Athunk, Bthunk, sthunk)
     end
     matmul_pullback(::ZeroTangent) = (NoTangent(), ZeroTangent(), ZeroTangent(), ZeroTangent())

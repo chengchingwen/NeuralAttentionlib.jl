@@ -100,12 +100,12 @@ function ChainRulesCore.rrule(::typeof(layer_norm), epsilon, alpha, beta, x)
     y = fma.(α, n, β)
     function layer_norm_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        ∂α = as_bool(cα) ? NoTangent() : @thunk sum(
+        ∂α = as_bool(cα) ? NoTangent() : @_thunk sum(
             Broadcast.instantiate(Broadcast.broadcasted(*, Ȳ, n));
             dims = as_bool(aα) ? _taildims(Ȳ) : :, init = zero(eltype(Ȳ))
         )
-        ∂β = as_bool(cβ) ? NoTangent() : @thunk sum(Ȳ; dims = as_bool(aβ) ? _taildims(Ȳ) : :)
-        ∂x = @thunk Δlayer_norm_dx(Ȳ, ϵ, α, n, x, mean_M2_)
+        ∂β = as_bool(cβ) ? NoTangent() : @_thunk sum(Ȳ; dims = as_bool(aβ) ? _taildims(Ȳ) : :)
+        ∂x = @_thunk Δlayer_norm_dx(Ȳ, ϵ, α, n, x, mean_M2_)
         return (NoTangent(), NoTangent(), ∂α, ∂β, ∂x)
     end
     return y, layer_norm_pullback
@@ -156,12 +156,12 @@ function ChainRulesCore.rrule(::typeof(rms_layer_norm), epsilon, alpha, x)
     y = α .* _rms_norm.(convert(T, 1//N), ϵ, x, sum2)
     function rms_layer_norm_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        ∂α = as_bool(cα) ? NoTangent() : @thunk sum(
+        ∂α = as_bool(cα) ? NoTangent() : @_thunk sum(
             Broadcast.instantiate(Broadcast.broadcasted(*, Ȳ,
                                                         Broadcast.broadcasted(_rms_norm, convert(T, 1//N), ϵ, x, sum2)));
             dims = as_bool(aα) ? _taildims(Ȳ) : :, init = zero(eltype(Ȳ))
         )
-        ∂x = @thunk Δrms_layer_norm_dx(Ȳ, ϵ, α, x, sum2)
+        ∂x = @_thunk Δrms_layer_norm_dx(Ȳ, ϵ, α, x, sum2)
         return (NoTangent(), NoTangent(), ∂α, ∂x)
     end
     return y, rms_layer_norm_pullback

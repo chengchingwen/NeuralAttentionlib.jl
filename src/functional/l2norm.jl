@@ -22,7 +22,7 @@ function ChainRulesCore.rrule(::typeof(l2norm), epsilon, x)
     y = _fast_broadcast2(/, x, broadcasted(max, broadcasted(sqrt, x2), ϵ))
     function l2norm_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        dx = @thunk begin
+        dx = @_thunk begin
             # dx1 = inv.(sqrt.(x2)) .* dy
             # dx2s = sum(.- x ./ x2 .* dy ./ sqrt.(x2); dims=1)
             # dx = dx1 .+ dx2s .* x

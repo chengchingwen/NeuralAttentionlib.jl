@@ -14,7 +14,7 @@ function ChainRulesCore.rrule(::typeof(apply_mask), ::NaiveMaskOp, mask, score)
     m = GetIndexer(mask, size(score))
     function naive_apply_mask_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        thk = @thunk _fast_broadcast2!(*, similar(score), Ȳ, m)
+        thk = @_thunk _fast_broadcast2!(*, similar(score), Ȳ, m)
         (NoTangent(), NoTangent(), NoTangent(), thk)
     end
     return _fast_broadcast(*, score, m), naive_apply_mask_pullback
@@ -63,7 +63,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(apply_broadcast_mask)
     m = GetIndexer(mask, size(score), convert(eltype(score), scale))
     function apply_broadcast_mask_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        thk = @thunk _fast_broadcast2!(*, similar(score), Ȳ, m)
+        thk = @_thunk _fast_broadcast2!(*, similar(score), Ȳ, m)
         return (NoTangent(), NoTangent(), NoTangent(), thk, NoTangent())
     end
     return _fast_broadcast(*, score, m), apply_broadcast_mask_pullback

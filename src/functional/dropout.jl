@@ -43,7 +43,7 @@ function ChainRulesCore.rrule(config::RuleConfig, ::typeof(dropout), rng::Abstra
     y, dropout_dx! = _dropout_rrule!(rng, similar(x), x, p, dims)
     function dropout_pullback(Ybar)
         Ȳ = unthunk(Ybar)
-        thk = @thunk dropout_dx!(similar(x), Ȳ)
+        thk = @_thunk dropout_dx!(similar(x), Ȳ)
         return (NoTangent(), NoTangent(), thk, NoTangent(), NoTangent())
     end
     return y, dropout_pullback

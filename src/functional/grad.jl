@@ -190,7 +190,7 @@ function ChainRulesCore.rrule(
     y, matmul_pullback = rrule(config, matmul, collapsed_adjoint(k), q, s)
     function scaled_dot_product_score_pullback(Ȳ)
         ∂f, ∂kt, ∂q, ∂s = matmul_pullback(Ȳ)
-        ∂k = @thunk begin
+        ∂k = @_thunk begin
             tmp = unthunk(∂kt)
             collapsed_adjoint(tmp)
         end
